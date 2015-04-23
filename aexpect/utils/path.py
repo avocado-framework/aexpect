@@ -27,7 +27,7 @@ def find_command(cmd, default=None):
     :param cmd: Command to be found.
     :param default: Command path to use as a fallback if not found
                     in the standard directories.
-    :raise: :class:`avocado.utils.path.CmdNotFoundError` in case the
+    :raise: :class:`aexpect.utils.path.CmdNotFoundError` in case the
             command was not found and no default was given.
     """
     common_bin_paths = ["/usr/libexec", "/usr/local/sbin", "/usr/local/bin",
