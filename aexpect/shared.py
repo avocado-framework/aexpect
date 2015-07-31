@@ -7,6 +7,9 @@ BASE_DIR = os.environ.get('TMPDIR', '/tmp')
 
 def get_lock_fd(filename):
     if not os.path.exists(filename):
+        parent_dir = os.path.dirname(filename)
+        if not os.path.isdir(parent_dir):
+            os.makedirs(parent_dir)
         open(filename, "w").close()
     fd = os.open(filename, os.O_RDWR)
     fcntl.lockf(fd, fcntl.LOCK_EX)
@@ -64,12 +67,12 @@ def makestandard(shell_fd, echo):
     termios.tcsetattr(shell_fd, termios.TCSANOW, attr)
 
 
-def get_filenames(base_dir, a_id):
-    return [os.path.join(base_dir, 'aexpect_%s' % a_id, s) for s in
+def get_filenames(base_dir):
+    return [os.path.join(base_dir, s) for s in
             "shell-pid", "status", "output", "inpipe", "ctrlpipe",
             "lock-server-running", "lock-client-starting",
             "server-log"]
 
 
-def get_reader_filename(base_dir, a_id, reader):
-    return os.path.join(base_dir, 'aexpect_%s' % a_id, "outpipe-%s" % reader)
+def get_reader_filename(base_dir, reader):
+    return os.path.join(base_dir, "outpipe-%s" % reader)

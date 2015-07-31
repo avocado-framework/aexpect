@@ -127,8 +127,9 @@ class Spawn(object):
          self.ctrlpipe_filename,
          self.lock_server_running_filename,
          self.lock_client_starting_filename,
-         self.server_log_filename) = get_filenames(BASE_DIR,
-                                                   self.a_id)
+         self.server_log_filename) = get_filenames(base_dir)
+
+        assert os.path.isdir(base_dir)
 
         self.command = command
 
@@ -145,7 +146,7 @@ class Spawn(object):
 
         # Define the reader filenames
         self.reader_filenames = dict(
-            (reader, get_reader_filename(BASE_DIR, self.a_id, reader))
+            (reader, get_reader_filename(base_dir, reader))
             for reader in self.readers)
 
         # Let the server know a client intends to open some pipes;
