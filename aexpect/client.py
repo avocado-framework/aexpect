@@ -208,7 +208,8 @@ class Spawn(object):
         """
         Add a reader whose file descriptor can be obtained with _get_fd().
 
-        Should be called before __init__().  Intended for use by derived classes.
+        Should be called before __init__().  Intended for use by derived
+        classes.
 
         :param reader: The name of the reader.
         """
@@ -741,9 +742,9 @@ class Expect(Tail):
         data is filtered using the filter_func function provided.
 
         :param patterns: List of strings (regular expression patterns)
-        :param filter_func: Function to apply to the data read from the child before
-                attempting to match it against the patterns (should take and
-                return a string)
+        :param filter_func: Function to apply to the data read from the child
+                before attempting to match it against the patterns (should take
+                and return a string)
         :param timeout: The duration (in seconds) to wait until a match is
                 found
         :param internal_timeout: The timeout to pass to read_nonblocking
@@ -822,7 +823,7 @@ class Expect(Tail):
     def read_until_last_line_matches(self, patterns, timeout=60,
                                      internal_timeout=None, print_func=None):
         """
-        Read using read_nonblocking until the last non-empty line matches a pattern.
+        Read until the last non-empty line matches a pattern.
 
         Read using read_nonblocking until the last non-empty line of the output
         matches one of the patterns (using match_patterns), or until timeout
@@ -999,7 +1000,7 @@ class ShellSession(Expect):
     def read_up_to_prompt(self, timeout=60, internal_timeout=None,
                           print_func=None):
         """
-        Read using read_nonblocking until the last non-empty line matches the prompt.
+        Read until the last non-empty line matches the prompt.
 
         Read using read_nonblocking until the last non-empty line of the output
         matches the prompt regular expression set by set_prompt, or until
