@@ -732,7 +732,7 @@ class Expect(Tail):
                     return i
 
     def read_until_output_matches(self, patterns, filter_func=lambda x: x,
-                                  timeout=60, internal_timeout=None,
+                                  timeout=60.0, internal_timeout=None,
                                   print_func=None, match_func=None):
         """
         Read from child using read_nonblocking until a pattern matches.
@@ -792,7 +792,7 @@ class Expect(Tail):
             # This shouldn't happen
             raise ExpectError(patterns, o)
 
-    def read_until_last_word_matches(self, patterns, timeout=60,
+    def read_until_last_word_matches(self, patterns, timeout=60.0,
                                      internal_timeout=None, print_func=None):
         """
         Read using read_nonblocking until the last word of the output matches
@@ -820,7 +820,7 @@ class Expect(Tail):
                                               timeout, internal_timeout,
                                               print_func)
 
-    def read_until_last_line_matches(self, patterns, timeout=60,
+    def read_until_last_line_matches(self, patterns, timeout=60.0,
                                      internal_timeout=None, print_func=None):
         """
         Read until the last non-empty line matches a pattern.
@@ -853,7 +853,7 @@ class Expect(Tail):
                                               timeout, internal_timeout,
                                               print_func)
 
-    def read_until_any_line_matches(self, patterns, timeout=60,
+    def read_until_any_line_matches(self, patterns, timeout=60.0,
                                     internal_timeout=None, print_func=None):
         """
         Read using read_nonblocking until any line matches a pattern.
@@ -997,7 +997,7 @@ class ShellSession(Expect):
         # No output -- report unresponsive
         return False
 
-    def read_up_to_prompt(self, timeout=60, internal_timeout=None,
+    def read_up_to_prompt(self, timeout=60.0, internal_timeout=None,
                           print_func=None):
         """
         Read until the last non-empty line matches the prompt.
