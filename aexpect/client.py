@@ -11,11 +11,7 @@ import threading
 import shutil
 import select
 import logging
-
-try:
-    import subprocess32 as subprocess
-except ImportError:
-    import subprocess
+import subprocess
 
 from aexpect.exceptions import ExpectError
 from aexpect.exceptions import ExpectProcessTerminatedError
