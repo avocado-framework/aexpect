@@ -24,11 +24,11 @@ def unlock_fd(fd):
 def is_file_locked(filename):
     try:
         fd = os.open(filename, os.O_RDWR)
-    except Exception:
+    except OSError:
         return False
     try:
         fcntl.lockf(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except Exception:
+    except IOError:
         os.close(fd)
         return True
     fcntl.lockf(fd, fcntl.LOCK_UN)

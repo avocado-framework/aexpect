@@ -177,7 +177,7 @@ class Spawn(object):
             assert(is_file_locked(self.lock_server_running_filename))
             for reader, filename in self.reader_filenames.items():
                 self.reader_fds[reader] = os.open(filename, os.O_RDONLY)
-        except Exception:
+        except (AssertionError, OSError):
             pass
 
         # Allow the server to continue
@@ -265,11 +265,12 @@ class Spawn(object):
         command.
         """
         try:
-            fileobj = open(self.shell_pid_filename, "r")
-            pid = int(fileobj.read())
-            fileobj.close()
-            return pid
-        except Exception:
+            with open(self.shell_pid_filename, 'r') as pid_file:
+                try:
+                    return int(pid_file.read())
+                except ValueError:
+                    return None
+        except IOError:
             return None
 
     def get_status(self):
@@ -279,11 +280,12 @@ class Spawn(object):
         """
         wait_for_lock(self.lock_server_running_filename)
         try:
-            fileobj = open(self.status_filename, "r")
-            status = int(fileobj.read())
-            fileobj.close()
-            return status
-        except Exception:
+            with open(self.status_filename, 'r') as status_file:
+                try:
+                    return int(status_file.read())
+                except ValueError:
+                    return None
+        except IOError:
             return None
 
     def get_output(self):
@@ -291,12 +293,10 @@ class Spawn(object):
         Return the STDOUT and STDERR output of the process so far.
         """
         try:
-            fileobj = open(self.output_filename, "r")
-            output = fileobj.read()
-            fileobj.close()
-            return output
-        except Exception:
-            return ""
+            with open(self.output_filename, 'r') as output_file:
+                return output_file.read()
+        except IOError:
+            return None
 
     def get_stripped_output(self):
         """
@@ -362,7 +362,7 @@ class Spawn(object):
             fd = os.open(self.inpipe_filename, os.O_RDWR)
             os.write(fd, cont)
             os.close(fd)
-        except Exception:
+        except OSError:
             pass
 
     def sendline(self, cont=""):
@@ -384,7 +384,7 @@ class Spawn(object):
             fd = os.open(self.ctrlpipe_filename, os.O_RDWR)
             os.write(fd, "%10d%s" % (len(control_str), control_str))
             os.close(fd)
-        except Exception:
+        except OSError:
             pass
 
 
@@ -551,13 +551,13 @@ class Tail(Spawn):
                 if _thread_kill_requested:
                     try:
                         os.close(fd)
-                    except Exception:
+                    except OSError:
                         pass
                     return
                 try:
                     # See if there's any data to read from the pipe
                     r, w, x = select.select([fd], [], [], 0.05)
-                except Exception:
+                except (select.error, TypeError):
                     break
                 if fd in r:
                     # Some data is available; read it
@@ -681,7 +681,7 @@ class Expect(Tail):
         while True:
             try:
                 r, w, x = select.select([fd], [], [], internal_timeout)
-            except Exception:
+            except (select.error, TypeError):
                 return data
             if fd in r:
                 new_data = os.read(fd, 1024)
@@ -1193,7 +1193,7 @@ class ShellSession(Expect):
             if s not in ok_status:
                 raise ShellCmdError(cmd, s, o)
             return o
-        except Exception:
+        except ShellError:
             if ignore_all_errors:
                 pass
             else:
