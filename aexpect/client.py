@@ -1162,7 +1162,7 @@ class ShellSession(Expect):
                                       print_func)[0]
 
     def cmd(self, cmd, timeout=60, internal_timeout=None, print_func=None,
-            ok_status=[0, ], ignore_all_errors=False):
+            ok_status=None, ignore_all_errors=False):
         """
         Send a command and return its output. If the command's exit status is
         nonzero, raise an exception.
@@ -1188,6 +1188,8 @@ class ShellSession(Expect):
         :raise ShellError: Raised if an unknown error occurs
         :raise ShellCmdError: Raised if the exit status is nonzero
         """
+        if ok_status is None:
+            ok_status = [0, ]
         try:
             s, o = self.cmd_status_output(cmd, timeout, internal_timeout,
                                           print_func)
