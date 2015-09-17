@@ -11,11 +11,7 @@ import threading
 import shutil
 import select
 import logging
-
-try:
-    import subprocess32 as subprocess
-except ImportError:
-    import subprocess
+import subprocess
 
 from aexpect.exceptions import ExpectError
 from aexpect.exceptions import ExpectProcessTerminatedError
@@ -114,6 +110,7 @@ class Spawn(object):
         """
         self.a_id = a_id or data_factory.generate_random_string(8)
         self.log_file = None
+        self.closed = False
 
         base_dir = os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id)
 
@@ -177,7 +174,7 @@ class Spawn(object):
             assert(is_file_locked(self.lock_server_running_filename))
             for reader, filename in self.reader_filenames.items():
                 self.reader_fds[reader] = os.open(filename, os.O_RDONLY)
-        except Exception:
+        except (AssertionError, OSError):
             pass
 
         # Allow the server to continue
@@ -208,7 +205,8 @@ class Spawn(object):
         """
         Add a reader whose file descriptor can be obtained with _get_fd().
 
-        Should be called before __init__().  Intended for use by derived classes.
+        Should be called before __init__().  Intended for use by derived
+        classes.
 
         :param reader: The name of the reader.
         """
@@ -264,11 +262,12 @@ class Spawn(object):
         command.
         """
         try:
-            fileobj = open(self.shell_pid_filename, "r")
-            pid = int(fileobj.read())
-            fileobj.close()
-            return pid
-        except Exception:
+            with open(self.shell_pid_filename, 'r') as pid_file:
+                try:
+                    return int(pid_file.read())
+                except ValueError:
+                    return None
+        except IOError:
             return None
 
     def get_status(self):
@@ -278,11 +277,12 @@ class Spawn(object):
         """
         wait_for_lock(self.lock_server_running_filename)
         try:
-            fileobj = open(self.status_filename, "r")
-            status = int(fileobj.read())
-            fileobj.close()
-            return status
-        except Exception:
+            with open(self.status_filename, 'r') as status_file:
+                try:
+                    return int(status_file.read())
+                except ValueError:
+                    return None
+        except IOError:
             return None
 
     def get_output(self):
@@ -290,12 +290,10 @@ class Spawn(object):
         Return the STDOUT and STDERR output of the process so far.
         """
         try:
-            fileobj = open(self.output_filename, "r")
-            output = fileobj.read()
-            fileobj.close()
-            return output
-        except Exception:
-            return ""
+            with open(self.output_filename, 'r') as output_file:
+                return output_file.read()
+        except IOError:
+            return None
 
     def get_stripped_output(self):
         """
@@ -330,18 +328,20 @@ class Spawn(object):
 
         :param sig: The signal to send the process when attempting to kill it.
         """
-        self.kill(sig=sig)
-        # Wait for the server to exit
-        wait_for_lock(self.lock_server_running_filename)
-        # Call all cleanup routines
-        for hook in self.close_hooks:
-            hook(self)
-        # Close reader file descriptors
-        self._close_reader_fds()
-        self.reader_fds = {}
-        # Remove all used files
-        if 'AEXPECT_DEBUG' not in os.environ:
-            shutil.rmtree(os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id))
+        if not self.closed:
+            self.kill(sig=sig)
+            # Wait for the server to exit
+            wait_for_lock(self.lock_server_running_filename)
+            # Call all cleanup routines
+            for hook in self.close_hooks:
+                hook(self)
+            # Close reader file descriptors
+            self._close_reader_fds()
+            self.reader_fds = {}
+            # Remove all used files
+            if 'AEXPECT_DEBUG' not in os.environ:
+                shutil.rmtree(os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id))
+            self.closed = True
 
     def set_linesep(self, linesep):
         """
@@ -361,7 +361,7 @@ class Spawn(object):
             fd = os.open(self.inpipe_filename, os.O_RDWR)
             os.write(fd, cont)
             os.close(fd)
-        except Exception:
+        except OSError:
             pass
 
     def sendline(self, cont=""):
@@ -383,7 +383,7 @@ class Spawn(object):
             fd = os.open(self.ctrlpipe_filename, os.O_RDWR)
             os.write(fd, "%10d%s" % (len(control_str), control_str))
             os.close(fd)
-        except Exception:
+        except OSError:
             pass
 
 
@@ -550,13 +550,13 @@ class Tail(Spawn):
                 if _thread_kill_requested:
                     try:
                         os.close(fd)
-                    except Exception:
+                    except OSError:
                         pass
                     return
                 try:
                     # See if there's any data to read from the pipe
                     r, w, x = select.select([fd], [], [], 0.05)
-                except Exception:
+                except (select.error, TypeError):
                     break
                 if fd in r:
                     # Some data is available; read it
@@ -680,7 +680,7 @@ class Expect(Tail):
         while True:
             try:
                 r, w, x = select.select([fd], [], [], internal_timeout)
-            except Exception:
+            except (select.error, TypeError):
                 return data
             if fd in r:
                 new_data = os.read(fd, 1024)
@@ -692,7 +692,8 @@ class Expect(Tail):
             if end_time and time.time() > end_time:
                 return data
 
-    def match_patterns(self, cont, patterns):
+    @staticmethod
+    def match_patterns(cont, patterns):
         """
         Match cont against a list of patterns.
 
@@ -709,7 +710,8 @@ class Expect(Tail):
             if re.search(patterns[i], cont):
                 return i
 
-    def match_patterns_multiline(self, cont, patterns):
+    @staticmethod
+    def match_patterns_multiline(cont, patterns):
         """
         Match list of lines against a list of patterns.
 
@@ -729,7 +731,7 @@ class Expect(Tail):
                     return i
 
     def read_until_output_matches(self, patterns, filter_func=lambda x: x,
-                                  timeout=60, internal_timeout=None,
+                                  timeout=60.0, internal_timeout=None,
                                   print_func=None, match_func=None):
         """
         Read from child using read_nonblocking until a pattern matches.
@@ -739,9 +741,9 @@ class Expect(Tail):
         data is filtered using the filter_func function provided.
 
         :param patterns: List of strings (regular expression patterns)
-        :param filter_func: Function to apply to the data read from the child before
-                attempting to match it against the patterns (should take and
-                return a string)
+        :param filter_func: Function to apply to the data read from the child
+                before attempting to match it against the patterns (should take
+                and return a string)
         :param timeout: The duration (in seconds) to wait until a match is
                 found
         :param internal_timeout: The timeout to pass to read_nonblocking
@@ -789,7 +791,7 @@ class Expect(Tail):
             # This shouldn't happen
             raise ExpectError(patterns, o)
 
-    def read_until_last_word_matches(self, patterns, timeout=60,
+    def read_until_last_word_matches(self, patterns, timeout=60.0,
                                      internal_timeout=None, print_func=None):
         """
         Read using read_nonblocking until the last word of the output matches
@@ -817,10 +819,10 @@ class Expect(Tail):
                                               timeout, internal_timeout,
                                               print_func)
 
-    def read_until_last_line_matches(self, patterns, timeout=60,
+    def read_until_last_line_matches(self, patterns, timeout=60.0,
                                      internal_timeout=None, print_func=None):
         """
-        Read using read_nonblocking until the last non-empty line matches a pattern.
+        Read until the last non-empty line matches a pattern.
 
         Read using read_nonblocking until the last non-empty line of the output
         matches one of the patterns (using match_patterns), or until timeout
@@ -850,7 +852,7 @@ class Expect(Tail):
                                               timeout, internal_timeout,
                                               print_func)
 
-    def read_until_any_line_matches(self, patterns, timeout=60,
+    def read_until_any_line_matches(self, patterns, timeout=60.0,
                                     internal_timeout=None, print_func=None):
         """
         Read using read_nonblocking until any line matches a pattern.
@@ -994,10 +996,10 @@ class ShellSession(Expect):
         # No output -- report unresponsive
         return False
 
-    def read_up_to_prompt(self, timeout=60, internal_timeout=None,
+    def read_up_to_prompt(self, timeout=60.0, internal_timeout=None,
                           print_func=None):
         """
-        Read using read_nonblocking until the last non-empty line matches the prompt.
+        Read until the last non-empty line matches the prompt.
 
         Read using read_nonblocking until the last non-empty line of the output
         matches the prompt regular expression set by set_prompt, or until
@@ -1054,8 +1056,7 @@ class ShellSession(Expect):
         # Remove the echoed command and the final shell prompt
         return self.remove_last_nonempty_line(self.remove_command_echo(o, cmd))
 
-    def cmd_output_safe(self, cmd, timeout=60, internal_timeout=None,
-                        print_func=None):
+    def cmd_output_safe(self, cmd, timeout=60):
         """
         Send a command and return its output (serial sessions).
 
@@ -1067,9 +1068,6 @@ class ShellSession(Expect):
         :param cmd: Command to send (must not contain newline characters)
         :param timeout: The duration (in seconds) to wait for the prompt to
                 return
-        :param internal_timeout: The timeout to pass to read_nonblocking
-        :param print_func: A function to be used to print the data being read
-                (should take a string parameter)
 
         :return: The output of cmd
         :raise ShellTimeoutError: Raised if timeout expires
@@ -1160,7 +1158,7 @@ class ShellSession(Expect):
                                       print_func)[0]
 
     def cmd(self, cmd, timeout=60, internal_timeout=None, print_func=None,
-            ok_status=[0, ], ignore_all_errors=False):
+            ok_status=None, ignore_all_errors=False):
         """
         Send a command and return its output. If the command's exit status is
         nonzero, raise an exception.
@@ -1186,13 +1184,15 @@ class ShellSession(Expect):
         :raise ShellError: Raised if an unknown error occurs
         :raise ShellCmdError: Raised if the exit status is nonzero
         """
+        if ok_status is None:
+            ok_status = [0, ]
         try:
             s, o = self.cmd_status_output(cmd, timeout, internal_timeout,
                                           print_func)
             if s not in ok_status:
                 raise ShellCmdError(cmd, s, o)
             return o
-        except Exception:
+        except ShellError:
             if ignore_all_errors:
                 pass
             else:

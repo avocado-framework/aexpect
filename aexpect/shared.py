@@ -7,9 +7,6 @@ BASE_DIR = os.environ.get('TMPDIR', '/tmp')
 
 def get_lock_fd(filename):
     if not os.path.exists(filename):
-        parent_dir = os.path.dirname(filename)
-        if not os.path.isdir(parent_dir):
-            os.makedirs(parent_dir)
         open(filename, "w").close()
     fd = os.open(filename, os.O_RDWR)
     fcntl.lockf(fd, fcntl.LOCK_EX)
@@ -24,11 +21,11 @@ def unlock_fd(fd):
 def is_file_locked(filename):
     try:
         fd = os.open(filename, os.O_RDWR)
-    except Exception:
+    except OSError:
         return False
     try:
         fcntl.lockf(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except Exception:
+    except IOError:
         os.close(fd)
         return True
     fcntl.lockf(fd, fcntl.LOCK_UN)
