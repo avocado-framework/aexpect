@@ -1,0 +1,15 @@
+#!/bin/bash
+GR=0
+run_rc() {
+    echo "Running '$1'"
+    $1
+    if [ $? != 0 ]; then
+        GR=1
+    fi
+    echo ""
+}
+run_rc 'inspekt lint'
+run_rc 'inspekt indent'
+run_rc 'inspekt style'
+exit ${GR}
+
