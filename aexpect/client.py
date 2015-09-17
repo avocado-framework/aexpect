@@ -692,7 +692,8 @@ class Expect(Tail):
             if end_time and time.time() > end_time:
                 return data
 
-    def match_patterns(self, cont, patterns):
+    @staticmethod
+    def match_patterns(cont, patterns):
         """
         Match cont against a list of patterns.
 
@@ -709,7 +710,8 @@ class Expect(Tail):
             if re.search(patterns[i], cont):
                 return i
 
-    def match_patterns_multiline(self, cont, patterns):
+    @staticmethod
+    def match_patterns_multiline(cont, patterns):
         """
         Match list of lines against a list of patterns.
 
