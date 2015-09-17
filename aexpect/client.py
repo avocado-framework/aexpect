@@ -1057,8 +1057,7 @@ class ShellSession(Expect):
         # Remove the echoed command and the final shell prompt
         return self.remove_last_nonempty_line(self.remove_command_echo(o, cmd))
 
-    def cmd_output_safe(self, cmd, timeout=60, internal_timeout=None,
-                        print_func=None):
+    def cmd_output_safe(self, cmd, timeout=60):
         """
         Send a command and return its output (serial sessions).
 
@@ -1070,9 +1069,6 @@ class ShellSession(Expect):
         :param cmd: Command to send (must not contain newline characters)
         :param timeout: The duration (in seconds) to wait for the prompt to
                 return
-        :param internal_timeout: The timeout to pass to read_nonblocking
-        :param print_func: A function to be used to print the data being read
-                (should take a string parameter)
 
         :return: The output of cmd
         :raise ShellTimeoutError: Raised if timeout expires
