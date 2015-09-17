@@ -110,6 +110,7 @@ class Spawn(object):
         """
         self.a_id = a_id or data_factory.generate_random_string(8)
         self.log_file = None
+        self.closed = False
 
         base_dir = os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id)
 
@@ -327,18 +328,20 @@ class Spawn(object):
 
         :param sig: The signal to send the process when attempting to kill it.
         """
-        self.kill(sig=sig)
-        # Wait for the server to exit
-        wait_for_lock(self.lock_server_running_filename)
-        # Call all cleanup routines
-        for hook in self.close_hooks:
-            hook(self)
-        # Close reader file descriptors
-        self._close_reader_fds()
-        self.reader_fds = {}
-        # Remove all used files
-        if 'AEXPECT_DEBUG' not in os.environ:
-            shutil.rmtree(os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id))
+        if not self.closed:
+            self.kill(sig=sig)
+            # Wait for the server to exit
+            wait_for_lock(self.lock_server_running_filename)
+            # Call all cleanup routines
+            for hook in self.close_hooks:
+                hook(self)
+            # Close reader file descriptors
+            self._close_reader_fds()
+            self.reader_fds = {}
+            # Remove all used files
+            if 'AEXPECT_DEBUG' not in os.environ:
+                shutil.rmtree(os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id))
+            self.closed = True
 
     def set_linesep(self, linesep):
         """
