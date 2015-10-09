@@ -1,0 +1,3 @@
+version=3
+
+https://github.com/autotest/aexpect/tags .*/(\d[\d\.]+)\.tar\.gz

@@ -1,0 +1,15 @@
+Source: aexpect
+Section: python
+Priority: optional
+Maintainer: Lucas Meneghel Rodrigues (lmr) <lookkas@gmail.com>
+Build-Depends: debhelper (>=7.0.50~), python-support (>= 0.6), cdbs (>= 0.4.49), python-yaml
+Standards-Version: 3.8.4
+
+Package: aexpect
+Architecture: all
+Homepage: http://avocado-framework.github.io/
+XB-Python-Version: ${python:Versions}
+Depends: ${misc:Depends}, ${python:Depends}
+Description: aexpect is a python library used to control interactive applications.
+aexpect is a python library similar to pexpect. You can use it to control applications
+such as ssh, scp sftp, telnet, among others using high level classes.
