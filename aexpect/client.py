@@ -842,7 +842,7 @@ class Expect(Tail):
         :raise ExpectError: Raised if an unknown error occurs
         """
         def get_last_nonempty_line(cont):
-            nonempty_lines = [l for l in cont.splitlines() if l.strip()]
+            nonempty_lines = [l for l in cont.splitlines() if re.match(r"\S+", l)]
             if nonempty_lines:
                 return nonempty_lines[-1]
             else:
