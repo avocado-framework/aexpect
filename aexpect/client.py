@@ -1022,7 +1022,7 @@ class ShellSession(Expect):
                                                  print_func)[1]
 
     def cmd_output(self, cmd, timeout=60, internal_timeout=None,
-                   print_func=None):
+                   print_func=None, safe=False):
         """
         Send a command and return its output.
 
@@ -1032,6 +1032,11 @@ class ShellSession(Expect):
         :param internal_timeout: The timeout to pass to read_nonblocking
         :param print_func: A function to be used to print the data being read
                 (should take a string parameter)
+        :param safe: Whether using safe mode when execute cmd.
+                In serial sessions, frequently the kernel might print debug or
+                error messages that make read_up_to_prompt to timeout. Let's try
+                to be a little more robust and send a carriage return, to see if
+                we can get to the prompt when safe=True.
 
         :return: The output of cmd
         :raise ShellTimeoutError: Raised if timeout expires
@@ -1039,6 +1044,8 @@ class ShellSession(Expect):
                 terminates while waiting for output
         :raise ShellError: Raised if an unknown error occurs
         """
+        if safe:
+            return self.cmd_output_safe(cmd, timeout)
         logging.debug("Sending command: %s" % cmd)
         self.read_nonblocking(0, timeout)
         self.sendline(cmd)
@@ -1102,7 +1109,7 @@ class ShellSession(Expect):
         return self.remove_last_nonempty_line(self.remove_command_echo(o, cmd))
 
     def cmd_status_output(self, cmd, timeout=60, internal_timeout=None,
-                          print_func=None):
+                          print_func=None, safe=False):
         """
         Send a command and return its exit status and output.
 
@@ -1112,6 +1119,11 @@ class ShellSession(Expect):
         :param internal_timeout: The timeout to pass to read_nonblocking
         :param print_func: A function to be used to print the data being read
                 (should take a string parameter)
+        :param safe: Whether using safe mode when execute cmd.
+                In serial sessions, frequently the kernel might print debug or
+                error messages that make read_up_to_prompt to timeout. Let's try
+                to be a little more robust and send a carriage return, to see if
+                we can get to the prompt when safe=True.
 
         :return: A tuple (status, output) where status is the exit status and
                 output is the output of cmd
@@ -1121,10 +1133,11 @@ class ShellSession(Expect):
         :raise ShellStatusError: Raised if the exit status cannot be obtained
         :raise ShellError: Raised if an unknown error occurs
         """
-        o = self.cmd_output(cmd, timeout, internal_timeout, print_func)
+        o = self.cmd_output(cmd, timeout, internal_timeout, print_func, safe)
         try:
             # Send the 'echo $?' (or equivalent) command to get the exit status
-            s = self.cmd_output(self.status_test_command, 10, internal_timeout)
+            s = self.cmd_output(self.status_test_command, 10, internal_timeout,
+                                print_func, safe)
         except ShellError:
             raise ShellStatusError(cmd, o)
 
@@ -1136,7 +1149,7 @@ class ShellSession(Expect):
             raise ShellStatusError(cmd, o)
 
     def cmd_status(self, cmd, timeout=60, internal_timeout=None,
-                   print_func=None):
+                   print_func=None, safe=False):
         """
         Send a command and return its exit status.
 
@@ -1146,6 +1159,11 @@ class ShellSession(Expect):
         :param internal_timeout: The timeout to pass to read_nonblocking
         :param print_func: A function to be used to print the data being read
                 (should take a string parameter)
+        :param safe: Whether using safe mode when execute cmd.
+                In serial sessions, frequently the kernel might print debug or
+                error messages that make read_up_to_prompt to timeout. Let's try
+                to be a little more robust and send a carriage return, to see if
+                we can get to the prompt when safe=True.
 
         :return: The exit status of cmd
         :raise ShellTimeoutError: Raised if timeout expires
@@ -1155,7 +1173,7 @@ class ShellSession(Expect):
         :raise ShellError: Raised if an unknown error occurs
         """
         return self.cmd_status_output(cmd, timeout, internal_timeout,
-                                      print_func)[0]
+                                      print_func, safe)[0]
 
     def cmd(self, cmd, timeout=60, internal_timeout=None, print_func=None,
             ok_status=None, ignore_all_errors=False):
