@@ -1051,7 +1051,7 @@ class ShellSession(Expect):
         self.sendline(cmd)
         try:
             o = self.read_up_to_prompt(timeout, internal_timeout, print_func)
-        except ExpectError, e:
+        except ExpectError as e:
             o = self.remove_command_echo(e.output, cmd)
             if isinstance(e, ExpectTimeoutError):
                 raise ShellTimeoutError(cmd, o)
@@ -1093,7 +1093,7 @@ class ShellSession(Expect):
                 o += self.read_up_to_prompt(0.5)
                 success = True
                 break
-            except ExpectError, e:
+            except ExpectError as e:
                 o = self.remove_command_echo(e.output, cmd)
                 if isinstance(e, ExpectTimeoutError):
                     self.sendline()
