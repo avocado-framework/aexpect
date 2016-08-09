@@ -65,10 +65,10 @@ def makestandard(shell_fd, echo):
 
 
 def get_filenames(base_dir):
-    return [os.path.join(base_dir, s) for s in
-            "shell-pid", "status", "output", "inpipe", "ctrlpipe",
-            "lock-server-running", "lock-client-starting",
-            "server-log"]
+    files = ("shell-pid", "status", "output", "inpipe", "ctrlpipe",
+             "lock-server-running", "lock-client-starting",
+             "server-log")
+    return [os.path.join(base_dir, s) for s in files]
 
 
 def get_reader_filename(base_dir, reader):
