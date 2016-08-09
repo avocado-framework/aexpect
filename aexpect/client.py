@@ -160,12 +160,13 @@ class Spawn(object):
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT)
             # Send parameters to the server
-            sub.stdin.write("%s\n" % self.a_id)
-            sub.stdin.write("%s\n" % echo)
-            sub.stdin.write("%s\n" % ",".join(self.readers))
-            sub.stdin.write("%s\n" % command)
+            sub.stdin.write(("%s\n" % self.a_id).encode())
+            sub.stdin.write(("%s\n" % echo).encode())
+            sub.stdin.write(("%s\n" % ",".join(self.readers)).encode())
+            sub.stdin.write(("%s\n" % command).encode())
             # Wait for the server to complete its initialization
-            while "Server %s ready" % self.a_id not in sub.stdout.readline():
+            while ("Server %s ready" % self.a_id not in
+                   sub.stdout.readline().decode()):
                 pass
 
         # Open the reading pipes
@@ -359,7 +360,7 @@ class Spawn(object):
         """
         try:
             fd = os.open(self.inpipe_filename, os.O_RDWR)
-            os.write(fd, cont)
+            os.write(fd, cont.encode())
             os.close(fd)
         except OSError:
             pass
@@ -381,7 +382,7 @@ class Spawn(object):
         """
         try:
             fd = os.open(self.ctrlpipe_filename, os.O_RDWR)
-            os.write(fd, "%10d%s" % (len(control_str), control_str))
+            os.write(fd, ("%10d%s" % (len(control_str), control_str)).encode())
             os.close(fd)
         except OSError:
             pass
@@ -560,7 +561,7 @@ class Tail(Spawn):
                     break
                 if fd in r:
                     # Some data is available; read it
-                    new_data = os.read(fd, 1024)
+                    new_data = os.read(fd, 1024).decode()
                     if not new_data:
                         break
                     bfr += new_data
@@ -683,7 +684,7 @@ class Expect(Tail):
             except (select.error, TypeError):
                 return data
             if fd in r:
-                new_data = os.read(fd, 1024)
+                new_data = os.read(fd, 1024).decode()
                 if not new_data:
                     return data
                 data += new_data
