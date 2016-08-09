@@ -164,6 +164,7 @@ class Spawn(object):
             sub.stdin.write(("%s\n" % echo).encode())
             sub.stdin.write(("%s\n" % ",".join(self.readers)).encode())
             sub.stdin.write(("%s\n" % command).encode())
+            sub.stdin.flush()
             # Wait for the server to complete its initialization
             while ("Server %s ready" % self.a_id not in
                    sub.stdout.readline().decode()):
