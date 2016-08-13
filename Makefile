@@ -17,7 +17,7 @@ all:
 	@echo "make clean - Get rid of scratch and byte files"
 
 source:
-	$(PYTHON) setup.py sdist $(COMPILE) --dist-dir=SOURCES --prune
+	$(PYTHON) setup.py sdist $(COMPILE) --dist-dir=SOURCES
 
 install:
 	$(PYTHON) setup.py install --root $(DESTDIR) $(COMPILE)
@@ -26,7 +26,7 @@ prepare-source:
 	# build the source package in the parent directory
 	# then rename it to project_version.orig.tar.gz
 	dch -D "utopic" -M -v "$(VERSION)" "Automated (make builddeb) build."
-	$(PYTHON) setup.py sdist $(COMPILE) --dist-dir=../ --prune
+	$(PYTHON) setup.py sdist $(COMPILE) --dist-dir=../
 	rename -f 's/$(PROJECT)-(.*)\.tar\.gz/$(PROJECT)_$$1\.orig\.tar\.gz/' ../*
 
 build-deb-src: prepare-source
