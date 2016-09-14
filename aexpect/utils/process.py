@@ -1,6 +1,12 @@
-import commands
+import subprocess
 import signal
 import os
+
+
+def getoutput(cmd):
+    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    return proc.communicate()[0].decode().rstrip("\n\r")
 
 
 class CmdError(Exception):
@@ -48,7 +54,7 @@ def kill_process_tree(pid, sig=signal.SIGKILL):
     """
     if not safe_kill(pid, signal.SIGSTOP):
         return
-    children = commands.getoutput("ps --ppid=%d -o pid=" % pid).split()
+    children = getoutput("ps --ppid=%d -o pid=" % pid).split()
     for child in children:
         kill_process_tree(int(child), sig)
     safe_kill(pid, sig)
@@ -61,7 +67,7 @@ def get_children_pids(ppid):
     param ppid: parent PID
     return: list of PIDs of all children/threads of ppid
     """
-    return commands.getoutput("ps -L --ppid=%d -o lwp" % ppid).split('\n')[1:]
+    return getoutput("ps -L --ppid=%d -o lwp" % ppid).split('\n')[1:]
 
 
 def process_in_ptree_is_defunct(ppid):
@@ -80,7 +86,7 @@ def process_in_ptree_is_defunct(ppid):
         return True
     for pid in pids:
         cmd = "ps --no-headers -o cmd %d" % int(pid)
-        proc_name = commands.getoutput(cmd)
+        proc_name = getoutput(cmd)
         if '<defunct>' in proc_name:
             defunct = True
             break

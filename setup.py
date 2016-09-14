@@ -16,7 +16,7 @@
 import os
 # pylint: disable=E0611
 
-from distutils.core import setup
+from setuptools import setup
 
 VIRTUAL_ENV = 'VIRTUAL_ENV' in os.environ
 
@@ -58,4 +58,5 @@ if __name__ == '__main__':
           url='http://avocado-framework.github.io/',
           packages=['aexpect',
                     'aexpect.utils'],
-          scripts=['scripts/aexpect-helper'])
+          scripts=['scripts/aexpect-helper'],
+          use_2to3=True)
