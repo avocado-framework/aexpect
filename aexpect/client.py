@@ -111,6 +111,8 @@ class Spawn(object):
         self.a_id = a_id or data_factory.generate_random_string(8)
         self.log_file = None
         self.closed = False
+        # Use PYTHONENCODINGS or utf-8 (instead of ascii)
+        self.encoding = os.environ.get("PYTHONENCODING", "utf-8")
 
         base_dir = os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id)
 
@@ -160,14 +162,14 @@ class Spawn(object):
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT)
             # Send parameters to the server
-            sub.stdin.write(("%s\n" % self.a_id).encode())
-            sub.stdin.write(("%s\n" % echo).encode())
-            sub.stdin.write(("%s\n" % ",".join(self.readers)).encode())
-            sub.stdin.write(("%s\n" % command).encode())
+            sub.stdin.write(("%s\n" % self.a_id).encode(self.encoding))
+            sub.stdin.write(("%s\n" % echo).encode(self.encoding))
+            sub.stdin.write(("%s\n" % ",".join(self.readers)).encode(self.encoding))
+            sub.stdin.write(("%s\n" % command).encode(self.encoding))
             sub.stdin.flush()
             # Wait for the server to complete its initialization
             while ("Server %s ready" % self.a_id not in
-                   sub.stdout.readline().decode()):
+                   sub.stdout.readline().decode(self.encoding)):
                 pass
 
         # Open the reading pipes
@@ -361,7 +363,7 @@ class Spawn(object):
         """
         try:
             fd = os.open(self.inpipe_filename, os.O_RDWR)
-            os.write(fd, cont.encode())
+            os.write(fd, cont.encode(self.encoding))
             os.close(fd)
         except OSError:
             pass
@@ -383,7 +385,7 @@ class Spawn(object):
         """
         try:
             fd = os.open(self.ctrlpipe_filename, os.O_RDWR)
-            os.write(fd, ("%10d%s" % (len(control_str), control_str)).encode())
+            os.write(fd, ("%10d%s" % (len(control_str), control_str)).encode(self.encoding))
             os.close(fd)
         except OSError:
             pass
@@ -562,7 +564,7 @@ class Tail(Spawn):
                     break
                 if fd in r:
                     # Some data is available; read it
-                    new_data = os.read(fd, 1024).decode()
+                    new_data = os.read(fd, 1024).decode(self.encoding)
                     if not new_data:
                         break
                     bfr += new_data
@@ -685,7 +687,7 @@ class Expect(Tail):
             except (select.error, TypeError):
                 return data
             if fd in r:
-                new_data = os.read(fd, 1024).decode()
+                new_data = os.read(fd, 1024).decode(self.encoding)
                 if not new_data:
                     return data
                 data += new_data
