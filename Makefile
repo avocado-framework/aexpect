@@ -1,8 +1,8 @@
 PYTHON=`which python`
 DESTDIR=/
 BUILDIR=$(CURDIR)/debian/aexpect
-PROJECT=avocado
-VERSION="1.0.0"
+PROJECT=aexpect
+VERSION="1.3.0"
 
 all:
 	@echo "make source - Create source package"
