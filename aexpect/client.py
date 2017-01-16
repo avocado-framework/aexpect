@@ -169,7 +169,7 @@ class Spawn(object):
             sub.stdin.flush()
             # Wait for the server to complete its initialization
             while ("Server %s ready" % self.a_id not in
-                   sub.stdout.readline().decode(self.encoding)):
+                   sub.stdout.readline().decode(self.encoding, "ignore")):
                 pass
 
         # Open the reading pipes
@@ -586,7 +586,7 @@ class Tail(Spawn):
                     break
                 if fd in r:
                     # Some data is available; read it
-                    new_data = os.read(fd, 1024).decode(self.encoding)
+                    new_data = os.read(fd, 1024).decode(self.encoding, "ignore")
                     if not new_data:
                         break
                     bfr += new_data
@@ -709,7 +709,7 @@ class Expect(Tail):
             except (select.error, TypeError):
                 return data
             if fd in r:
-                new_data = os.read(fd, 1024).decode(self.encoding)
+                new_data = os.read(fd, 1024).decode(self.encoding, "ignore")
                 if not new_data:
                     return data
                 data += new_data
