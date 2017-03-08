@@ -1,14 +1,25 @@
+%global srcname aexpect
+
 Summary: Aexpect is a python library to control interactive applications
-Name: aexpect
+Name: python-%{srcname}
 Version: 1.3.1
-Release: 0%{?dist}
+Release: 1%{?dist}
 License: GPLv2
 Group: Development/Tools
 URL: http://avocado-framework.readthedocs.org/
-Source: aexpect-%{version}.tar.gz
+Source: %{srcname}-%{version}.tar.gz
 BuildArch: noarch
 Requires: python
 BuildRequires: python, python-setuptools
+
+# For compatibility reasons, let's mark this package as one that
+# provides the same functionality as the old package name and also
+# one that obsoletes the old package name, so that the new name is
+# favored.  These could (and should) be removed in the future.
+# These changes are backed by the following guidelines:
+# https://fedoraproject.org/wiki/Upgrade_paths_%E2%80%94_renaming_or_splitting_packages
+Obsoletes: %{srcname} < 1.3.1-1
+Provides: %{srcname} = %{version}-%{release}
 
 %description
 Aexpect is a python library used to control interactive applications, very
@@ -16,7 +27,7 @@ similar to pexpect. You can use it to control applications such as ssh, scp
 sftp, telnet, among others.
 
 %prep
-%setup -q
+%setup -q -n %{srcname}-%{version}
 
 %build
 %{__python} setup.py build
@@ -30,6 +41,9 @@ sftp, telnet, among others.
 %{_bindir}/aexpect-helper
 
 %changelog
+* Wed Mar  8 2017 Cleber Rosa <cleber@redhat.com> - 1.3.1-1
+- Rename package to python-aexpect
+
 * Mon Feb 20 2017 Lucas Meneghel Rodrigues <lookkas@gmail.com> - 1.3.1-0
 - Update to upstream version 1.3.1
 - Fix encoding related bug.
