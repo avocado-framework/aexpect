@@ -43,11 +43,11 @@ build-deb-all: prepare-source
 
 build-rpm-src: source
 	rpmbuild --define '_topdir %{getenv:PWD}' \
-		 -bs aexpect.spec
+		 -bs python-aexpect.spec
 
 build-rpm-all: source
 	rpmbuild --define '_topdir %{getenv:PWD}' \
-		 -ba aexpect.spec
+		 -ba python-aexpect.spec
 
 check:
 	selftests/checkall
