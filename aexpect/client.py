@@ -586,9 +586,12 @@ class Tail(Spawn):
                     break
                 if fd in r:
                     # Some data is available; read it
-                    new_data = os.read(fd, 1024).decode(self.encoding, "ignore")
+                    new_data = os.read(fd, 1024)
                     if not new_data:
                         break
+                    new_data = new_data.decode(self.encoding, "ignore")
+                    if not new_data:    # all chars were ignored, skip round
+                        continue
                     bfr += new_data
                     # Send the output to output_func line by line
                     # (except for the last line)
