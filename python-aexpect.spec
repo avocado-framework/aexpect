@@ -2,7 +2,7 @@
 
 Summary: Aexpect is a python library to control interactive applications
 Name: python-%{srcname}
-Version: 1.3.1
+Version: 1.4.0
 Release: 1%{?dist}
 License: GPLv2
 Group: Development/Tools
@@ -41,6 +41,9 @@ sftp, telnet, among others.
 %{_bindir}/aexpect-helper
 
 %changelog
+* Mon Apr 3 2017 Lucas Meneghel Rodrigues <lookkas@gmail.com> - 1.4.0-1
+- Upgrade to upstream version 1.4.0
+
 * Wed Mar  8 2017 Cleber Rosa <cleber@redhat.com> - 1.3.1-1
 - Rename package to python-aexpect
 
