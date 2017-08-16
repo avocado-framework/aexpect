@@ -50,7 +50,7 @@ build-rpm-all: source
 		 -ba python-aexpect.spec
 
 check:
-	selftests/checkall
+	inspekt checkall
 
 clean:
 	$(PYTHON) setup.py clean
