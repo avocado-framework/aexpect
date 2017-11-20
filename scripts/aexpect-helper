@@ -99,7 +99,7 @@ if __name__ == "__main__":
         makestandard(shell_fd, echo)
 
         server_log.info('Opening output file %s' % output_filename)
-        output_file = open(output_filename, "w")
+        output_file = open(output_filename, "wb")
         server_log.info('Opening input pipe %s' % inpipe_filename)
         os.mkfifo(inpipe_filename)
         inpipe_fd = os.open(inpipe_filename, os.O_RDWR)
@@ -124,7 +124,7 @@ if __name__ == "__main__":
         sys.stdout.flush()
 
         # Initialize buffers
-        buffers = ["" for reader in readers]
+        buffers = [b"" for reader in readers]
 
         # Read from child and write to files/pipes
         server_log.info('Entering main read loop')
@@ -153,12 +153,12 @@ if __name__ == "__main__":
                 try:
                     data = os.read(shell_fd, 16384)
                 except OSError:
-                    data = ""
+                    data = b""
                 if not data:
                     check_termination = True
                 # Remove carriage returns from the data -- they often cause
                 # trouble and are normally not needed
-                data = data.replace("\r", "")
+                data = data.replace(b"\r", b"")
                 output_file.write(data)
                 output_file.flush()
                 for i in range(len(readers)):
