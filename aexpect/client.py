@@ -187,7 +187,7 @@ class Spawn(object):
         self.reader_fds = {}
         try:
             assert(is_file_locked(self.lock_server_running_filename))
-            for reader, filename in self.reader_filenames.items():
+            for reader, filename in list(self.reader_filenames.items()):
                 self.reader_fds[reader] = os.open(filename, os.O_RDONLY)
         except (AssertionError, OSError):
             pass
@@ -256,7 +256,7 @@ class Spawn(object):
         """
         Close all reader file descriptors.
         """
-        for fd in self.reader_fds.values():
+        for fd in list(self.reader_fds.values()):
             try:
                 os.close(fd)
             except OSError:
