@@ -5,15 +5,16 @@ PROJECT=aexpect
 VERSION="1.4.0"
 
 all:
+	@echo "make check - Runs tree static check, unittests and functional tests"
+	@echo "make clean - Get rid of scratch and byte files"
 	@echo "make source - Create source package"
 	@echo "make install - Install on local system"
 	@echo "make build-deb-src - Generate a source debian package"
 	@echo "make build-deb-bin - Generate a binary debian package"
 	@echo "make build-deb-all - Generate both source and binary debian packages"
-	@echo "make build-rpm-src - Generate a source RPM package (.srpm)"
-	@echo "make build-rpm-all - Generate both source and binary RPMs"
-	@echo "make check - Runs tree static check, unittests and functional tests"
-	@echo "make clean - Get rid of scratch and byte files"
+	@echo "RPM related targets:"
+	@echo "make srpm: Generate a source RPM package (.srpm)"
+	@echo "make rpm: Generate binary RPMs"
 
 source:
 	$(PYTHON) setup.py sdist $(COMPILE) --dist-dir=SOURCES
@@ -40,11 +41,11 @@ build-deb-all: prepare-source
 	# build both source and binary packages
 	dpkg-buildpackage -i -I -rfakeroot
 
-build-rpm-src: source
+srpm: source
 	rpmbuild --define '_topdir %{getenv:PWD}' \
 		 -bs python-aexpect.spec
 
-build-rpm-all: source
+rpm: source
 	rpmbuild --define '_topdir %{getenv:PWD}' \
 		 -ba python-aexpect.spec
 
