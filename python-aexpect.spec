@@ -3,10 +3,10 @@
 Summary: Aexpect is a python library to control interactive applications
 Name: python-%{srcname}
 Version: 1.4.0
-Release: 1%{?dist}
+Release: 2%{?dist}
 License: GPLv2
 Group: Development/Tools
-URL: http://avocado-framework.readthedocs.org/
+URL: https://github.com/avocado-framework/aexpect
 Source: %{srcname}-%{version}.tar.gz
 BuildArch: noarch
 Requires: python
@@ -41,6 +41,9 @@ sftp, telnet, among others.
 %{_bindir}/aexpect-helper
 
 %changelog
+* Wed Mar 14 2018 Cleber Rosa <cleber@redhat.com> - 1.4.0-2
+- Changed URL to aexpect repo
+
 * Mon Apr 3 2017 Lucas Meneghel Rodrigues <lookkas@gmail.com> - 1.4.0-1
 - Upgrade to upstream version 1.4.0
 
