@@ -38,15 +38,6 @@ BuildArch: noarch
 Requires: python
 BuildRequires: python, python-setuptools
 
-# For compatibility reasons, let's mark this package as one that
-# provides the same functionality as the old package name and also
-# one that obsoletes the old package name, so that the new name is
-# favored.  These could (and should) be removed in the future.
-# These changes are backed by the following guidelines:
-# https://fedoraproject.org/wiki/Upgrade_paths_%E2%80%94_renaming_or_splitting_packages
-Obsoletes: %{srcname} < 1.3.1-1
-Provides: %{srcname} = %{version}-%{release}
-
 %description
 Aexpect is a python library used to control interactive applications, very
 similar to pexpect. You can use it to control applications such as ssh, scp
@@ -76,6 +67,7 @@ mv %{buildroot}%{_bindir}/aexpect-helper %{buildroot}%{_bindir}/aexpect-helper-%
 - Changed URL to aexpect repo
 - Changed build to use a git archived based source
 - Added released version builds
+- Remove compatiblity with older package name
 
 * Mon Apr 3 2017 Lucas Meneghel Rodrigues <lookkas@gmail.com> - 1.4.0-1
 - Upgrade to upstream version 1.4.0
