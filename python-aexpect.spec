@@ -20,12 +20,13 @@
 %global gittar		%{srcname}-%{shortcommit}.tar.gz
 %endif
 
-Summary: Aexpect is a python library to control interactive applications
 Name: python-%{srcname}
 Version: 1.4.0
 Release: 2%{?gitrel}%{?dist}
-License: GPLv2
+Summary: Aexpect is a python library to control interactive applications
 Group: Development/Tools
+
+License: GPLv2
 URL: https://github.com/avocado-framework/aexpect
 
 %if 0%{?rel_build}
@@ -68,6 +69,7 @@ mv %{buildroot}%{_bindir}/aexpect-helper %{buildroot}%{_bindir}/aexpect-helper-%
 - Changed build to use a git archived based source
 - Added released version builds
 - Remove compatiblity with older package name
+- Reordered tags
 
 * Mon Apr 3 2017 Lucas Meneghel Rodrigues <lookkas@gmail.com> - 1.4.0-1
 - Upgrade to upstream version 1.4.0
