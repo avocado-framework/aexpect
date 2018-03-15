@@ -19,6 +19,11 @@ all:
 	@echo "RPM related targets:"
 	@echo "make srpm: Generate a source RPM package (.srpm)"
 	@echo "make rpm: Generate binary RPMs"
+	@echo
+	@echo "Release related targets:"
+	@echo "source-release:     Create source package for the latest tagged release"
+	@echo "srpm-release:       Generate a source RPM package (.srpm) for the latest tagged release"
+	@echo "rpm-release:        Generate binary RPMs for the latest tagged release"
 
 source: clean
 	if test ! -d SOURCES; then mkdir SOURCES; fi
@@ -52,11 +57,19 @@ build-deb-all: prepare-source
 
 srpm: source
 	if test ! -d BUILD/SRPM; then mkdir -p BUILD/SRPM; fi
-	mock --old-chroot -r $(MOCK_CONFIG) --resultdir BUILD/SRPM -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --buildsrpm --spec python-aexpect.spec --sources SOURCES
+	mock --old-chroot -r $(MOCK_CONFIG) --resultdir BUILD/SRPM -D "rel_build 0" -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --buildsrpm --spec python-aexpect.spec --sources SOURCES
 
 rpm: srpm
 	if test ! -d BUILD/RPM; then mkdir -p BUILD/RPM; fi
-	mock --old-chroot -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --rebuild BUILD/SRPM/python-aexpect-$(VERSION)-*.src.rpm
+	mock --old-chroot -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 0" -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --rebuild BUILD/SRPM/python-aexpect-$(VERSION)-*.src.rpm
+
+srpm-release: source-release
+	if test ! -d BUILD/SRPM; then mkdir -p BUILD/SRPM; fi
+	mock --old-chroot -r $(MOCK_CONFIG) --resultdir BUILD/SRPM -D "rel_build 1" --buildsrpm --spec python-aexpect.spec --sources SOURCES
+
+rpm-release: srpm-release
+	if test ! -d BUILD/RPM; then mkdir -p BUILD/RPM; fi
+	mock --old-chroot -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 1" --rebuild BUILD/SRPM/python-aexpect-$(VERSION)-*.src.rpm
 
 check:
 	inspekt checkall
