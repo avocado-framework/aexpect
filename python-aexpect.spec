@@ -40,7 +40,11 @@ Source0: https://github.com/avocado-framework/%{srcname}/archive/%{commit}.tar.g
 
 BuildArch: noarch
 Requires: python
-BuildRequires: python, python-setuptools
+BuildRequires: python
+
+%if 0%{?rhel}
+BuildRequires: python-setuptools
+%endif
 
 %description
 Aexpect is a python library used to control interactive applications, very
@@ -78,6 +82,7 @@ selftests/checkall
 - Remove compatiblity with older package name
 - Reordered tags
 - Added conditional for check target
+- Only require python-setuptools on RHEL
 
 * Mon Apr 3 2017 Lucas Meneghel Rodrigues <lookkas@gmail.com> - 1.4.0-1
 - Upgrade to upstream version 1.4.0
