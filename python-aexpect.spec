@@ -1,6 +1,14 @@
 %global srcname aexpect
 
+# Conditional for release vs. snapshot builds. Set to 1 for release build.
+%if ! 0%{?rel_build:1}
+    %global rel_build 1
+%endif
+
 # Settings used for build from snapshots.
+%if 0%{?rel_build}
+%global gittar		%{srcname}-%{version}.tar.gz
+%else
 %if ! 0%{?commit:1}
 %global commit		7597f77853fc668d640b3652a25aa57a515742fa
 %endif
@@ -10,6 +18,7 @@
 %global shortcommit	%(c=%{commit};echo ${c:0:7})
 %global gitrel		.%{commit_date}git%{shortcommit}
 %global gittar		%{srcname}-%{shortcommit}.tar.gz
+%endif
 
 Summary: Aexpect is a python library to control interactive applications
 Name: python-%{srcname}
@@ -18,7 +27,13 @@ Release: 2%{?gitrel}%{?dist}
 License: GPLv2
 Group: Development/Tools
 URL: https://github.com/avocado-framework/aexpect
+
+%if 0%{?rel_build}
+Source0: https://github.com/avocado-framework/%{srcname}/archive/%{version}.tar.gz#/%{gittar}
+%else
 Source0: https://github.com/avocado-framework/%{srcname}/archive/%{commit}.tar.gz#/%{gittar}
+%endif
+
 BuildArch: noarch
 Requires: python
 BuildRequires: python, python-setuptools
@@ -38,7 +53,11 @@ similar to pexpect. You can use it to control applications such as ssh, scp
 sftp, telnet, among others.
 
 %prep
-%setup -q -n %{srcname}-%{commit}
+%if 0%{?rel_build}
+%autosetup -n %{srcname}-%{version}
+%else
+%autosetup -n %{srcname}-%{commit}
+%endif
 
 %build
 %{__python} setup.py build
@@ -55,6 +74,7 @@ sftp, telnet, among others.
 * Wed Mar 14 2018 Cleber Rosa <cleber@redhat.com> - 1.4.0-2
 - Changed URL to aexpect repo
 - Changed build to use a git archived based source
+- Added released version builds
 
 * Mon Apr 3 2017 Lucas Meneghel Rodrigues <lookkas@gmail.com> - 1.4.0-1
 - Upgrade to upstream version 1.4.0
