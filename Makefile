@@ -3,6 +3,8 @@ DESTDIR=/
 BUILDIR=$(CURDIR)/debian/aexpect
 PROJECT=aexpect
 VERSION="1.4.0"
+COMMIT=$(shell git log --pretty=format:'%H' -n 1)
+SHORT_COMMIT=$(shell git log --pretty=format:'%h' -n 1)
 
 all:
 	@echo "make check - Runs tree static check, unittests and functional tests"
@@ -16,8 +18,13 @@ all:
 	@echo "make srpm: Generate a source RPM package (.srpm)"
 	@echo "make rpm: Generate binary RPMs"
 
-source:
-	$(PYTHON) setup.py sdist $(COMPILE) --dist-dir=SOURCES
+source: clean
+	if test ! -d SOURCES; then mkdir SOURCES; fi
+	git archive --prefix="aexpect-$(COMMIT)/" -o "SOURCES/aexpect-$(SHORT_COMMIT).tar.gz" HEAD
+
+source-release: clean
+	if test ! -d SOURCES; then mkdir SOURCES; fi
+	git archive --prefix="aexpect-$(VERSION)/" -o "SOURCES/aexpect-$(VERSION).tar.gz" $(VERSION)
 
 install:
 	$(PYTHON) setup.py install --root $(DESTDIR) $(COMPILE)
