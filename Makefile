@@ -5,6 +5,8 @@ PROJECT=aexpect
 VERSION="1.4.0"
 COMMIT=$(shell git log --pretty=format:'%H' -n 1)
 SHORT_COMMIT=$(shell git log --pretty=format:'%h' -n 1)
+COMMIT_DATE=$(shell git log --pretty='format:%cd' --date='format:%Y%m%d' -n 1)
+MOCK_CONFIG=default
 
 all:
 	@echo "make check - Runs tree static check, unittests and functional tests"
@@ -49,12 +51,12 @@ build-deb-all: prepare-source
 	dpkg-buildpackage -i -I -rfakeroot
 
 srpm: source
-	rpmbuild --define '_topdir %{getenv:PWD}' \
-		 -bs python-aexpect.spec
+	if test ! -d BUILD/SRPM; then mkdir -p BUILD/SRPM; fi
+	mock --old-chroot -r $(MOCK_CONFIG) --resultdir BUILD/SRPM -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --buildsrpm --spec python-aexpect.spec --sources SOURCES
 
-rpm: source
-	rpmbuild --define '_topdir %{getenv:PWD}' \
-		 -ba python-aexpect.spec
+rpm: srpm
+	if test ! -d BUILD/RPM; then mkdir -p BUILD/RPM; fi
+	mock --old-chroot -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --rebuild BUILD/SRPM/python-aexpect-$(VERSION)-*.src.rpm
 
 check:
 	inspekt checkall

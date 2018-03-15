@@ -1,13 +1,24 @@
 %global srcname aexpect
 
+# Settings used for build from snapshots.
+%if ! 0%{?commit:1}
+%global commit		7597f77853fc668d640b3652a25aa57a515742fa
+%endif
+%if ! 0%{?commit_date:1}
+%global commit_date	20180202
+%endif
+%global shortcommit	%(c=%{commit};echo ${c:0:7})
+%global gitrel		.%{commit_date}git%{shortcommit}
+%global gittar		%{srcname}-%{shortcommit}.tar.gz
+
 Summary: Aexpect is a python library to control interactive applications
 Name: python-%{srcname}
 Version: 1.4.0
-Release: 2%{?dist}
+Release: 2%{?gitrel}%{?dist}
 License: GPLv2
 Group: Development/Tools
 URL: https://github.com/avocado-framework/aexpect
-Source: %{srcname}-%{version}.tar.gz
+Source0: https://github.com/avocado-framework/%{srcname}/archive/%{commit}.tar.gz#/%{gittar}
 BuildArch: noarch
 Requires: python
 BuildRequires: python, python-setuptools
@@ -27,7 +38,7 @@ similar to pexpect. You can use it to control applications such as ssh, scp
 sftp, telnet, among others.
 
 %prep
-%setup -q -n %{srcname}-%{version}
+%setup -q -n %{srcname}-%{commit}
 
 %build
 %{__python} setup.py build
@@ -44,6 +55,7 @@ mv %{buildroot}%{_bindir}/aexpect-helper %{buildroot}%{_bindir}/aexpect-helper-%
 %changelog
 * Wed Mar 14 2018 Cleber Rosa <cleber@redhat.com> - 1.4.0-2
 - Changed URL to aexpect repo
+- Changed build to use a git archived based source
 
 * Mon Apr 3 2017 Lucas Meneghel Rodrigues <lookkas@gmail.com> - 1.4.0-1
 - Upgrade to upstream version 1.4.0
