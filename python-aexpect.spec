@@ -20,6 +20,9 @@
 %global gittar		%{srcname}-%{shortcommit}.tar.gz
 %endif
 
+# Selftests are provided but skipped because they use unsupported tooling.
+%global with_tests 0
+
 Name: python-%{srcname}
 Version: 1.4.0
 Release: 2%{?gitrel}%{?dist}
@@ -57,6 +60,11 @@ sftp, telnet, among others.
 %install
 %{__python} setup.py install --root %{buildroot} --skip-build
 
+%check
+%if %{with_tests}
+selftests/checkall
+%endif
+
 %files
 %defattr(-,root,root,-)
 %{python_sitelib}/aexpect*
@@ -69,6 +77,7 @@ sftp, telnet, among others.
 - Added released version builds
 - Remove compatiblity with older package name
 - Reordered tags
+- Added conditional for check target
 
 * Mon Apr 3 2017 Lucas Meneghel Rodrigues <lookkas@gmail.com> - 1.4.0-1
 - Upgrade to upstream version 1.4.0
