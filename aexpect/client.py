@@ -22,6 +22,7 @@ import re
 import threading
 import shutil
 import select
+import locale
 import logging
 if sys.version_info[0] < 3:
     import subprocess32 as subprocess
@@ -128,9 +129,9 @@ class Spawn(object):
         self.a_id = a_id or data_factory.generate_random_string(8)
         self.log_file = None
         self.closed = False
-        # Use PYTHONENCODING or utf-8 (instead of ascii)
-        self.encoding = os.environ.get("PYTHONENCODING", "utf-8")
-
+        self.encoding = locale.getpreferredencoding()
+        if self.encoding is None:
+            self.encoding = "UTF-8"
         base_dir = os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id)
 
         # Define filenames for communication with server
