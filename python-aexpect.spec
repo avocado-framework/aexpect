@@ -34,11 +34,12 @@ sftp, telnet, among others.
 
 %install
 %{__python} setup.py install --root %{buildroot} --skip-build
+mv %{buildroot}%{_bindir}/aexpect-helper %{buildroot}%{_bindir}/aexpect-helper-%{python_version}
 
 %files
 %defattr(-,root,root,-)
 %{python_sitelib}/aexpect*
-%{_bindir}/aexpect-helper
+%{_bindir}/aexpect-helper-*
 
 %changelog
 * Mon Apr 3 2017 Lucas Meneghel Rodrigues <lookkas@gmail.com> - 1.4.0-1

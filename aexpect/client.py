@@ -17,6 +17,7 @@ API used to run/control interactive processes.
 import time
 import signal
 import os
+import sys
 import re
 import threading
 import shutil
@@ -166,7 +167,15 @@ class Spawn(object):
 
         # Start the server (which runs the command)
         if command:
-            helper_cmd = utils_path.find_command('aexpect-helper')
+            # try to find python specific version of aexpect-helper first, then
+            # try unversioned
+            helper_noversion = 'aexpect-helper'
+            helper_versioned = '{0}-{1.major}.{1.minor}'.format(
+                helper_noversion, sys.version_info)
+            try:
+                helper_cmd = utils_path.find_command(helper_versioned)
+            except utils_path.CmdNotFoundError:
+                helper_cmd = utils_path.find_command(helper_noversion)
             sub = subprocess.Popen([helper_cmd],
                                    shell=True,
                                    stdin=subprocess.PIPE,
