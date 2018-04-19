@@ -59,4 +59,5 @@ if __name__ == '__main__':
           packages=['aexpect',
                     'aexpect.utils'],
           scripts=['scripts/aexpect-helper'],
+          test_suite='tests',
           use_2to3=True)
