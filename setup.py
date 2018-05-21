@@ -59,4 +59,5 @@ if __name__ == '__main__':
           packages=['aexpect',
                     'aexpect.utils'],
           scripts=['scripts/aexpect-helper'],
-          use_2to3=True)
+          use_2to3=True,
+          install_requires=['subprocess32>=3.2.6;python_version<"3"'])

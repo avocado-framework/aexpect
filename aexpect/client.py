@@ -23,7 +23,10 @@ import threading
 import shutil
 import select
 import logging
-import subprocess
+if sys.version_info[0] < 3:
+    import subprocess32 as subprocess
+else:
+    import subprocess
 
 from aexpect.exceptions import ExpectError
 from aexpect.exceptions import ExpectProcessTerminatedError
@@ -104,7 +107,7 @@ class Spawn(object):
     """
 
     def __init__(self, command=None, a_id=None, auto_close=False, echo=False,
-                 linesep="\n"):
+                 linesep="\n", pass_fds=()):
         """
         Initialize the class and run command as a child process.
 
@@ -119,6 +122,8 @@ class Spawn(object):
                 parameter has an effect only when starting a new server.
         :param linesep: Line separator to be appended to strings sent to the
                 child process by sendline().
+        :param pass_fds: Optional sequence of file descriptors to keep open
+                between the parent and child.
         """
         self.a_id = a_id or data_factory.generate_random_string(8)
         self.log_file = None
@@ -180,7 +185,8 @@ class Spawn(object):
                                    shell=True,
                                    stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
+                                   stderr=subprocess.STDOUT,
+                                   pass_fds=pass_fds)
             # Send parameters to the server
             sub.stdin.write(("%s\n" % self.a_id).encode(self.encoding))
             sub.stdin.write(("%s\n" % echo).encode(self.encoding))
@@ -452,7 +458,7 @@ class Tail(Spawn):
     def __init__(self, command=None, a_id=None, auto_close=False, echo=False,
                  linesep="\n", termination_func=None, termination_params=(),
                  output_func=None, output_params=(), output_prefix="",
-                 thread_name=None):
+                 thread_name=None, pass_fds=()):
         """
         Initialize the class and run command as a child process.
 
@@ -479,6 +485,8 @@ class Tail(Spawn):
                 output line.
         :param output_prefix: String to prepend to lines sent to output_func.
         :param thread_name: Name of thread to better identify hanging threads.
+        :param pass_fds: Optional sequence of file descriptors to keep open
+                between the parent and child.
         """
         # Add a reader and a close hook
         self._add_reader("tail")
@@ -486,7 +494,8 @@ class Tail(Spawn):
         self._add_close_hook(Tail._close_log_file)
 
         # Init the superclass
-        Spawn.__init__(self, command, a_id, auto_close, echo, linesep)
+        Spawn.__init__(self, command, a_id, auto_close, echo, linesep,
+                       pass_fds)
         if thread_name is None:
             self.thread_name = "tail_thread_%s_%s" % (self.a_id,
                                                       str(command)[:10])
@@ -669,7 +678,7 @@ class Expect(Tail):
     def __init__(self, command=None, a_id=None, auto_close=True, echo=False,
                  linesep="\n", termination_func=None, termination_params=(),
                  output_func=None, output_params=(), output_prefix="",
-                 thread_name=None):
+                 thread_name=None, pass_fds=()):
         """
         Initialize the class and run command as a child process.
 
@@ -695,6 +704,8 @@ class Expect(Tail):
         :param output_params: Parameters to send to output_func before the
                 output line.
         :param output_prefix: String to prepend to lines sent to output_func.
+        :param pass_fds: Optional sequence of file descriptors to keep open
+                between the parent and child.
         """
         # Add a reader
         self._add_reader("expect")
@@ -702,7 +713,8 @@ class Expect(Tail):
         # Init the superclass
         Tail.__init__(self, command, a_id, auto_close, echo, linesep,
                       termination_func, termination_params,
-                      output_func, output_params, output_prefix, thread_name)
+                      output_func, output_params, output_prefix, thread_name,
+                      pass_fds)
 
     def __reduce__(self):
         return self.__class__, (self.__getinitargs__())
@@ -945,7 +957,7 @@ class ShellSession(Expect):
                  linesep="\n", termination_func=None, termination_params=(),
                  output_func=None, output_params=(), output_prefix="",
                  thread_name=None, prompt=r"[\#\$]\s*$",
-                 status_test_command="echo $?"):
+                 status_test_command="echo $?", pass_fds=()):
         """
         Initialize the class and run command as a child process.
 
@@ -975,11 +987,14 @@ class ShellSession(Expect):
         :param status_test_command: Command to be used for getting the last
                 exit status of commands run inside the shell (used by
                 cmd_status_output() and friends).
+        :param pass_fds: Optional sequence of file descriptors to keep open
+                between the parent and child.
         """
         # Init the superclass
         Expect.__init__(self, command, a_id, auto_close, echo, linesep,
                         termination_func, termination_params,
-                        output_func, output_params, output_prefix, thread_name)
+                        output_func, output_params, output_prefix, thread_name,
+                        pass_fds)
 
         # Remember some attributes
         self.prompt = prompt
@@ -1289,7 +1304,7 @@ class ShellSession(Expect):
 
 
 def run_tail(command, termination_func=None, output_func=None, output_prefix="",
-             timeout=1.0, auto_close=True):
+             timeout=1.0, auto_close=True, pass_fds=()):
     """
     Run a subprocess in the background and collect its output and exit status.
 
@@ -1308,7 +1323,9 @@ def run_tail(command, termination_func=None, output_func=None, output_prefix="",
     :param timeout: Time duration (in seconds) to wait for the subprocess to
             terminate before returning
     :param auto_close: If True, close() the instance automatically when its
-                reference count drops to zero (default False).
+            reference count drops to zero (default False).
+    :param pass_fds: Optional sequence of file descriptors to keep open
+            between the parent and child.
 
     :return: A Expect object.
     """
@@ -1316,7 +1333,8 @@ def run_tail(command, termination_func=None, output_func=None, output_prefix="",
                       termination_func=termination_func,
                       output_func=output_func,
                       output_prefix=output_prefix,
-                      auto_close=auto_close)
+                      auto_close=auto_close,
+                      pass_fds=pass_fds)
 
     end_time = time.time() + timeout
     while time.time() < end_time and bg_process.is_alive():
@@ -1326,7 +1344,7 @@ def run_tail(command, termination_func=None, output_func=None, output_prefix="",
 
 
 def run_bg(command, termination_func=None, output_func=None, output_prefix="",
-           timeout=1.0, auto_close=True):
+           timeout=1.0, auto_close=True, pass_fds=()):
     """
     Run a subprocess in the background and collect its output and exit status.
 
@@ -1345,7 +1363,9 @@ def run_bg(command, termination_func=None, output_func=None, output_prefix="",
     :param timeout: Time duration (in seconds) to wait for the subprocess to
             terminate before returning
     :param auto_close: If True, close() the instance automatically when its
-                reference count drops to zero (default False).
+            reference count drops to zero (default False).
+    :param pass_fds: Optional sequence of file descriptors to keep open
+            between the parent and child.
 
     :return: A Expect object.
     """
@@ -1353,7 +1373,8 @@ def run_bg(command, termination_func=None, output_func=None, output_prefix="",
                         termination_func=termination_func,
                         output_func=output_func,
                         output_prefix=output_prefix,
-                        auto_close=auto_close)
+                        auto_close=auto_close,
+                        pass_fds=pass_fds)
 
     end_time = time.time() + timeout
     while time.time() < end_time and bg_process.is_alive():
@@ -1362,7 +1383,8 @@ def run_bg(command, termination_func=None, output_func=None, output_prefix="",
     return bg_process
 
 
-def run_fg(command, output_func=None, output_prefix="", timeout=1.0):
+def run_fg(command, output_func=None, output_prefix="", timeout=1.0,
+           pass_fds=()):
     """
     Run a subprocess in the foreground and collect its output and exit status.
 
@@ -1378,12 +1400,15 @@ def run_fg(command, output_func=None, output_prefix="", timeout=1.0):
             before passing it to stdout_func
     :param timeout: Time duration (in seconds) to wait for the subprocess to
             terminate before killing it and returning
+    :param pass_fds: Optional sequence of file descriptors to keep open
+            between the parent and child.
 
     :return: A 2-tuple containing the exit status of the process and its
             STDOUT/STDERR output.  If timeout expires before the process
             terminates, the returned status is None.
     """
-    bg_process = run_bg(command, None, output_func, output_prefix, timeout)
+    bg_process = run_bg(command, None, output_func, output_prefix, timeout,
+                        pass_fds=pass_fds)
     output = bg_process.get_output()
     if bg_process.is_alive():
         status = None
