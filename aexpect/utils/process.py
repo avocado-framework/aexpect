@@ -11,7 +11,9 @@
 
 import subprocess
 import signal
+import sys
 import os
+import fcntl
 
 
 def getoutput(cmd):
@@ -102,3 +104,32 @@ def process_in_ptree_is_defunct(ppid):
             defunct = True
             break
     return defunct
+
+
+PIPE = subprocess.PIPE
+STDOUT = subprocess.STDOUT
+
+
+if sys.version_info < (3, 2):
+    # Actually we should rewrite `subprocess.Popen` with a complete
+    # implementation, but it is not easy to be done and will be
+    # defective, so just tweak it according to our needs.
+    def Popen(*args, **kwargs):
+        """
+        A helper function to simulate fd passing feature for python
+        lower than 3.2
+        """
+        kwargs.setdefault("pass_fds", ())
+        kwargs.setdefault("close_fds", True)
+        pass_fds = kwargs.pop("pass_fds")
+        if bool(pass_fds):
+            kwargs["close_fds"] = False
+        # Make sure all the fds have CLOEXEC unset
+        for fd in pass_fds:
+            fd = int(fd)
+            fflags = fcntl.fcntl(fd, fcntl.F_GETFD)
+            fflags &= ~fcntl.FD_CLOEXEC
+            fcntl.fcntl(fd, fcntl.F_SETFD, fflags)
+        return subprocess.Popen(*args, **kwargs)
+else:
+    Popen = subprocess.Popen
