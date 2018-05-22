@@ -1,2 +1,3 @@
 pycodestyle==2.4.0
 inspektor==0.4.5
+subprocess32==3.5.0
