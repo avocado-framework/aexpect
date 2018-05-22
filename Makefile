@@ -13,6 +13,7 @@ all:
 	@echo "make clean - Get rid of scratch and byte files"
 	@echo "make source - Create source package"
 	@echo "make install - Install on local system"
+	@echo "make requirements - Install runtime requirements"
 	@echo "make build-deb-src - Generate a source debian package"
 	@echo "make build-deb-bin - Generate a binary debian package"
 	@echo "make build-deb-all - Generate both source and binary debian packages"
@@ -35,6 +36,13 @@ source-release: clean
 
 install:
 	$(PYTHON) setup.py install --root $(DESTDIR) $(COMPILE)
+
+pip:
+	$(PYTHON) -m pip --version || $(PYTHON) -c "import os; import sys; import urllib; f = urllib.urlretrieve('https://bootstrap.pypa.io/get-pip.py')[0]; os.system('%s %s' % (sys.executable, f))"
+
+requirements: pip
+	- pip install "pip>=6.0.1"
+	- pip install -r requirements.txt
 
 prepare-source:
 	# build the source package in the parent directory
