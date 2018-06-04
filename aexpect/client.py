@@ -108,7 +108,7 @@ class Spawn(object):
     """
 
     def __init__(self, command=None, a_id=None, auto_close=False, echo=False,
-                 linesep="\n", pass_fds=()):
+                 linesep="\n", pass_fds=(), encoding=None):
         """
         Initialize the class and run command as a child process.
 
@@ -125,13 +125,18 @@ class Spawn(object):
                 child process by sendline().
         :param pass_fds: Optional sequence of file descriptors to keep open
                 between the parent and child.
+        :param encoding: Override text encoding (by default: autodetect by
+                locale.getpreferredencoding())
         """
         self.a_id = a_id or data_factory.generate_random_string(8)
         self.log_file = None
         self.closed = False
-        self.encoding = locale.getpreferredencoding()
-        if self.encoding is None:
-            self.encoding = "UTF-8"
+        if encoding is None:
+            self.encoding = locale.getpreferredencoding()
+            if self.encoding is None:
+                self.encoding = "UTF-8"
+        else:
+            self.encoding = encoding
         base_dir = os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id)
 
         # Define filenames for communication with server
@@ -459,7 +464,7 @@ class Tail(Spawn):
     def __init__(self, command=None, a_id=None, auto_close=False, echo=False,
                  linesep="\n", termination_func=None, termination_params=(),
                  output_func=None, output_params=(), output_prefix="",
-                 thread_name=None, pass_fds=()):
+                 thread_name=None, pass_fds=(), encoding=None):
         """
         Initialize the class and run command as a child process.
 
@@ -488,6 +493,8 @@ class Tail(Spawn):
         :param thread_name: Name of thread to better identify hanging threads.
         :param pass_fds: Optional sequence of file descriptors to keep open
                 between the parent and child.
+        :param encoding: Override text encoding (by default: autodetect by
+                locale.getpreferredencoding())
         """
         # Add a reader and a close hook
         self._add_reader("tail")
@@ -496,7 +503,7 @@ class Tail(Spawn):
 
         # Init the superclass
         Spawn.__init__(self, command, a_id, auto_close, echo, linesep,
-                       pass_fds)
+                       pass_fds, encoding)
         if thread_name is None:
             self.thread_name = "tail_thread_%s_%s" % (self.a_id,
                                                       str(command)[:10])
@@ -679,7 +686,7 @@ class Expect(Tail):
     def __init__(self, command=None, a_id=None, auto_close=True, echo=False,
                  linesep="\n", termination_func=None, termination_params=(),
                  output_func=None, output_params=(), output_prefix="",
-                 thread_name=None, pass_fds=()):
+                 thread_name=None, pass_fds=(), encoding=None):
         """
         Initialize the class and run command as a child process.
 
@@ -707,6 +714,8 @@ class Expect(Tail):
         :param output_prefix: String to prepend to lines sent to output_func.
         :param pass_fds: Optional sequence of file descriptors to keep open
                 between the parent and child.
+        :param encoding: Override text encoding (by default: autodetect by
+                locale.getpreferredencoding())
         """
         # Add a reader
         self._add_reader("expect")
@@ -715,7 +724,7 @@ class Expect(Tail):
         Tail.__init__(self, command, a_id, auto_close, echo, linesep,
                       termination_func, termination_params,
                       output_func, output_params, output_prefix, thread_name,
-                      pass_fds)
+                      pass_fds, encoding)
 
     def __reduce__(self):
         return self.__class__, (self.__getinitargs__())
@@ -958,7 +967,7 @@ class ShellSession(Expect):
                  linesep="\n", termination_func=None, termination_params=(),
                  output_func=None, output_params=(), output_prefix="",
                  thread_name=None, prompt=r"[\#\$]\s*$",
-                 status_test_command="echo $?", pass_fds=()):
+                 status_test_command="echo $?", pass_fds=(), encoding=None):
         """
         Initialize the class and run command as a child process.
 
@@ -990,12 +999,14 @@ class ShellSession(Expect):
                 cmd_status_output() and friends).
         :param pass_fds: Optional sequence of file descriptors to keep open
                 between the parent and child.
+        :param encoding: Override text encoding (by default: autodetect by
+                locale.getpreferredencoding())
         """
         # Init the superclass
         Expect.__init__(self, command, a_id, auto_close, echo, linesep,
                         termination_func, termination_params,
                         output_func, output_params, output_prefix, thread_name,
-                        pass_fds)
+                        pass_fds, encoding)
 
         # Remember some attributes
         self.prompt = prompt
@@ -1305,7 +1316,7 @@ class ShellSession(Expect):
 
 
 def run_tail(command, termination_func=None, output_func=None, output_prefix="",
-             timeout=1.0, auto_close=True, pass_fds=()):
+             timeout=1.0, auto_close=True, pass_fds=(), encoding=None):
     """
     Run a subprocess in the background and collect its output and exit status.
 
@@ -1327,6 +1338,8 @@ def run_tail(command, termination_func=None, output_func=None, output_prefix="",
             reference count drops to zero (default False).
     :param pass_fds: Optional sequence of file descriptors to keep open
             between the parent and child.
+    :param encoding: Override text encoding (by default: autodetect by
+            locale.getpreferredencoding())
 
     :return: A Expect object.
     """
@@ -1335,7 +1348,8 @@ def run_tail(command, termination_func=None, output_func=None, output_prefix="",
                       output_func=output_func,
                       output_prefix=output_prefix,
                       auto_close=auto_close,
-                      pass_fds=pass_fds)
+                      pass_fds=pass_fds,
+                      encoding=encoding)
 
     end_time = time.time() + timeout
     while time.time() < end_time and bg_process.is_alive():
@@ -1345,7 +1359,7 @@ def run_tail(command, termination_func=None, output_func=None, output_prefix="",
 
 
 def run_bg(command, termination_func=None, output_func=None, output_prefix="",
-           timeout=1.0, auto_close=True, pass_fds=()):
+           timeout=1.0, auto_close=True, pass_fds=(), encoding=None):
     """
     Run a subprocess in the background and collect its output and exit status.
 
@@ -1367,6 +1381,8 @@ def run_bg(command, termination_func=None, output_func=None, output_prefix="",
             reference count drops to zero (default False).
     :param pass_fds: Optional sequence of file descriptors to keep open
             between the parent and child.
+    :param encoding: Override text encoding (by default: autodetect by
+            locale.getpreferredencoding())
 
     :return: A Expect object.
     """
@@ -1375,7 +1391,8 @@ def run_bg(command, termination_func=None, output_func=None, output_prefix="",
                         output_func=output_func,
                         output_prefix=output_prefix,
                         auto_close=auto_close,
-                        pass_fds=pass_fds)
+                        pass_fds=pass_fds,
+                        encoding=encoding)
 
     end_time = time.time() + timeout
     while time.time() < end_time and bg_process.is_alive():
@@ -1385,7 +1402,7 @@ def run_bg(command, termination_func=None, output_func=None, output_prefix="",
 
 
 def run_fg(command, output_func=None, output_prefix="", timeout=1.0,
-           pass_fds=()):
+           pass_fds=(), encoding=None):
     """
     Run a subprocess in the foreground and collect its output and exit status.
 
@@ -1403,13 +1420,15 @@ def run_fg(command, output_func=None, output_prefix="", timeout=1.0,
             terminate before killing it and returning
     :param pass_fds: Optional sequence of file descriptors to keep open
             between the parent and child.
+    :param encoding: Override text encoding (by default: autodetect by
+            locale.getpreferredencoding())
 
     :return: A 2-tuple containing the exit status of the process and its
             STDOUT/STDERR output.  If timeout expires before the process
             terminates, the returned status is None.
     """
     bg_process = run_bg(command, None, output_func, output_prefix, timeout,
-                        pass_fds=pass_fds)
+                        pass_fds=pass_fds, encoding=encoding)
     output = bg_process.get_output()
     if bg_process.is_alive():
         status = None
