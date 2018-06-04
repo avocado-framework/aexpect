@@ -30,7 +30,7 @@
 %endif
 
 Name: python-%{srcname}
-Version: 1.4.0
+Version: 1.5.0
 Release: 2%{?gitrel}%{?dist}
 Summary: Aexpect is a python library to control interactive applications
 Group: Development/Tools
@@ -133,6 +133,9 @@ selftests/checkall
 %endif
 
 %changelog
+* Mon Jun 4 2018 Lucas Meneghel Rodrigues <lookkas@gmail.com> - 1.5.0-1
+- Upgrade to upstream version 1.5.0
+
 * Wed Mar 14 2018 Cleber Rosa <cleber@redhat.com> - 1.4.0-2
 - Changed URL to aexpect repo
 - Changed build to use a git archived based source
