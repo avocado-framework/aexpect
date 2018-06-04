@@ -47,6 +47,7 @@ Source0: https://github.com/avocado-framework/%{srcname}/archive/%{commit}.tar.g
 BuildArch: noarch
 Requires: python
 BuildRequires: python2-devel
+BuildRequires: python-subprocess32
 
 %if %{with_python3}
 Requires: python3
@@ -64,6 +65,7 @@ sftp, telnet, among others.
 
 %package -n python2-%{srcname}
 Summary: %{summary}
+Requires: python-subprocess32
 %{?python_provide:%python_provide python2-%{srcname}}
 
 %description -n python2-%{srcname}
