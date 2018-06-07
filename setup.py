@@ -14,6 +14,7 @@
 # Author: Lucas Meneghel Rodrigues <lmr@redhat.com>
 
 import os
+import sys
 # pylint: disable=E0611
 
 from setuptools import setup
@@ -50,6 +51,10 @@ def get_avocado_libexec_dir():
 
 
 if __name__ == '__main__':
+    if sys.version_info[0] == 2:
+        REQUIREMENTS = ['subprocess32>=3.2.6']
+    else:
+        REQUIREMENTS = []
     setup(name='aexpect',
           version='1.5.0',
           description='Aexpect',
@@ -60,4 +65,4 @@ if __name__ == '__main__':
                     'aexpect.utils'],
           scripts=['scripts/aexpect-helper'],
           use_2to3=True,
-          install_requires=['subprocess32>=3.2.6;python_version<"3"'])
+          install_requires=REQUIREMENTS)
