@@ -34,4 +34,5 @@ if __name__ == '__main__':
                     'aexpect.utils'],
           scripts=['scripts/aexpect-helper'],
           use_2to3=True,
-          install_requires=REQUIREMENTS)
+          install_requires=REQUIREMENTS,
+          test_suite='tests')

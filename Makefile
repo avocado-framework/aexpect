@@ -1,4 +1,5 @@
-PYTHON=`which python`
+PYTHON=$(shell which python 2>/dev/null || which python3 2>/dev/null)
+PYTHON_DEVELOP_ARGS=$(shell if ($(PYTHON) setup.py develop --help 2>/dev/null | grep -q '\-\-user'); then echo "--user"; else echo ""; fi)
 DESTDIR=/
 BUILDIR=$(CURDIR)/debian/aexpect
 PROJECT=aexpect
@@ -71,8 +72,10 @@ rpm-release: srpm-release
 	if test ! -d BUILD/RPM; then mkdir -p BUILD/RPM; fi
 	mock -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 1" --rebuild BUILD/SRPM/python-aexpect-$(VERSION)-*.src.rpm
 
-check:
+check: clean
 	inspekt checkall
+	$(PYTHON) setup.py develop $(PYTHON_DEVELOP_ARGS)
+	$(PYTHON) setup.py test
 
 clean:
 	$(PYTHON) setup.py clean
