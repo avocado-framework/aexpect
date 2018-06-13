@@ -102,13 +102,13 @@ PYTHON 3 SUPPORT IS CURRENTLY EXPERIMENTAL
 %install
 %py2_install
 # move and symlink python2 version-specific executables
-mv %{buildroot}%{_bindir}/aexpect-helper %{buildroot}%{_bindir}/aexpect-helper-%{python2_version}
-ln -s aexpect-helper-%{python2_version} %{buildroot}%{_bindir}/aexpect-helper-2
+mv %{buildroot}%{_bindir}/aexpect_helper %{buildroot}%{_bindir}/aexpect_helper-%{python2_version}
+ln -s aexpect_helper-%{python2_version} %{buildroot}%{_bindir}/aexpect_helper_2
 
 %if %{with_python3}
 %py3_install
-mv %{buildroot}%{_bindir}/aexpect-helper %{buildroot}%{_bindir}/aexpect-helper-%{python3_version}
-ln -s aexpect-helper-%{python3_version} %{buildroot}%{_bindir}/aexpect-helper-3
+mv %{buildroot}%{_bindir}/aexpect_helper %{buildroot}%{_bindir}/aexpect_helper-%{python3_version}
+ln -s aexpect_helper-%{python3_version} %{buildroot}%{_bindir}/aexpect_helper_3
 %endif
 
 %check
@@ -121,7 +121,7 @@ selftests/checkall
 %doc README.rst
 %{python2_sitelib}/aexpect/
 %{python2_sitelib}/aexpect-%{version}-py%{python2_version}.egg-info
-%{_bindir}/aexpect-helper-2*
+%{_bindir}/aexpect_helper_2*
 
 %if %{with_python3}
 %files -n python%{python3_pkgversion}-%{srcname}
@@ -129,7 +129,7 @@ selftests/checkall
 %doc README.rst
 %{python3_sitelib}/aexpect/
 %{python3_sitelib}/aexpect-%{version}-py%{python3_version}.egg-info
-%{_bindir}/aexpect-helper-3*
+%{_bindir}/aexpect_helper_3*
 %endif
 
 %changelog

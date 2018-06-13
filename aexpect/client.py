@@ -181,9 +181,9 @@ class Spawn(object):
 
         # Start the server (which runs the command)
         if command:
-            # try to find python specific version of aexpect-helper first, then
+            # try to find python specific version of aexpect_helper first, then
             # try unversioned
-            helper_noversion = 'aexpect-helper'
+            helper_noversion = 'aexpect_helper'
             helper_versioned = '{0}-{1}.{2}'.format(helper_noversion,
                                                     sys.version_info[0],
                                                     sys.version_info[1])
