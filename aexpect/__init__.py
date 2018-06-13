@@ -9,6 +9,11 @@
 #
 # See LICENSE for more details.
 
+"""
+Aexpect module, see help('aexpect.client') to get info about the main
+entry-points.
+"""
+
 from .exceptions import ExpectError
 from .exceptions import ExpectProcessTerminatedError
 from .exceptions import ExpectTimeoutError

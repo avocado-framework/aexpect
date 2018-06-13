@@ -9,9 +9,11 @@
 #
 # See LICENSE for more details.
 
+"""Module that helps waiting for conditions"""
+
 import time
 import logging
-log = logging.getLogger(__file__)
+_LOG = logging.getLogger(__file__)
 
 
 def wait_for(func, timeout, first=0.0, step=1.0, text=None):
@@ -33,7 +35,7 @@ def wait_for(func, timeout, first=0.0, step=1.0, text=None):
 
     while time.time() < end_time:
         if text:
-            log.debug("%s (%f secs)", text, (time.time() - start_time))
+            _LOG.debug("%s (%f secs)", text, (time.time() - start_time))
 
         output = func()
         if output:

@@ -12,6 +12,8 @@
 # Copyright: Red Hat Inc. 2018
 # Author: Xu Han <xuhan@redhat.com>
 
+# selftests pylint: disable=C0111,C0111
+
 import os
 import unittest
 
@@ -30,7 +32,7 @@ class PassfdsTest(unittest.TestCase):
         Tests fd passing for `client.Spawn`
         """
         with open(os.devnull, "r") as devnull:
-            fd = devnull.fileno()
+            fd_null = devnull.fileno()
 
             child = client.Spawn(LIST_FD_CMD)
             self.assertFalse(bool(child.get_status()),
@@ -38,7 +40,7 @@ class PassfdsTest(unittest.TestCase):
             self.assertFalse(os.devnull in child.get_output())
             child.close()
 
-            child = client.Spawn(LIST_FD_CMD, pass_fds=[fd])
+            child = client.Spawn(LIST_FD_CMD, pass_fds=[fd_null])
             self.assertFalse(bool(child.get_status()),
                              "child terminated abnormally")
             self.assertTrue(os.devnull in child.get_output())

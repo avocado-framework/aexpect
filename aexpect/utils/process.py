@@ -9,18 +9,23 @@
 #
 # See LICENSE for more details.
 
+"""Process handling helpers"""
+
 import subprocess
 import signal
 import os
 
 
 def getoutput(cmd):
+    """Executes command and returns stdout+stderr without tailing \n\r"""
     proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
     return proc.communicate()[0].decode().rstrip("\n\r")
 
 
 class CmdError(Exception):
+
+    """Error describing failed command execution"""
 
     def __init__(self, command=None, result=None):
         super(CmdError, self).__init__()

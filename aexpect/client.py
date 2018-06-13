@@ -15,7 +15,7 @@ API used to run/control interactive processes.
 :copyright: 2008-2015 Red Hat Inc.
 """
 
-# disable too-many-* as we need them pylint: disable=R0902,R0913,R0914
+# disable too-many-* as we need them pylint: disable=R0902,R0913,R0914,C0302
 
 import time
 import signal
@@ -27,10 +27,6 @@ import shutil
 import select
 import locale
 import logging
-if sys.version_info[0] < 3:
-    import subprocess32 as subprocess
-else:
-    import subprocess
 
 from aexpect.exceptions import ExpectError
 from aexpect.exceptions import ExpectProcessTerminatedError
@@ -56,8 +52,13 @@ from aexpect.utils import process as utils_process
 from aexpect.utils import path as utils_path
 from aexpect.utils import wait as utils_wait
 
+if sys.version_info[0] < 3:
+    import subprocess32 as subprocess
+else:
+    import subprocess
 
-_thread_kill_requested = threading.Event()
+
+_THREAD_KILL_REQUESTED = threading.Event()
 
 
 def kill_tail_threads():
@@ -66,12 +67,12 @@ def kill_tail_threads():
 
     After calling this function no new threads should be started.
     """
-    _thread_kill_requested.set()
+    _THREAD_KILL_REQUESTED.set()
 
-    for t in threading.enumerate():
-        if hasattr(t, "name") and t.name.startswith("tail_thread"):
-            t.join(10)
-    _thread_kill_requested.clear()
+    for thread in threading.enumerate():
+        if hasattr(thread, "name") and thread.name.startswith("tail_thread"):
+            thread.join(10)
+    _THREAD_KILL_REQUESTED.clear()
 
 
 class Spawn(object):
@@ -211,7 +212,7 @@ class Spawn(object):
         # Open the reading pipes
         self.reader_fds = {}
         try:
-            assert(is_file_locked(self.lock_server_running_filename))
+            assert is_file_locked(self.lock_server_running_filename)
             for reader, filename in self.reader_filenames.items():
                 self.reader_fds[reader] = os.open(filename, os.O_RDONLY)
         except (AssertionError, OSError):
@@ -281,9 +282,9 @@ class Spawn(object):
         """
         Close all reader file descriptors.
         """
-        for fd in self.reader_fds.values():
+        for fd_reader in self.reader_fds.values():
             try:
-                os.close(fd)
+                os.close(fd_reader)
             except OSError:
                 pass
 
@@ -398,9 +399,9 @@ class Spawn(object):
         :param cont: String to send to the child process.
         """
         try:
-            fd = os.open(self.inpipe_filename, os.O_RDWR)
-            os.write(fd, cont.encode(self.encoding))
-            os.close(fd)
+            proc_input_pipe = os.open(self.inpipe_filename, os.O_RDWR)
+            os.write(proc_input_pipe, cont.encode(self.encoding))
+            os.close(proc_input_pipe)
         except OSError:
             pass
 
@@ -442,10 +443,10 @@ class Spawn(object):
                             container.
         """
         try:
-            fd = os.open(self.ctrlpipe_filename, os.O_RDWR)
+            helper_control_pipe = os.open(self.ctrlpipe_filename, os.O_RDWR)
             data = "%10d%s" % (len(control_str), control_str)
-            os.write(fd, data.encode(self.encoding))
-            os.close(fd)
+            os.write(helper_control_pipe, data.encode(self.encoding))
+            os.close(helper_control_pipe)
         except OSError:
             pass
 
@@ -600,7 +601,7 @@ class Tail(Spawn):
             genio.close_log_file(self.log_file)
 
     def _tail(self):  # speed optimization pylint: disable=too-many-branches
-        def print_line(text):
+        def _print_line(text):
             # Pre-pend prefix and remove trailing whitespace
             text = self.output_prefix + text.rstrip()
             # Pass text to output_func
@@ -611,23 +612,24 @@ class Tail(Spawn):
                 pass
 
         try:
-            fd = self._get_fd("tail")
+            tail_pipe = self._get_fd("tail")
             bfr = ""
             while True:
-                if _thread_kill_requested.is_set():
+                if _THREAD_KILL_REQUESTED.is_set():
                     try:
-                        os.close(fd)
+                        os.close(tail_pipe)
                     except OSError:
                         pass
                     return
                 try:
                     # See if there's any data to read from the pipe
-                    r = select.select([fd], [], [], 0.05)[0]
+                    read_available_fds = select.select([tail_pipe], [], [],
+                                                       0.05)[0]
                 except (select.error, TypeError):
                     break
-                if fd in r:
+                if tail_pipe in read_available_fds:
                     # Some data is available; read it
-                    new_data = os.read(fd, 1024)
+                    new_data = os.read(tail_pipe, 1024)
                     if not new_data:
                         break
                     new_data = new_data.decode(self.encoding, "ignore")
@@ -639,23 +641,23 @@ class Tail(Spawn):
                     if self.output_func:
                         lines = bfr.split("\n")
                         for line in lines[:-1]:
-                            print_line(line)
+                            _print_line(line)
                     # Leave only the last line
                     last_newline_index = bfr.rfind("\n")
                     bfr = bfr[last_newline_index + 1:]
                 else:
                     # No output is available right now; flush the bfr
                     if bfr:
-                        print_line(bfr)
+                        _print_line(bfr)
                         bfr = ""
             # The process terminated; print any remaining output
             if bfr:
-                print_line(bfr)
+                _print_line(bfr)
             # Get the exit status, print it and send it to termination_func
             status = self.get_status()
             if status is None:
                 return
-            print_line("(Process terminated with status %s)" % status)
+            _print_line("(Process terminated with status %s)" % status)
             try:
                 params = self.termination_params + (status,)
                 self.termination_func(*params)
@@ -673,9 +675,9 @@ class Tail(Spawn):
         # Wait for the tail thread to exit
         # (it's done this way because self.tail_thread may become None at any
         # time)
-        t = self.tail_thread
-        if t:
-            t.join()
+        thread = self.tail_thread
+        if thread:
+            thread.join()
 
 
 class Expect(Tail):
@@ -750,15 +752,17 @@ class Expect(Tail):
         end_time = None
         if timeout:
             end_time = time.time() + timeout
-        fd = self._get_fd("expect")
+        expect_pipe = self._get_fd("expect")
         data = ""
         while True:
             try:
-                r = select.select([fd], [], [], internal_timeout)[0]
+                read_available_fds = select.select([expect_pipe], [], [],
+                                                   internal_timeout)[0]
             except (select.error, TypeError):
                 return data
-            if fd in r:
-                new_data = os.read(fd, 1024).decode(self.encoding, "ignore")
+            if expect_pipe in read_available_fds:
+                new_data = os.read(expect_pipe, 1024).decode(self.encoding,
+                                                             "ignore")
                 if not new_data:
                     return data
                 data += new_data
@@ -779,10 +783,10 @@ class Expect(Tail):
         :param cont: input string
         :param patterns: List of strings (regular expression patterns).
         """
-        for i in range(len(patterns)):
-            if not patterns[i]:
+        for i, pattern in enumerate(patterns):
+            if not pattern:
                 continue
-            if re.search(patterns[i], cont):
+            if re.search(pattern, cont):
                 return i
         return None
 
@@ -836,17 +840,18 @@ class Expect(Tail):
         """
         if not match_func:
             match_func = self.match_patterns
-        fd = self._get_fd("expect")
-        o = ""
+        expect_pipe = self._get_fd("expect")
+        output = ""
         end_time = time.time() + timeout
         while True:
             try:
-                r = select.select([fd], [], [],
-                                  max(0, end_time - time.time()))[0]
+                _timeout = max(0, end_time - time.time())
+                read_available_fds = select.select([expect_pipe], [], [],
+                                                   _timeout)[0]
             except (select.error, TypeError):
                 break
-            if not r:
-                raise ExpectTimeoutError(patterns, o)
+            if not read_available_fds:
+                raise ExpectTimeoutError(patterns, output)
             # Read data from child
             data = self.read_nonblocking(internal_timeout,
                                          end_time - time.time())
@@ -857,17 +862,18 @@ class Expect(Tail):
                 for line in data.splitlines():
                     print_func(line)
             # Look for patterns
-            o += data
-            match = match_func(filter_func(o), patterns)
+            output += data
+            match = match_func(filter_func(output), patterns)
             if match is not None:
-                return match, o
+                return match, output
 
         # Check if the child has terminated
         if utils_wait.wait_for(lambda: not self.is_alive(), 5, 0, 0.1):
-            raise ExpectProcessTerminatedError(patterns, self.get_status(), o)
+            raise ExpectProcessTerminatedError(patterns, self.get_status(),
+                                               output)
         else:
             # This shouldn't happen
-            raise ExpectError(patterns, o)
+            raise ExpectError(patterns, output)
 
     def read_until_last_word_matches(self, patterns, timeout=60.0,
                                      internal_timeout=None, print_func=None):
@@ -887,12 +893,12 @@ class Expect(Tail):
                 terminates while waiting for output
         :raise ExpectError: Raised if an unknown error occurs
         """
-        def get_last_word(cont):
+        def _get_last_word(cont):
             if cont:
                 return cont.split()[-1]
             return ""
 
-        return self.read_until_output_matches(patterns, get_last_word,
+        return self.read_until_output_matches(patterns, _get_last_word,
                                               timeout, internal_timeout,
                                               print_func)
 
@@ -918,13 +924,14 @@ class Expect(Tail):
                 terminates while waiting for output
         :raise ExpectError: Raised if an unknown error occurs
         """
-        def get_last_nonempty_line(cont):
+        def _get_last_nonempty_line(cont):
             nonempty_lines = [l for l in cont.splitlines() if l.strip()]
             if nonempty_lines:
                 return nonempty_lines[-1]
             return ""
 
-        return self.read_until_output_matches(patterns, get_last_nonempty_line,
+        return self.read_until_output_matches(patterns,
+                                              _get_last_nonempty_line,
                                               timeout, internal_timeout,
                                               print_func)
 
@@ -1027,12 +1034,17 @@ class ShellSession(Expect):
 
     @classmethod
     def remove_command_echo(cls, cont, cmd):
+        """
+        Remove the executed command which might have been echoed by terminal
+        into output.
+        """
         if cont and cont.splitlines()[0] == cmd:
             cont = "".join(cont.splitlines(True)[1:])
         return cont
 
     @classmethod
     def remove_last_nonempty_line(cls, cont):
+        """Remove last non-empty line and all following empty lines"""
         return "".join(cont.rstrip().splitlines(True)[:-1])
 
     def set_prompt(self, prompt):
@@ -1132,7 +1144,7 @@ class ShellSession(Expect):
         self.read_nonblocking(0, timeout)
         self.sendline(cmd)
         try:
-            o = self.read_up_to_prompt(timeout, internal_timeout, print_func)
+            out = self.read_up_to_prompt(timeout, internal_timeout, print_func)
         except ExpectTimeoutError as error:
             output = self.remove_command_echo(error.output, cmd)
             raise ShellTimeoutError(cmd, output)
@@ -1144,7 +1156,8 @@ class ShellSession(Expect):
             raise ShellError(cmd, output)
 
         # Remove the echoed command and the final shell prompt
-        return self.remove_last_nonempty_line(self.remove_command_echo(o, cmd))
+        return self.remove_last_nonempty_line(self.remove_command_echo(out,
+                                                                       cmd))
 
     def cmd_output_safe(self, cmd, timeout=60):
         """
@@ -1168,12 +1181,12 @@ class ShellSession(Expect):
         logging.debug("Sending command (safe): %s", cmd)
         self.read_nonblocking(0, timeout)
         self.sendline(cmd)
-        o = ""
+        out = ""
         success = False
         start_time = time.time()
         while (time.time() - start_time) < timeout:
             try:
-                o += self.read_up_to_prompt(0.5)
+                out += self.read_up_to_prompt(0.5)
                 success = True
                 break
             except ExpectTimeoutError as error:
@@ -1187,10 +1200,11 @@ class ShellSession(Expect):
                 raise ShellError(cmd, output)
 
         if not success:
-            raise ShellTimeoutError(cmd, o)
+            raise ShellTimeoutError(cmd, out)
 
         # Remove the echoed command and the final shell prompt
-        return self.remove_last_nonempty_line(self.remove_command_echo(o, cmd))
+        return self.remove_last_nonempty_line(self.remove_command_echo(out,
+                                                                       cmd))
 
     def cmd_status_output(self, cmd, timeout=60, internal_timeout=None,
                           print_func=None, safe=False):
@@ -1205,7 +1219,7 @@ class ShellSession(Expect):
                 (should take a string parameter)
         :param safe: Whether using safe mode when execute cmd.
                 In serial sessions, frequently the kernel might print debug or
-                error messages that make read_up_to_prompt to timeout. Let's
+                error messages that make read_up_to_prompt to timeout. Let'status
                 try to be a little more robust and send a carriage return, to
                 see if we can get to the prompt when safe=True.
 
@@ -1217,20 +1231,20 @@ class ShellSession(Expect):
         :raise ShellStatusError: Raised if the exit status cannot be obtained
         :raise ShellError: Raised if an unknown error occurs
         """
-        o = self.cmd_output(cmd, timeout, internal_timeout, print_func, safe)
+        out = self.cmd_output(cmd, timeout, internal_timeout, print_func, safe)
         try:
             # Send the 'echo $?' (or equivalent) command to get the exit status
-            s = self.cmd_output(self.status_test_command, 10, internal_timeout,
-                                print_func, safe)
+            status = self.cmd_output(self.status_test_command, 10,
+                                     internal_timeout, print_func, safe)
         except ShellError:
-            raise ShellStatusError(cmd, o)
+            raise ShellStatusError(cmd, out)
 
         # Get the first line consisting of digits only
-        digit_lines = [l for l in s.splitlines() if l.strip().isdigit()]
+        digit_lines = [l for l in status.splitlines() if l.strip().isdigit()]
         if digit_lines:
-            return int(digit_lines[0].strip()), o
+            return int(digit_lines[0].strip()), out
         else:
-            raise ShellStatusError(cmd, o)
+            raise ShellStatusError(cmd, out)
 
     def cmd_status(self, cmd, timeout=60, internal_timeout=None,
                    print_func=None, safe=False):
@@ -1262,7 +1276,7 @@ class ShellSession(Expect):
     def cmd(self, cmd, timeout=60, internal_timeout=None, print_func=None,
             ok_status=None, ignore_all_errors=False):
         """
-        Send a command and return its output. If the command's exit status is
+        Send a command and return its output. If the command'status exit status is
         nonzero, raise an exception.
 
         :param cmd: Command to send (must not contain newline characters)
@@ -1289,11 +1303,12 @@ class ShellSession(Expect):
         if ok_status is None:
             ok_status = [0, ]
         try:
-            s, o = self.cmd_status_output(cmd, timeout, internal_timeout,
-                                          print_func)
-            if s not in ok_status:
-                raise ShellCmdError(cmd, s, o)
-            return o
+            status, output = self.cmd_status_output(cmd, timeout,
+                                                    internal_timeout,
+                                                    print_func)
+            if status not in ok_status:
+                raise ShellCmdError(cmd, status, output)
+            return output
         except ShellError:
             if ignore_all_errors:
                 pass

@@ -13,6 +13,8 @@
 # Copyright: Red Hat Inc. 2013-2015
 # Author: Lucas Meneghel Rodrigues <lmr@redhat.com>
 
+"""Aexpect setup script"""
+
 import sys
 # pylint: disable=E0611
 

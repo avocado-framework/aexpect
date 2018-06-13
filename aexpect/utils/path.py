@@ -9,6 +9,8 @@
 #
 # See LICENSE for more details.
 
+"""Utils simplifying dir handling"""
+
 import os
 
 

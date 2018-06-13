@@ -9,6 +9,8 @@
 #
 # See LICENSE for more details.
 
+"""Module that helps string handlings"""
+
 import re
 
 

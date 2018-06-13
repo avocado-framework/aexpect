@@ -12,6 +12,8 @@
 # Copyright: Red Hat Inc. 2018
 # Author: Cleber Rosa <crosa@redhat.com>
 
+# selftests pylint: disable=C0111,C0111
+
 import random
 import string
 import sys

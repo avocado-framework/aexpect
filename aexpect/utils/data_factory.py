@@ -9,6 +9,8 @@
 #
 # See LICENSE for more details.
 
+"""Module intended for various data processors"""
+
 import random
 import string
 
