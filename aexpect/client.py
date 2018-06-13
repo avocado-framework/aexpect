@@ -619,7 +619,7 @@ class Tail(Spawn):
                     return
                 try:
                     # See if there's any data to read from the pipe
-                    r, w, x = select.select([fd], [], [], 0.05)
+                    r = select.select([fd], [], [], 0.05)[0]
                 except (select.error, TypeError):
                     break
                 if fd in r:
@@ -751,7 +751,7 @@ class Expect(Tail):
         data = ""
         while True:
             try:
-                r, w, x = select.select([fd], [], [], internal_timeout)
+                r = select.select([fd], [], [], internal_timeout)[0]
             except (select.error, TypeError):
                 return data
             if fd in r:
@@ -836,8 +836,8 @@ class Expect(Tail):
         end_time = time.time() + timeout
         while True:
             try:
-                r, w, x = select.select([fd], [], [],
-                                        max(0, end_time - time.time()))
+                r = select.select([fd], [], [],
+                                  max(0, end_time - time.time()))[0]
             except (select.error, TypeError):
                 break
             if not r:
