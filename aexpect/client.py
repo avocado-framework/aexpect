@@ -53,7 +53,7 @@ from aexpect.utils import path as utils_path
 from aexpect.utils import wait as utils_wait
 
 if sys.version_info[0] < 3:
-    import subprocess32 as subprocess
+    import subprocess32 as subprocess   # pylint: disable=E0401
 else:
     import subprocess
 
