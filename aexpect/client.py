@@ -140,6 +140,7 @@ class Spawn(object):
                 self.encoding = "UTF-8"
         else:
             self.encoding = encoding
+        self.reader_fds = {}
         base_dir = os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id)
 
         # Define filenames for communication with server
@@ -210,7 +211,6 @@ class Spawn(object):
                 pass
 
         # Open the reading pipes
-        self.reader_fds = {}
         try:
             assert is_file_locked(self.lock_server_running_filename)
             for reader, filename in self.reader_filenames.items():
