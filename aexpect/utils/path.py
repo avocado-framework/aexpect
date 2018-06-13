@@ -22,7 +22,7 @@ class CmdNotFoundError(Exception):
     """
 
     def __init__(self, cmd, paths):
-        super(CmdNotFoundError, self)
+        super(CmdNotFoundError, self).__init__()
         self.cmd = cmd
         self.paths = paths
 

@@ -23,6 +23,7 @@ def getoutput(cmd):
 class CmdError(Exception):
 
     def __init__(self, command=None, result=None):
+        super(CmdError, self).__init__()
         self.command = command
         self.result = result
 
