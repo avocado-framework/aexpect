@@ -100,7 +100,9 @@ class CommandsTests(unittest.TestCase):
                 continue
             session = client.ShellSession("sh")
             try:
-                out = getattr(session, cmd)('sleep 10', timeout=0)
+                execute = ("%s -c 'import time; time.sleep(10)'"
+                           % sys.executable)
+                out = getattr(session, cmd)(execute, timeout=0)
                 self.fail("Killed session did not produce 'ShellError' using "
                           "command %s (%s)\n%s" % (cmd, self.cmds, out))
             except client.ShellError as details:
