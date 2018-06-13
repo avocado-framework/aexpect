@@ -9,18 +9,29 @@
 #
 # See LICENSE for more details.
 
+"""
+Naive module that keeps tacks of some opened files and somehow manages them.
+"""
+
 import os
 
-_open_log_files = {}
+# This variable is used from Avocado-vt
+_open_log_files = {}    # pylint: disable=C0103
 
 
 def close_log_file(filename):
+
+    """
+    This closes all files that use the same "filename" (not just path, but
+    really just "basename(filename)".
+    """
+
     remove = []
-    for k in _open_log_files:
-        if os.path.basename(k) == filename:
-            f = _open_log_files[k]
-            f.close()
-            remove.append(k)
+    for log_file in _open_log_files:
+        if os.path.basename(log_file) == filename:
+            log_fd = _open_log_files[log_file]
+            log_fd.close()
+            remove.append(log_file)
     if remove:
         for key_to_remove in remove:
             _open_log_files.pop(key_to_remove)
