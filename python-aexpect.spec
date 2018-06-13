@@ -10,10 +10,10 @@
 %global gittar		%{srcname}-%{version}.tar.gz
 %else
 %if ! 0%{?commit:1}
-%global commit		7597f77853fc668d640b3652a25aa57a515742fa
+%global commit		012bc0e57fc9d05d2ee4ca2425dc27b07b745a32
 %endif
 %if ! 0%{?commit_date:1}
-%global commit_date	20180202
+%global commit_date	20180613
 %endif
 %global shortcommit	%(c=%{commit};echo ${c:0:7})
 %global gitrel		.%{commit_date}git%{shortcommit}
@@ -30,8 +30,8 @@
 %endif
 
 Name: python-%{srcname}
-Version: 1.5.0
-Release: 2%{?gitrel}%{?dist}
+Version: 1.5.1
+Release: 0%{?gitrel}%{?dist}
 Summary: Aexpect is a python library to control interactive applications
 Group: Development/Tools
 
@@ -133,6 +133,9 @@ selftests/checkall
 %endif
 
 %changelog
+* Wed Jun 13 2018 Cleber Rosa <cleber@redhat.com> - 1.5.1-0
+- Upgrade to upstream version 1.5.1
+
 * Mon Jun 4 2018 Lucas Meneghel Rodrigues <lookkas@gmail.com> - 1.5.0-1
 - Upgrade to upstream version 1.5.0
 
