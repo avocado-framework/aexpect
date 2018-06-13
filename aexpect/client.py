@@ -1130,14 +1130,15 @@ class ShellSession(Expect):
         self.sendline(cmd)
         try:
             o = self.read_up_to_prompt(timeout, internal_timeout, print_func)
-        except ExpectError as e:
-            o = self.remove_command_echo(e.output, cmd)
-            if isinstance(e, ExpectTimeoutError):
-                raise ShellTimeoutError(cmd, o)
-            elif isinstance(e, ExpectProcessTerminatedError):
-                raise ShellProcessTerminatedError(cmd, e.status, o)
-            else:
-                raise ShellError(cmd, o)
+        except ExpectTimeoutError as error:
+            output = self.remove_command_echo(error.output, cmd)
+            raise ShellTimeoutError(cmd, output)
+        except ExpectProcessTerminatedError as error:
+            output = self.remove_command_echo(error.output, cmd)
+            raise ShellProcessTerminatedError(cmd, error.status, output)
+        except ExpectError as error:
+            output = self.remove_command_echo(error.output, cmd)
+            raise ShellError(cmd, output)
 
         # Remove the echoed command and the final shell prompt
         return self.remove_last_nonempty_line(self.remove_command_echo(o, cmd))
@@ -1172,14 +1173,15 @@ class ShellSession(Expect):
                 o += self.read_up_to_prompt(0.5)
                 success = True
                 break
-            except ExpectError as e:
-                o = self.remove_command_echo(e.output, cmd)
-                if isinstance(e, ExpectTimeoutError):
-                    self.sendline()
-                elif isinstance(e, ExpectProcessTerminatedError):
-                    raise ShellProcessTerminatedError(cmd, e.status, o)
-                else:
-                    raise ShellError(cmd, o)
+            except ExpectTimeoutError as error:
+                output = self.remove_command_echo(error.output, cmd)
+                raise ShellTimeoutError(cmd, output)
+            except ExpectProcessTerminatedError as error:
+                output = self.remove_command_echo(error.output, cmd)
+                raise ShellProcessTerminatedError(cmd, error.status, output)
+            except ExpectError as error:
+                output = self.remove_command_echo(error.output, cmd)
+                raise ShellError(cmd, output)
 
         if not success:
             raise ShellTimeoutError(cmd, o)

@@ -38,7 +38,8 @@ class ExpectTimeoutError(ExpectError):
 class ExpectProcessTerminatedError(ExpectError):
 
     def __init__(self, patterns, status, output):
-        ExpectError.__init__(self, patterns, output)
+        super(ExpectProcessTerminatedError, self).__init__(patterns,
+                                                           output)
         self.status = status
 
     def __str__(self):
