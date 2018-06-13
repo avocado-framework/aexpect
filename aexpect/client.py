@@ -196,7 +196,8 @@ class Spawn(object):
             # Send parameters to the server
             sub.stdin.write(("%s\n" % self.a_id).encode(self.encoding))
             sub.stdin.write(("%s\n" % echo).encode(self.encoding))
-            sub.stdin.write(("%s\n" % ",".join(self.readers)).encode(self.encoding))
+            readers = "%s\n" % ",".join(self.readers)
+            sub.stdin.write(readers.encode(self.encoding))
             sub.stdin.write(("%s\n" % command).encode(self.encoding))
             sub.stdin.flush()
             # Wait for the server to complete its initialization
@@ -439,7 +440,8 @@ class Spawn(object):
         """
         try:
             fd = os.open(self.ctrlpipe_filename, os.O_RDWR)
-            os.write(fd, ("%10d%s" % (len(control_str), control_str)).encode(self.encoding))
+            data = "%10d%s" % (len(control_str), control_str)
+            os.write(fd, data.encode(self.encoding))
             os.close(fd)
         except OSError:
             pass
@@ -806,9 +808,10 @@ class Expect(Tail):
         """
         Read from child using read_nonblocking until a pattern matches.
 
-        Read using read_nonblocking until a match is found using match_patterns,
-        or until timeout expires. Before attempting to search for a match, the
-        data is filtered using the filter_func function provided.
+        Read using read_nonblocking until a match is found using
+        match_patterns, or until timeout expires. Before attempting to search
+        for a match, the data is filtered using the filter_func function
+        provided.
 
         :param patterns: List of strings (regular expression patterns)
         :param filter_func: Function to apply to the data read from the child
@@ -946,8 +949,9 @@ class Expect(Tail):
         :raise ExpectError: Raised if an unknown error occurs
         """
         return self.read_until_output_matches(patterns,
-                                              lambda x: x.splitlines(), timeout,
-                                              internal_timeout, print_func,
+                                              lambda x: x.splitlines(),
+                                              timeout, internal_timeout,
+                                              print_func,
                                               self.match_patterns_multiline)
 
 
@@ -1109,9 +1113,9 @@ class ShellSession(Expect):
                 (should take a string parameter)
         :param safe: Whether using safe mode when execute cmd.
                 In serial sessions, frequently the kernel might print debug or
-                error messages that make read_up_to_prompt to timeout. Let's try
-                to be a little more robust and send a carriage return, to see if
-                we can get to the prompt when safe=True.
+                error messages that make read_up_to_prompt to timeout. Let's
+                try to be a little more robust and send a carriage return, to
+                see if we can get to the prompt when safe=True.
 
         :return: The output of cmd
         :raise ShellTimeoutError: Raised if timeout expires
@@ -1196,9 +1200,9 @@ class ShellSession(Expect):
                 (should take a string parameter)
         :param safe: Whether using safe mode when execute cmd.
                 In serial sessions, frequently the kernel might print debug or
-                error messages that make read_up_to_prompt to timeout. Let's try
-                to be a little more robust and send a carriage return, to see if
-                we can get to the prompt when safe=True.
+                error messages that make read_up_to_prompt to timeout. Let's
+                try to be a little more robust and send a carriage return, to
+                see if we can get to the prompt when safe=True.
 
         :return: A tuple (status, output) where status is the exit status and
                 output is the output of cmd
@@ -1236,9 +1240,9 @@ class ShellSession(Expect):
                 (should take a string parameter)
         :param safe: Whether using safe mode when execute cmd.
                 In serial sessions, frequently the kernel might print debug or
-                error messages that make read_up_to_prompt to timeout. Let's try
-                to be a little more robust and send a carriage return, to see if
-                we can get to the prompt when safe=True.
+                error messages that make read_up_to_prompt to timeout. Let's
+                try to be a little more robust and send a carriage return, to
+                see if we can get to the prompt when safe=True.
 
         :return: The exit status of cmd
         :raise ShellTimeoutError: Raised if timeout expires
@@ -1314,8 +1318,9 @@ class ShellSession(Expect):
         return self.cmd_status(cmd, timeout, internal_timeout, print_func)
 
 
-def run_tail(command, termination_func=None, output_func=None, output_prefix="",
-             timeout=1.0, auto_close=True, pass_fds=(), encoding=None):
+def run_tail(command, termination_func=None, output_func=None,
+             output_prefix="", timeout=1.0, auto_close=True, pass_fds=(),
+             encoding=None):
     """
     Run a subprocess in the background and collect its output and exit status.
 
