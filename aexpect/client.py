@@ -54,7 +54,7 @@ from aexpect.utils import path as utils_path
 from aexpect.utils import wait as utils_wait
 
 
-_thread_kill_requested = False
+_thread_kill_requested = threading.Event()
 
 
 def kill_tail_threads():
@@ -63,13 +63,12 @@ def kill_tail_threads():
 
     After calling this function no new threads should be started.
     """
-    global _thread_kill_requested
-    _thread_kill_requested = True
+    _thread_kill_requested.set()
 
     for t in threading.enumerate():
         if hasattr(t, "name") and t.name.startswith("tail_thread"):
             t.join(10)
-    _thread_kill_requested = False
+    _thread_kill_requested.clear()
 
 
 class Spawn(object):
@@ -610,8 +609,7 @@ class Tail(Spawn):
             fd = self._get_fd("tail")
             bfr = ""
             while True:
-                global _thread_kill_requested
-                if _thread_kill_requested:
+                if _thread_kill_requested.is_set():
                     try:
                         os.close(fd)
                     except OSError:
