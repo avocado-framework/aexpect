@@ -14,6 +14,9 @@ API used to run/control interactive processes.
 
 :copyright: 2008-2015 Red Hat Inc.
 """
+
+# disable too-many-* as we need them pylint: disable=R0902,R0913,R0914
+
 import time
 import signal
 import os
@@ -596,7 +599,7 @@ class Tail(Spawn):
         if self.log_file is not None:
             genio.close_log_file(self.log_file)
 
-    def _tail(self):
+    def _tail(self):  # speed optimization pylint: disable=too-many-branches
         def print_line(text):
             # Pre-pend prefix and remove trailing whitespace
             text = self.output_prefix + text.rstrip()
@@ -781,6 +784,7 @@ class Expect(Tail):
                 continue
             if re.search(patterns[i], cont):
                 return i
+        return None
 
     @staticmethod
     def match_patterns_multiline(cont, patterns):
@@ -801,6 +805,7 @@ class Expect(Tail):
             for line in cont:
                 if re.search(patterns[i], line):
                     return i
+        return None
 
     def read_until_output_matches(self, patterns, filter_func=lambda x: x,
                                   timeout=60.0, internal_timeout=None,
@@ -885,8 +890,7 @@ class Expect(Tail):
         def get_last_word(cont):
             if cont:
                 return cont.split()[-1]
-            else:
-                return ""
+            return ""
 
         return self.read_until_output_matches(patterns, get_last_word,
                                               timeout, internal_timeout,
@@ -918,8 +922,7 @@ class Expect(Tail):
             nonempty_lines = [l for l in cont.splitlines() if l.strip()]
             if nonempty_lines:
                 return nonempty_lines[-1]
-            else:
-                return ""
+            return ""
 
         return self.read_until_output_matches(patterns, get_last_nonempty_line,
                                               timeout, internal_timeout,

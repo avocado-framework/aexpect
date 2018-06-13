@@ -20,8 +20,7 @@ class ExpectError(Exception):
     def _pattern_str(self):
         if len(self.patterns) == 1:
             return "pattern %r" % self.patterns[0]
-        else:
-            return "patterns %r" % self.patterns
+        return "patterns %r" % self.patterns
 
     def __str__(self):
         return ("Unknown error occurred while looking for %s    (output: %r)" %
