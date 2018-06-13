@@ -181,8 +181,9 @@ class Spawn(object):
             # try to find python specific version of aexpect-helper first, then
             # try unversioned
             helper_noversion = 'aexpect-helper'
-            helper_versioned = '{0}-{1.major}.{1.minor}'.format(
-                helper_noversion, sys.version_info)
+            helper_versioned = '{0}-{1}.{2}'.format(helper_noversion,
+                                                    sys.version_info[0],
+                                                    sys.version_info[1])
             try:
                 helper_cmd = utils_path.find_command(helper_versioned)
             except utils_path.CmdNotFoundError:
