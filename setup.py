@@ -13,6 +13,8 @@
 # Copyright: Red Hat Inc. 2013-2015
 # Author: Lucas Meneghel Rodrigues <lmr@redhat.com>
 
+"""Aexpect setup script"""
+
 import sys
 # pylint: disable=E0611
 
@@ -32,7 +34,7 @@ if __name__ == '__main__':
           url='http://avocado-framework.github.io/',
           packages=['aexpect',
                     'aexpect.utils'],
-          scripts=['scripts/aexpect-helper'],
+          scripts=['scripts/aexpect_helper'],
           use_2to3=True,
           install_requires=REQUIREMENTS,
           test_suite='tests')

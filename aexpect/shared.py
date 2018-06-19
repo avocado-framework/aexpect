@@ -9,6 +9,8 @@
 #
 # See LICENSE for more details.
 
+"""Some shared functions"""
+
 import os
 import fcntl
 import termios
@@ -17,39 +19,44 @@ BASE_DIR = os.environ.get('TMPDIR', '/tmp')
 
 
 def get_lock_fd(filename):
+    """Lock a file"""
     if not os.path.exists(filename):
         open(filename, "w").close()
-    fd = os.open(filename, os.O_RDWR)
-    fcntl.lockf(fd, fcntl.LOCK_EX)
-    return fd
+    lock_fd = os.open(filename, os.O_RDWR)
+    fcntl.lockf(lock_fd, fcntl.LOCK_EX)
+    return lock_fd
 
 
-def unlock_fd(fd):
-    fcntl.lockf(fd, fcntl.LOCK_UN)
-    os.close(fd)
+def unlock_fd(lock_fd):
+    """Unlock a file"""
+    fcntl.lockf(lock_fd, fcntl.LOCK_UN)
+    os.close(lock_fd)
 
 
 def is_file_locked(filename):
+    """Check whether file is currently locked"""
     try:
-        fd = os.open(filename, os.O_RDWR)
+        lock_fd = os.open(filename, os.O_RDWR)
     except OSError:
         return False
     try:
-        fcntl.lockf(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.lockf(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except IOError:
-        os.close(fd)
+        os.close(lock_fd)
         return True
-    fcntl.lockf(fd, fcntl.LOCK_UN)
-    os.close(fd)
+    fcntl.lockf(lock_fd, fcntl.LOCK_UN)
+    os.close(lock_fd)
     return False
 
 
 def wait_for_lock(filename):
-    fd = get_lock_fd(filename)
-    unlock_fd(fd)
+    """Wait until lock can be acquired, then release it"""
+    lock_fd = get_lock_fd(filename)
+    unlock_fd(lock_fd)
 
 
 def makeraw(shell_fd):
+    """Turn console into 'raw' format"""
     attr = termios.tcgetattr(shell_fd)
     attr[0] &= ~(termios.IGNBRK | termios.BRKINT | termios.PARMRK |
                  termios.ISTRIP | termios.INLCR | termios.IGNCR |
@@ -63,6 +70,7 @@ def makeraw(shell_fd):
 
 
 def makestandard(shell_fd, echo):
+    """Turn console into 'normal' mode"""
     attr = termios.tcgetattr(shell_fd)
     attr[0] &= ~termios.INLCR
     attr[0] &= ~termios.ICRNL
@@ -76,6 +84,7 @@ def makestandard(shell_fd, echo):
 
 
 def get_filenames(base_dir):
+    """Get paths to files produced by aexpect in it's working dir"""
     files = ("shell-pid", "status", "output", "inpipe", "ctrlpipe",
              "lock-server-running", "lock-client-starting",
              "server-log")
@@ -83,4 +92,5 @@ def get_filenames(base_dir):
 
 
 def get_reader_filename(base_dir, reader):
+    """Return path to pipe of the the associated reader"""
     return os.path.join(base_dir, "outpipe-%s" % reader)

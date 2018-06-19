@@ -9,8 +9,12 @@
 #
 # See LICENSE for more details.
 
+"""Module that holds exceptions used in aexpect"""
+
 
 class ExpectError(Exception):
+
+    """Generic Expect error"""
 
     def __init__(self, patterns, output):
         Exception.__init__(self, patterns, output)
@@ -20,8 +24,7 @@ class ExpectError(Exception):
     def _pattern_str(self):
         if len(self.patterns) == 1:
             return "pattern %r" % self.patterns[0]
-        else:
-            return "patterns %r" % self.patterns
+        return "patterns %r" % self.patterns
 
     def __str__(self):
         return ("Unknown error occurred while looking for %s    (output: %r)" %
@@ -30,6 +33,8 @@ class ExpectError(Exception):
 
 class ExpectTimeoutError(ExpectError):
 
+    """Timeout when looking for output"""
+
     def __str__(self):
         return ("Timeout expired while looking for %s    (output: %r)" %
                 (self._pattern_str(), self.output))
@@ -37,8 +42,11 @@ class ExpectTimeoutError(ExpectError):
 
 class ExpectProcessTerminatedError(ExpectError):
 
+    """Worker terminated while doing some operation"""
+
     def __init__(self, patterns, status, output):
-        ExpectError.__init__(self, patterns, output)
+        super(ExpectProcessTerminatedError, self).__init__(patterns,
+                                                           output)
         self.status = status
 
     def __str__(self):
@@ -48,6 +56,8 @@ class ExpectProcessTerminatedError(ExpectError):
 
 
 class ShellError(Exception):
+
+    """Shell error"""
 
     def __init__(self, cmd, output):
         Exception.__init__(self, cmd, output)
@@ -61,14 +71,19 @@ class ShellError(Exception):
 
 class ShellTimeoutError(ShellError):
 
+    """Timeout when waiting for command to complete"""
+
     def __str__(self):
         return ("Timeout expired while waiting for shell command to "
                 "complete: %r    (output: %r)" % (self.cmd, self.output))
 
 
 class ShellProcessTerminatedError(ShellError):
-    # Raised when the shell process itself (e.g. ssh, netcat, telnet)
-    # terminates unexpectedly
+
+    """
+    Raised when the shell process itself (e.g. ssh, netcat, telnet)
+    terminates unexpectedly
+    """
 
     def __init__(self, cmd, status, output):
         ShellError.__init__(self, cmd, output)
@@ -81,8 +96,11 @@ class ShellProcessTerminatedError(ShellError):
 
 
 class ShellCmdError(ShellError):
-    # Raised when a command executed in a shell terminates with a nonzero
-    # exit code (status)
+
+    """
+    Raised when a command executed in a shell terminates with a nonzero
+    exit code (status)
+    """
 
     def __init__(self, cmd, status, output):
         ShellError.__init__(self, cmd, output)
@@ -94,7 +112,10 @@ class ShellCmdError(ShellError):
 
 
 class ShellStatusError(ShellError):
-    # Raised when the command's exit status cannot be obtained
+
+    """
+    Raised when the command's exit status cannot be obtained
+    """
 
     def __str__(self):
         return ("Could not get exit status of command: %r    (output: %r)" %

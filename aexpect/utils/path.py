@@ -9,6 +9,8 @@
 #
 # See LICENSE for more details.
 
+"""Utils simplifying dir handling"""
+
 import os
 
 
@@ -22,7 +24,7 @@ class CmdNotFoundError(Exception):
     """
 
     def __init__(self, cmd, paths):
-        super(CmdNotFoundError, self)
+        super(CmdNotFoundError, self).__init__()
         self.cmd = cmd
         self.paths = paths
 
