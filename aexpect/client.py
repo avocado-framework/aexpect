@@ -976,6 +976,9 @@ class ShellSession(Expect):
     process for responsiveness.
     """
 
+    # Return code pattern of shell interpreter
+    __RE_STATUS = re.compile("^-?[0-9]+$")
+
     def __init__(self, command=None, a_id=None, auto_close=True, echo=False,
                  linesep="\n", termination_func=None, termination_params=(),
                  output_func=None, output_params=(), output_prefix="",
@@ -1240,7 +1243,8 @@ class ShellSession(Expect):
             raise ShellStatusError(cmd, out)
 
         # Get the first line consisting of digits only
-        digit_lines = [l for l in status.splitlines() if l.strip().isdigit()]
+        digit_lines = [l for l in status.splitlines()
+                       if self.__RE_STATUS.match(l.strip())]
         if digit_lines:
             return int(digit_lines[0].strip()), out
         else:
