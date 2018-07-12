@@ -1237,7 +1237,7 @@ class ShellSession(Expect):
         out = self.cmd_output(cmd, timeout, internal_timeout, print_func, safe)
         try:
             # Send the 'echo $?' (or equivalent) command to get the exit status
-            status = self.cmd_output(self.status_test_command, 10,
+            status = self.cmd_output(self.status_test_command, 30,
                                      internal_timeout, print_func, safe)
         except ShellError:
             raise ShellStatusError(cmd, out)
