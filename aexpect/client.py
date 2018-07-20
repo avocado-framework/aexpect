@@ -525,8 +525,9 @@ class Tail(Spawn):
 
         # Start the thread in the background
         self.tail_thread = None
-        if termination_func or output_func:
-            self._start_thread()
+        if self.is_alive():
+            if termination_func or output_func:
+                self._start_thread()
 
     def __reduce__(self):
         return self.__class__, (self.__getinitargs__())
