@@ -423,7 +423,7 @@ class Spawn(object):
         """
         char = char.lower()
         val = ord(char)
-        if val >= 97 and val <= 122:
+        if 97 <= val <= 122:
             val = val - 97 + 1  # ctrl+a = '\0x01'
             return self.send(chr(val))
         mapping = {'@': 0, '`': 0,
@@ -1247,8 +1247,7 @@ class ShellSession(Expect):
                        if self.__RE_STATUS.match(l.strip())]
         if digit_lines:
             return int(digit_lines[0].strip()), out
-        else:
-            raise ShellStatusError(cmd, out)
+        raise ShellStatusError(cmd, out)
 
     def cmd_status(self, cmd, timeout=60, internal_timeout=None,
                    print_func=None, safe=False):
