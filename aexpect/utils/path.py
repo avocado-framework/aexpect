@@ -60,8 +60,7 @@ def find_command(cmd, default=None):
 
     if default is not None:
         return default
-    else:
-        raise CmdNotFoundError(cmd, path_paths)
+    raise CmdNotFoundError(cmd, path_paths)
 
 
 def init_dir(*args):
