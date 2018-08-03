@@ -525,8 +525,9 @@ class Tail(Spawn):
 
         # Start the thread in the background
         self.tail_thread = None
-        if termination_func or output_func:
-            self._start_thread()
+        if self.is_alive():
+            if termination_func or output_func:
+                self._start_thread()
 
     def __reduce__(self):
         return self.__class__, (self.__getinitargs__())
@@ -613,6 +614,8 @@ class Tail(Spawn):
 
         try:
             tail_pipe = self._get_fd("tail")
+            poller = select.poll()
+            poller.register(tail_pipe, select.POLLIN)
             bfr = ""
             while True:
                 if _THREAD_KILL_REQUESTED.is_set():
@@ -623,11 +626,10 @@ class Tail(Spawn):
                     return
                 try:
                     # See if there's any data to read from the pipe
-                    read_available_fds = select.select([tail_pipe], [], [],
-                                                       0.05)[0]
-                except (select.error, TypeError):
+                    poll_status = poller.poll(50)
+                except select.error:
                     break
-                if tail_pipe in read_available_fds:
+                if poll_status:
                     # Some data is available; read it
                     new_data = os.read(tail_pipe, 1024)
                     if not new_data:
@@ -748,19 +750,22 @@ class Expect(Tail):
         :param timeout: Timeout for reading child process output.
         """
         if internal_timeout is None:
-            internal_timeout = 0.1
+            internal_timeout = 100
+        else:
+            internal_timeout *= 1000
         end_time = None
         if timeout:
             end_time = time.time() + timeout
         expect_pipe = self._get_fd("expect")
+        poller = select.poll()
+        poller.register(expect_pipe, select.POLLIN)
         data = ""
         while True:
             try:
-                read_available_fds = select.select([expect_pipe], [], [],
-                                                   internal_timeout)[0]
-            except (select.error, TypeError):
+                poll_status = poller.poll(internal_timeout)
+            except select.error:
                 return data
-            if expect_pipe in read_available_fds:
+            if poll_status:
                 new_data = os.read(expect_pipe, 1024).decode(self.encoding,
                                                              "ignore")
                 if not new_data:
@@ -841,16 +846,17 @@ class Expect(Tail):
         if not match_func:
             match_func = self.match_patterns
         expect_pipe = self._get_fd("expect")
+        poller = select.poll()
+        poller.register(expect_pipe, select.POLLIN)
         output = ""
         end_time = time.time() + timeout
         while True:
             try:
-                _timeout = max(0, end_time - time.time())
-                read_available_fds = select.select([expect_pipe], [], [],
-                                                   _timeout)[0]
-            except (select.error, TypeError):
+                poll_timeout_ms = max(0, (end_time - time.time()) * 1000)
+                poll_status = poller.poll(poll_timeout_ms)
+            except select.error:
                 break
-            if not read_available_fds:
+            if not poll_status:
                 raise ExpectTimeoutError(patterns, output)
             # Read data from child
             data = self.read_nonblocking(internal_timeout,
