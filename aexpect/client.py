@@ -883,9 +883,8 @@ class Expect(Tail):
         if utils_wait.wait_for(lambda: not self.is_alive(), 5, 0, 0.1):
             raise ExpectProcessTerminatedError(patterns, self.get_status(),
                                                output)
-        else:
-            # This shouldn't happen
-            raise ExpectError(patterns, output)
+        # This shouldn't happen
+        raise ExpectError(patterns, output)
 
     def read_until_last_word_matches(self, patterns, timeout=60.0,
                                      internal_timeout=None, print_func=None):
