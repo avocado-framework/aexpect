@@ -450,6 +450,12 @@ class Spawn(object):
         except OSError:
             pass
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, etype, evalue, traceback):
+        self.close()
+
 
 class Tail(Spawn):
 
