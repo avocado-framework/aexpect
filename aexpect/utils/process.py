@@ -43,8 +43,7 @@ class CmdError(Exception):
                 msg = "Command '%s' failed (rc=%d)"
                 msg %= (self.command, self.result.exit_status)
             return msg
-        else:
-            return "CmdError"
+        return "CmdError"
 
 
 def safe_kill(pid, sig):
