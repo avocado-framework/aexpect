@@ -10,8 +10,11 @@ import pipes
 import shutil
 import tempfile
 
-import aexpect
-from virttest import rss_client
+from aexpect.client import Expect
+from aexpect.client import ShellSession
+from aexpect.exceptions import ExpectTimeoutError
+from aexpect.exceptions import ExpectProcessTerminatedError
+from aexpect import rss_client
 
 
 class RemoteError(Exception): pass
@@ -253,7 +256,7 @@ def handle_prompts(session, username, password, prompt, timeout=10,
             elif match == 13:  # console prompt
                 logging.debug("Got console prompt, send return to show login")
                 session.sendline()
-        except aexpect.ExpectTimeoutError as e:
+        except ExpectTimeoutError as e:
             # sometimes, linux kernel print some message to console
             # the message maybe impact match login pattern, so send
             # a empty line to avoid unexpect login timeout
@@ -331,8 +334,8 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
 
     if verbose:
         logging.debug("Login command: '%s'", cmd)
-    session = aexpect.ShellSession(cmd, linesep=linesep, prompt=prompt,
-                                   status_test_command=status_test_command)
+    session = ShellSession(cmd, linesep=linesep, prompt=prompt,
+                           status_test_command=status_test_command)
     try:
         handle_prompts(session, username, password, prompt, timeout)
     except Exception:
@@ -441,12 +444,12 @@ def _remote_scp(
                                                  text)
             elif match == 2:  # "lost connection"
                 raise SCPError("SCP client said 'lost connection'", text)
-        except aexpect.ExpectTimeoutError as e:
+        except ExpectTimeoutError as e:
             if authentication_done:
                 raise SCPTransferTimeoutError(e.output)
             else:
                 raise SCPAuthenticationTimeoutError(e.output)
-        except aexpect.ExpectProcessTerminatedError as e:
+        except ExpectProcessTerminatedError as e:
             if e.status == 0:
                 logging.debug("SCP process terminated with status 0")
                 break
@@ -479,9 +482,9 @@ def remote_scp(command, password_list, log_filename=None, log_function=None,
     else:
         output_func = None
         output_params = ()
-    session = aexpect.Expect(command,
-                             output_func=output_func,
-                             output_params=output_params)
+    session = Expect(command,
+                     output_func=output_func,
+                     output_params=output_params)
     try:
         _remote_scp(session, password_list, transfer_timeout, login_timeout)
     finally:
