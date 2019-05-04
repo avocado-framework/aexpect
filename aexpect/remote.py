@@ -11,7 +11,6 @@ import shutil
 import tempfile
 
 import aexpect
-from virttest import utils_misc
 from virttest import rss_client
 
 
@@ -265,14 +264,15 @@ def handle_prompts(session, username, password, prompt, timeout=10,
                 continue
             else:
                 raise LoginTimeoutError(e.output)
-        except aexpect.ExpectProcessTerminatedError as e:
+        except ExpectProcessTerminatedError as e:
             raise LoginProcessTerminatedError(e.status, e.output)
 
     return output
 
 
 def remote_login(client, host, port, username, password, prompt, linesep="\n",
-                 log_filename=None, timeout=10, interface=None, identity_file=None,
+                 log_filename=None, log_function=None, timeout=10,
+                 interface=None, identity_file=None,
                  status_test_command="echo $?", verbose=False, bind_ip=None):
     """
     Log into a remote host (guest) using SSH/Telnet/Netcat.
@@ -286,6 +286,7 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
     :param linesep: The line separator to use when sending lines
             (e.g. '\\n' or '\\r\\n')
     :param log_filename: If specified, log all output to this file
+    :param log_function: If specified, log all output using this function
     :param timeout: The maximal time duration (in seconds) to wait for
             each step of the login procedure (i.e. the "Are you sure" prompt
             or the password prompt)
@@ -338,16 +339,15 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
         session.close()
         raise
     if log_filename:
-        log_file = utils_misc.get_log_filename(log_filename)
-        session.set_output_func(utils_misc.log_line)
-        session.set_output_params((log_file,))
-        session.set_log_file(os.path.basename(log_file))
+        session.set_output_func(log_function)
+        session.set_output_params((log_filename,))
+        session.set_log_file(os.path.basename(log_filename))
     return session
 
 
 def wait_for_login(client, host, port, username, password, prompt,
-                   linesep="\n", log_filename=None, timeout=240,
-                   internal_timeout=10, interface=None):
+                   linesep="\n", log_filename=None, log_function=None,
+                   timeout=240, internal_timeout=10, interface=None):
     """
     Make multiple attempts to log into a guest until one succeeds or timeouts.
 
@@ -368,15 +368,16 @@ def wait_for_login(client, host, port, username, password, prompt,
     while time.time() < end_time:
         try:
             return remote_login(client, host, port, username, password, prompt,
-                                linesep, log_filename, internal_timeout,
-                                interface, verbose=verbose)
+                                linesep, log_filename, log_function,
+                                internal_timeout, interface, verbose=verbose)
         except LoginError as e:
             logging.debug(e)
             verbose = True
         time.sleep(2)
     # Timeout expired; try one more time but don't catch exceptions
     return remote_login(client, host, port, username, password, prompt,
-                        linesep, log_filename, internal_timeout, interface)
+                        linesep, log_filename, log_function,
+                        internal_timeout, interface)
 
 
 def _remote_scp(
@@ -453,8 +454,8 @@ def _remote_scp(
                 raise SCPTransferFailedError(e.status, e.output)
 
 
-def remote_scp(command, password_list, log_filename=None, transfer_timeout=600,
-               login_timeout=300):
+def remote_scp(command, password_list, log_filename=None, log_function=None,
+               transfer_timeout=600, login_timeout=300):
     """
     Transfer files using SCP, given a command line.
 
@@ -462,6 +463,7 @@ def remote_scp(command, password_list, log_filename=None, transfer_timeout=600,
         (e.g. "scp -r foobar root@localhost:/tmp/").
     :param password_list: Password list to send in reply to a password prompt.
     :param log_filename: If specified, log all output to this file
+    :param log_function: If specified, log all output using this function
     :param transfer_timeout: The time duration (in seconds) to wait for the
             transfer to complete.
     :param login_timeout: The maximal time duration (in seconds) to wait for
@@ -472,7 +474,7 @@ def remote_scp(command, password_list, log_filename=None, transfer_timeout=600,
     logging.debug("Trying to SCP with command '%s', timeout %ss",
                   command, transfer_timeout)
     if log_filename:
-        output_func = utils_misc.log_line
+        output_func = log_function
         output_params = (log_filename,)
     else:
         output_func = None
@@ -487,8 +489,8 @@ def remote_scp(command, password_list, log_filename=None, transfer_timeout=600,
 
 
 def scp_to_remote(host, port, username, password, local_path, remote_path,
-                  limit="", log_filename=None, timeout=600, interface=None,
-                  directory=True):
+                  limit="", log_filename=None, log_function=None,
+                  timeout=600, interface=None, directory=True):
     """
     Copy files to a remote host (guest) through scp.
 
@@ -499,6 +501,7 @@ def scp_to_remote(host, port, username, password, local_path, remote_path,
     :param remote_path: Path on the remote machine where we are copying to
     :param limit: Speed limit of file transfer.
     :param log_filename: If specified, log all output to this file
+    :param log_function: If specified, log all output using this function
     :param timeout: The time duration (in seconds) to wait for the transfer
                     to complete.
     :param interface: The interface the neighbours attach to (only use when using
@@ -526,12 +529,13 @@ def scp_to_remote(host, port, username, password, local_path, remote_path,
                  pipes.quote(remote_path)))
     password_list = []
     password_list.append(password)
-    return remote_scp(command, password_list, log_filename, timeout)
+    return remote_scp(command, password_list,
+                      log_filename, log_function, timeout)
 
 
 def scp_from_remote(host, port, username, password, remote_path, local_path,
-                    limit="", log_filename=None, timeout=600, interface=None,
-                    directory=True):
+                    limit="", log_filename=None, log_function=None,
+                    timeout=600, interface=None, directory=True):
     """
     Copy files from a remote host (guest).
 
@@ -542,6 +546,7 @@ def scp_from_remote(host, port, username, password, remote_path, local_path,
     :param remote_path: Path on the remote machine where we are copying to
     :param limit: Speed limit of file transfer.
     :param log_filename: If specified, log all output to this file
+    :param log_function: If specified, log all output using this function
     :param timeout: The time duration (in seconds) to wait for the transfer
                     to complete.
     :param interface: The interface the neighbours attach to (only use when
@@ -568,13 +573,14 @@ def scp_from_remote(host, port, username, password, remote_path, local_path,
                  pipes.quote(local_path)))
     password_list = []
     password_list.append(password)
-    remote_scp(command, password_list, log_filename, timeout)
+    remote_scp(command, password_list,
+               log_filename, log_function, timeout)
 
 
 def scp_between_remotes(src, dst, port, s_passwd, d_passwd, s_name, d_name,
-                        s_path, d_path, limit="", log_filename=None,
-                        timeout=600, src_inter=None, dst_inter=None,
-                        directory=True):
+                        s_path, d_path, limit="",
+                        log_filename=None, log_function=None, timeout=600,
+                        src_inter=None, dst_inter=None, directory=True):
     """
     Copy files from a remote host (guest) to another remote host (guest).
 
@@ -585,6 +591,7 @@ def scp_between_remotes(src, dst, port, s_passwd, d_passwd, s_name, d_name,
                           from/to
     :param limit: Speed limit of file transfer.
     :param log_filename: If specified, log all output to this file
+    :param log_function: If specified, log all output using this function
     :param timeout: The time duration (in seconds) to wait for the transfer
                     to complete.
     :param src_inter: The interface on local that the src neighbour attache
@@ -618,7 +625,8 @@ def scp_between_remotes(src, dst, port, s_passwd, d_passwd, s_name, d_name,
     password_list = []
     password_list.append(s_passwd)
     password_list.append(d_passwd)
-    return remote_scp(command, password_list, log_filename, timeout)
+    return remote_scp(command, password_list,
+                      log_filename, log_function, timeout)
 
 
 def nc_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
@@ -845,7 +853,7 @@ def throughput_transfer(func):
 
 @throughput_transfer
 def copy_files_to(address, client, username, password, port, local_path,
-                  remote_path, limit="", log_filename=None,
+                  remote_path, limit="", log_filename=None, log_function=None,
                   verbose=False, timeout=600, interface=None, filesize=None,
                   directory=True):
     """
@@ -859,6 +867,7 @@ def copy_files_to(address, client, username, password, port, local_path,
     :param address: Address of remote host(guest)
     :param limit: Speed limit of file transfer.
     :param log_filename: If specified, log all output to this file (SCP only)
+    :param log_function: If specified, log all output using this function
     :param verbose: If True, log some stats using logging.debug (RSS only)
     :param timeout: The time duration (in seconds) to wait for the transfer to
             complete.
@@ -870,7 +879,7 @@ def copy_files_to(address, client, username, password, port, local_path,
     """
     if client == "scp":
         scp_to_remote(address, port, username, password, local_path,
-                      remote_path, limit, log_filename, timeout,
+                      remote_path, limit, log_filename, log_function, timeout,
                       interface=interface, directory=directory)
     elif client == "rss":
         log_func = None
@@ -887,7 +896,7 @@ def copy_files_to(address, client, username, password, port, local_path,
 
 @throughput_transfer
 def copy_files_from(address, client, username, password, port, remote_path,
-                    local_path, limit="", log_filename=None,
+                    local_path, limit="", log_filename=None, log_function=None,
                     verbose=False, timeout=600, interface=None, filesize=None,
                     directory=True):
     """
@@ -901,6 +910,7 @@ def copy_files_from(address, client, username, password, port, remote_path,
     :param address: Address of remote host(guest)
     :param limit: Speed limit of file transfer.
     :param log_filename: If specified, log all output to this file (SCP only)
+    :param log_function: If specified, log all output using this function
     :param verbose: If True, log some stats using ``logging.debug`` (RSS only)
     :param timeout: The time duration (in seconds) to wait for the transfer to
                     complete.
@@ -912,7 +922,7 @@ def copy_files_from(address, client, username, password, port, remote_path,
     """
     if client == "scp":
         scp_from_remote(address, port, username, password, remote_path,
-                        local_path, limit, log_filename, timeout,
+                        local_path, limit, log_filename, log_function, timeout,
                         interface=interface, directory=directory)
     elif client == "rss":
         log_func = None
