@@ -22,10 +22,13 @@ from virttest.remote_commander import messenger
 from virttest.compat_52lts import results_stdout_52lts, results_stderr_52lts
 
 
-class LoginError(Exception):
+class RemoteError(Exception): pass
 
-    def __init__(self, msg, output):
-        Exception.__init__(self, msg, output)
+
+class LoginError(RemoteError):
+
+    def __init__(self, msg, output=''):
+        RemoteError.__init__(self)
         self.msg = msg
         self.output = output
 
@@ -39,40 +42,54 @@ class LoginAuthenticationError(LoginError):
 
 class LoginTimeoutError(LoginError):
 
-    def __init__(self, output):
+    def __init__(self, output=''):
         LoginError.__init__(self, "Login timeout expired", output)
 
 
 class LoginProcessTerminatedError(LoginError):
 
-    def __init__(self, status, output):
-        LoginError.__init__(self, None, output)
+    def __init__(self, status, output=''):
+        LoginError.__init__(self, "Client process terminated", output)
         self.status = status
 
     def __str__(self):
-        return ("Client process terminated    (status: %s,    output: %r)" %
-                (self.status, self.output))
+        return ("%s    (status: %s,    output: %r)" %
+                (self.msg, self.status, self.output))
 
 
 class LoginBadClientError(LoginError):
 
     def __init__(self, client):
-        LoginError.__init__(self, None, None)
+        LoginError.__init__(self, 'Unknown remote shell client')
         self.client = client
 
     def __str__(self):
-        return "Unknown remote shell client: %r" % self.client
+        return "%s    (value: %r)" % (self.msg, self.client)
 
 
-class SCPError(Exception):
+class TransferError(RemoteError):
 
     def __init__(self, msg, output):
-        Exception.__init__(self, msg, output)
+        RemoteError.__init__(self)
         self.msg = msg
         self.output = output
 
     def __str__(self):
         return "%s    (output: %r)" % (self.msg, self.output)
+
+
+class TransferBadClientError(RemoteError):
+
+    def __init__(self, client):
+        RemoteError.__init__(self)
+        self.client = client
+
+    def __str__(self):
+        return "Unknown file copy client: '%s', valid values are scp and rss" % self.client
+
+
+class SCPError(TransferError):
+    pass
 
 
 class SCPAuthenticationError(SCPError):
@@ -101,6 +118,39 @@ class SCPTransferFailedError(SCPError):
     def __str__(self):
         return ("SCP transfer failed    (status: %s,    output: %r)" %
                 (self.status, self.output))
+
+
+class NetcatError(TransferError):
+    pass
+
+
+class NetcatTransferTimeoutError(NetcatError):
+
+    def __init__(self, output):
+        NetcatError.__init__(self, "Transfer timeout expired", output)
+
+
+class NetcatTransferFailedError(NetcatError):
+
+    def __init__(self, status, output):
+        NetcatError.__init__(self, None, output)
+        self.status = status
+
+    def __str__(self):
+        return ("Netcat transfer failed    (status: %s,    output: %r)" %
+                (self.status, self.output))
+
+
+class NetcatTransferIntegrityError(NetcatError):
+
+    def __init__(self, output):
+        NetcatError.__init__(self, "Transfer integrity failed", output)
+
+
+class UDPError(TransferError):
+
+    def __init__(self, output):
+        TransferError.__init__(self, "UDP transfer failed", output)
 
 
 def quote_path(path):
@@ -264,8 +314,8 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
     verbose = verbose and "-vv" or ""
     if host and host.lower().startswith("fe80"):
         if not interface:
-            raise LoginError("When using ipv6 linklocal an interface must "
-                             "be assigned")
+            raise RemoteError("When using ipv6 linklocal an interface must "
+                              "be assigned")
         host = "%s%%%s" % (host, interface)
     if client == "ssh":
         cmd = ("ssh %s -o UserKnownHostsFile=/dev/null "
@@ -719,7 +769,7 @@ def nc_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
                     "string %s sent by dst." % check_string)
         err += "send nc command %s, output %s" % (send_cmd, output)
         err += "Receive nc command %s." % receive_cmd
-        raise exceptions.TestError(err)
+        raise NetcatTransferFailedError(status, err)
 
     if check_sum:
         logging.info("md5sum cmd = md5sum %s", s_path)
@@ -731,7 +781,7 @@ def nc_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
                        "file %s md5sum is '%s', "
                        "but the file %s md5sum is %s" %
                        (s_path, src_md5, d_path, dst_md5))
-            raise exceptions.TestFail(err_msg)
+            raise NetcatTransferIntegrityError(err_msg)
     return True
 
 
@@ -764,8 +814,8 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
         info = session.cmd_output(cmd, timeout=360).strip()
         drive_path = re.search(r'(\w):\s+(\S+)', info, re.M)
         if not drive_path:
-            raise exceptions.TestError("Not found file %s.%s in your guest"
-                                       % (filename, extension))
+            raise UDPError("Not found file %s.%s in your guest"
+                           % (filename, extension))
         return ":".join(drive_path.groups())
 
     def get_file_md5(session, file_path):
@@ -784,7 +834,7 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
         o = session.cmd_output(md5_cmd)
         file_md5 = re.findall(md5_reg, o)
         if not o:
-            raise exceptions.TestError("Get file %s md5sum error" % file_path)
+            raise UDPError("Get file %s md5sum error" % file_path)
         return file_md5
 
     def server_alive(session):
@@ -794,7 +844,7 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
             check_cmd = "tasklist"
         o = session.cmd_output(check_cmd)
         if not o:
-            raise exceptions.TestError("Can not get the server status")
+            raise UDPError("Can not get the server status")
         if "sendfile" in o.lower():
             return True
         return False
@@ -808,7 +858,7 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
                                                         d_port)
         session.cmd_output_safe(start_cmd)
         if not server_alive(session):
-            raise exceptions.TestError("Start udt server failed")
+            raise UDPError("Start udt server failed")
 
     def start_client(session):
         if c_type == "ssh":
@@ -841,7 +891,7 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
                        "file %s md5sum is '%s', "
                        "but the file %s md5sum is %s" %
                        (s_path, src_md5, d_path, dst_md5))
-            raise exceptions.TestFail(err_msg)
+            raise UDPError(err_msg)
     finally:
         stop_server(s_session)
         s_session.close()
@@ -914,8 +964,7 @@ def copy_files_to(address, client, username, password, port, local_path,
         c.upload(local_path, remote_path, timeout)
         c.close()
     else:
-        raise exceptions.TestError("No such file copy client: '%s', valid"
-                                   "values are scp and rss" % client)
+        raise TransferBadClientError(client)
 
 
 @throughput_transfer
@@ -957,8 +1006,7 @@ def copy_files_from(address, client, username, password, port, remote_path,
         c.download(remote_path, local_path, timeout)
         c.close()
     else:
-        raise exceptions.TestError("No such file copy client: '%s', valid"
-                                   "values are scp and rss" % client)
+        raise TransferBadClientError(client)
 
 
 class Remote_Package(object):
