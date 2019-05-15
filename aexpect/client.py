@@ -331,8 +331,10 @@ class Spawn(object):
         Return the STDOUT and STDERR output of the process so far.
         """
         try:
-            with open(self.output_filename, 'r') as output_file:
-                return output_file.read()
+            with open(self.output_filename, 'rb') as output_file:
+                errors = ('replace' if sys.version_info[0] < 3 else
+                          'backslashreplace')
+                return output_file.read().decode(self.encoding, errors)
         except IOError:
             return None
 
