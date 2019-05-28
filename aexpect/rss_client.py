@@ -1,18 +1,39 @@
 #!/usr/bin/python
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#
+# See LICENSE for more details.
+#
+# This code was imported from the avocado-vt project,
+#
+# virttest/rss_client.py
+# Original author: Michael Goldish <mgoldish@redhat.com>
+#
+# Copyright: 2008-2010 Red Hat Inc.
+# Authors : Michael Goldish <mgoldish@redhat.com>
+
 """
 Client for file transfer services offered by RSS (Remote Shell Server).
-
-:author: Michael Goldish (mgoldish@redhat.com)
-:copyright: 2008-2010 Red Hat Inc.
 """
 
-from __future__ import division
+# disable too-many-* as we need them pylint: disable=R0912,R0913,R0914,R0915,C0302
+# ..todo:: we could reduce the disabled issues after more significant refactoring
+
+from __future__ import division, print_function
 import socket
 import struct
 import time
 import sys
 import os
 import glob
+import argparse
 
 import six
 
@@ -36,54 +57,56 @@ RSS_DONE = 9
 
 
 class FileTransferError(Exception):
+    """Base class for any error related to file transfer."""
 
     def __init__(self, msg, e=None, filename=None):
         Exception.__init__(self, msg, e, filename)
         self.msg = msg
-        self.e = e
+        self.error = e
         self.filename = filename
 
     def __str__(self):
-        s = self.msg
-        if self.e and self.filename:
-            s += "    (error: %s,    filename: %s)" % (self.e, self.filename)
-        elif self.e:
-            s += "    (%s)" % self.e
+        errmsg = self.msg
+        if self.error and self.filename:
+            errmsg += "    (error: %s,    filename: %s)" % (self.error, self.filename)
+        elif self.error:
+            errmsg += "    (%s)" % self.error
         elif self.filename:
-            s += "    (filename: %s)" % self.filename
-        return s
+            errmsg += "    (filename: %s)" % self.filename
+        return errmsg
 
 
 class FileTransferConnectError(FileTransferError):
-    pass
+    """Error related to file transfer connection."""
 
 
 class FileTransferTimeoutError(FileTransferError):
-    pass
+    """Error related to file transfer timeout."""
 
 
 class FileTransferProtocolError(FileTransferError):
-    pass
+    """Error related to file transfer protocol."""
 
 
 class FileTransferSocketError(FileTransferError):
-    pass
+    """Error related to file transfer socket."""
 
 
 class FileTransferServerError(FileTransferError):
+    """Error related to file transfer server."""
 
     def __init__(self, errmsg):
         FileTransferError.__init__(self, None, errmsg)
 
     def __str__(self):
-        s = "Server said: %r" % self.e
+        errmsg = "Server said: %r" % self.error
         if self.filename:
-            s += "    (filename: %s)" % self.filename
-        return s
+            errmsg += "    (filename: %s)" % self.filename
+        return errmsg
 
 
 class FileTransferNotFoundError(FileTransferError):
-    pass
+    """Error related to file transfer missing files."""
 
 
 class FileTransferClient(object):
@@ -103,7 +126,7 @@ class FileTransferClient(object):
         :param timeout: Time duration to wait for connection to succeed
         :raise FileTransferConnectError: Raised if the connection fails
         """
-        family = ":" in address and socket.AF_INET6 or socket.AF_INET
+        family = socket.AF_INET6 if ':' in address else socket.AF_INET
         self._socket = socket.socket(family, socket.SOCK_STREAM)
         self._socket.settimeout(timeout)
         try:
@@ -111,9 +134,9 @@ class FileTransferClient(object):
                                           socket.SOCK_STREAM,
                                           socket.IPPROTO_TCP)
             self._socket.connect(addrinfo[0][4])
-        except socket.error as e:
+        except socket.error as error:
             raise FileTransferConnectError("Cannot connect to server at "
-                                           "%s:%s" % (address, port), e)
+                                           "%s:%s" % (address, port), error)
         try:
             if self._receive_msg(timeout) != RSS_MAGIC:
                 raise FileTransferConnectError("Received wrong magic number")
@@ -135,17 +158,17 @@ class FileTransferClient(object):
         """
         self._socket.close()
 
-    def _send(self, sr, timeout=60):
+    def _send(self, data, timeout=60):
         try:
             if timeout <= 0:
                 raise socket.timeout
             self._socket.settimeout(timeout)
-            self._socket.sendall(sr)
+            self._socket.sendall(data)
         except socket.timeout:
             raise FileTransferTimeoutError("Timeout expired while sending "
                                            "data to server")
-        except socket.error as e:
-            raise FileTransferSocketError("Could not send data to server", e)
+        except socket.error as error:
+            raise FileTransferSocketError("Could not send data to server", error)
 
     def _receive(self, size, timeout=60):
         strs = []
@@ -167,93 +190,87 @@ class FileTransferClient(object):
         except socket.timeout:
             raise FileTransferTimeoutError("Timeout expired while receiving "
                                            "data from server")
-        except socket.error as e:
+        except socket.error as error:
             raise FileTransferSocketError("Error receiving data from server",
-                                          e)
+                                          error)
         return b"".join(strs)
 
-    def _report_stats(self, sr):
+    def _report_stats(self, data):
         if self._log_func:
-            dt = time.time() - self._last_time
-            if dt >= 1:
+            delta = time.time() - self._last_time
+            if delta >= 1:
                 transferred = self.transferred / 1048576.
-                speed = (self.transferred - self._last_transferred) / dt
+                speed = (self.transferred - self._last_transferred) / delta
                 speed /= 1048576.
                 self._log_func("%s %.3f MB (%.3f MB/sec)" %
-                               (sr, transferred, speed))
+                               (data, transferred, speed))
                 self._last_time = time.time()
                 self._last_transferred = self.transferred
 
-    def _send_packet(self, sr, timeout=60):
-        self._send(struct.pack("=I", len(sr)))
-        self._send(sr, timeout)
-        self.transferred += len(sr) + 4
+    def _send_packet(self, data, timeout=60):
+        self._send(struct.pack("=I", len(data)))
+        self._send(data, timeout)
+        self.transferred += len(data) + 4
         self._report_stats("Sent")
 
     def _receive_packet(self, timeout=60):
         """return bytes"""
         size = struct.unpack("=I", self._receive(4))[0]
-        sr = self._receive(size, timeout)
-        self.transferred += len(sr) + 4
+        data = self._receive(size, timeout)
+        self.transferred += len(data) + 4
         self._report_stats("Received")
-        return sr
+        return data
 
     def _send_file_chunks(self, filename, timeout=60):
         if self._log_func:
             self._log_func("Sending file %s" % filename)
-        f = open(filename, "rb")
-        try:
+        with open(filename, "rb") as file_handle:
             try:
                 end_time = time.time() + timeout
                 while True:
-                    data = f.read(CHUNKSIZE)
+                    data = file_handle.read(CHUNKSIZE)
                     self._send_packet(data, end_time - time.time())
                     if len(data) < CHUNKSIZE:
                         break
-            except FileTransferError as e:
-                e.filename = filename
+            except FileTransferError as error:
+                error.filename = filename
                 raise
-        finally:
-            f.close()
 
     def _receive_file_chunks(self, filename, timeout=60):
         if self._log_func:
             self._log_func("Receiving file %s" % filename)
-        f = open(filename, "wb")
-        try:
+        with open(filename, "wb") as file_handle:
             try:
                 end_time = time.time() + timeout
                 while True:
                     data = self._receive_packet(end_time - time.time())
-                    f.write(data)
+                    file_handle.write(data)
                     if len(data) < CHUNKSIZE:
                         break
-            except FileTransferError as e:
-                e.filename = filename
+            except FileTransferError as error:
+                error.filename = filename
                 raise
-        finally:
-            f.close()
 
     def _send_msg(self, msg, timeout=60):
-        self._send(struct.pack("=I", msg))
+        self._send(struct.pack("=I", msg), timeout)
 
     def _receive_msg(self, timeout=60):
-        s = self._receive(4, timeout)
-        return struct.unpack("=I", s)[0]
+        data = self._receive(4, timeout)
+        return struct.unpack("=I", data)[0]
 
     def _handle_transfer_error(self):
         # Save original exception
-        e = sys.exc_info()
+        error = sys.exc_info()
         try:
             # See if we can get an error message
             msg = self._receive_msg()
         except FileTransferError:
             # No error message -- re-raise original exception
-            six.reraise(*e)
+            six.reraise(*error)
         if msg == RSS_ERROR:
             errmsg = self._receive_packet().decode()
             raise FileTransferServerError(errmsg)
-        six.reraise(*e)
+        six.reraise(*error)
 
 
 class FileUploadClient(FileTransferClient):
@@ -352,12 +369,11 @@ class FileUploadClient(FileTransferClient):
                 msg = self._receive_msg(end_time - time.time())
                 if msg == RSS_OK:
                     return
-                elif msg == RSS_ERROR:
+                if msg == RSS_ERROR:
                     errmsg = self._receive_packet().decode()
                     raise FileTransferServerError(errmsg)
-                else:
-                    # Neither RSS_OK nor RSS_ERROR found
-                    raise FileTransferProtocolError("Received unexpected msg")
+                # Neither RSS_OK nor RSS_ERROR found
+                raise FileTransferProtocolError("Received unexpected msg")
         except Exception:
             # In any case, if the transfer failed, close the connection
             self.close()
@@ -503,40 +519,43 @@ def download(address, port, src_pattern, dst_path, log_func=None, timeout=60,
 
 
 def main():
-    import optparse
-
-    usage = "usage: %prog [options] address port src_pattern dst_path"
-    parser = optparse.OptionParser(usage=usage)
-    parser.add_option("-d", "--download",
-                      action="store_true", dest="download",
-                      help="download files from server")
-    parser.add_option("-u", "--upload",
-                      action="store_true", dest="upload",
-                      help="upload files to server")
-    parser.add_option("-v", "--verbose",
-                      action="store_true", dest="verbose",
-                      help="be verbose")
-    parser.add_option("-t", "--timeout",
-                      type="int", dest="timeout", default=3600,
-                      help="transfer timeout")
-    options, args = parser.parse_args()
-    if options.download == options.upload:
+    """Main entry if this code is ran as a script."""
+    usage = "usage: %prog [args] address port src_pattern dst_path"
+    parser = argparse.ArgumentParser(description=usage)
+    parser.add_argument("address")
+    parser.add_argument("port")
+    parser.add_argument("src_pattern")
+    parser.add_argument("dst_path")
+    parser.add_argument("-d", "--download",
+                        action="store_true", dest="download",
+                        help="download files from server")
+    parser.add_argument("-u", "--upload",
+                        action="store_true", dest="upload",
+                        help="upload files to server")
+    parser.add_argument("-v", "--verbose",
+                        action="store_true", dest="verbose",
+                        help="be verbose")
+    parser.add_argument("-t", "--timeout",
+                        type=int, dest="timeout", default=3600,
+                        help="transfer timeout")
+    args = parser.parse_args()
+    if args.download == args.upload:
         parser.error("you must specify either -d or -u")
-    if len(args) != 4:
-        parser.error("incorrect number of arguments")
-    address, port, src_pattern, dst_path = args
+    address, port = args.address, args.port
+    src_pattern, dst_path = args.src_pattern, args.dst_path
     port = int(port)
 
     logger = None
-    if options.verbose:
-        def p(s):
-            print(s)
-        logger = p
+    if args.verbose:
+        def log_print(message):
+            """Print logger."""
+            print(message)
+        logger = log_print
 
-    if options.download:
-        download(address, port, src_pattern, dst_path, logger, options.timeout)
-    elif options.upload:
-        upload(address, port, src_pattern, dst_path, logger, options.timeout)
+    if args.download:
+        download(address, port, src_pattern, dst_path, logger, args.timeout)
+    elif args.upload:
+        upload(address, port, src_pattern, dst_path, logger, args.timeout)
 
 
 if __name__ == "__main__":

@@ -1,14 +1,35 @@
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#
+# See LICENSE for more details.
+#
+# This code was imported from the avocado-vt project,
+#
+# virttest/remote.py
+# Original author: Michael Goldish <mgoldish@redhat.com>
+#
+# Copyright: 2016 IBM
+# Authors : Michael Goldish <mgoldish@redhat.com>
+
 """
 Functions and classes used for logging into guests and transferring files.
 """
+
+# disable too-many-* as we need them pylint: disable=R0912,R0913,R0914,R0915,C0302
+# ..todo:: we could reduce the disabled issues after more significant refactoring
+
 from __future__ import division
 import logging
 import time
 import re
 import os
 import pipes
-import shutil
-import tempfile
 
 from aexpect.client import Expect
 from aexpect.client import RemoteSession
@@ -23,10 +44,12 @@ PROMPT_LINUX = r"^\[.*\][\#\$]\s*$"
 PROMPT_WINDOWS = r"^\w:\\.*>\s*$"
 
 
-class RemoteError(Exception): pass
+class RemoteError(Exception):
+    """Base class for any remote error raised here."""
 
 
 class LoginError(RemoteError):
+    """Base class for any remote error related to login and session creation."""
 
     def __init__(self, msg, output=''):
         RemoteError.__init__(self)
@@ -38,16 +61,18 @@ class LoginError(RemoteError):
 
 
 class LoginAuthenticationError(LoginError):
-    pass
+    """Remote error related to login authentication problems."""
 
 
 class LoginTimeoutError(LoginError):
+    """Remote error related to login timeout expiration."""
 
     def __init__(self, output=''):
         LoginError.__init__(self, "Login timeout expired", output)
 
 
 class LoginProcessTerminatedError(LoginError):
+    """Remote error related to login process termination."""
 
     def __init__(self, status, output=''):
         LoginError.__init__(self, "Client process terminated", output)
@@ -59,6 +84,7 @@ class LoginProcessTerminatedError(LoginError):
 
 
 class LoginBadClientError(LoginError):
+    """Remote error related to unknown remote shell client."""
 
     def __init__(self, client):
         LoginError.__init__(self, 'Unknown remote shell client')
@@ -69,6 +95,7 @@ class LoginBadClientError(LoginError):
 
 
 class TransferError(RemoteError):
+    """Base class for any remote error related to data transfer."""
 
     def __init__(self, msg, output):
         RemoteError.__init__(self)
@@ -80,6 +107,7 @@ class TransferError(RemoteError):
 
 
 class TransferBadClientError(RemoteError):
+    """Remote error related to unknown transfer client."""
 
     def __init__(self, client):
         RemoteError.__init__(self)
@@ -90,14 +118,15 @@ class TransferBadClientError(RemoteError):
 
 
 class SCPError(TransferError):
-    pass
+    """Remote error related to transfer using SCP."""
 
 
 class SCPAuthenticationError(SCPError):
-    pass
+    """Remote error related to transfer authentication using SCP."""
 
 
 class SCPAuthenticationTimeoutError(SCPAuthenticationError):
+    """Remote error related to transfer authentication timeout using SCP."""
 
     def __init__(self, output):
         SCPAuthenticationError.__init__(self, "Authentication timeout expired",
@@ -105,12 +134,14 @@ class SCPAuthenticationTimeoutError(SCPAuthenticationError):
 
 
 class SCPTransferTimeoutError(SCPError):
+    """Remote error related to transfer timeout using SCP."""
 
     def __init__(self, output):
         SCPError.__init__(self, "Transfer timeout expired", output)
 
 
 class SCPTransferFailedError(SCPError):
+    """Remote error related to transfer failure using SCP."""
 
     def __init__(self, status, output):
         SCPError.__init__(self, None, output)
@@ -122,16 +153,18 @@ class SCPTransferFailedError(SCPError):
 
 
 class NetcatError(TransferError):
-    pass
+    """Remote error related to transfer using netcat."""
 
 
 class NetcatTransferTimeoutError(NetcatError):
+    """Remote error related to transfer timeout using netcat."""
 
     def __init__(self, output):
         NetcatError.__init__(self, "Transfer timeout expired", output)
 
 
 class NetcatTransferFailedError(NetcatError):
+    """Remote error related to transfer failure using netcat."""
 
     def __init__(self, status, output):
         NetcatError.__init__(self, None, output)
@@ -143,12 +176,14 @@ class NetcatTransferFailedError(NetcatError):
 
 
 class NetcatTransferIntegrityError(NetcatError):
+    """Remote error related to transfer integrity failure using netcat."""
 
     def __init__(self, output):
         NetcatError.__init__(self, "Transfer integrity failed", output)
 
 
 class UDPError(TransferError):
+    """Remote error related to transfer using UDP."""
 
     def __init__(self, output):
         TransferError.__init__(self, "UDP transfer failed", output)
@@ -164,8 +199,7 @@ def quote_path(path):
     """
     if isinstance(path, list):
         return ' '.join(map(pipes.quote, path))
-    else:
-        return pipes.quote(path)
+    return pipes.quote(path)
 
 
 def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
@@ -214,7 +248,6 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
                 if debug:
                     logging.debug("Got 'Are you sure...', sending 'yes'")
                 session.sendline("yes")
-                continue
             elif match in [1, 2, 3, 10]:  # "password:"
                 if password_prompt_count == 0:
                     if debug:
@@ -222,18 +255,16 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
                                       password)
                     session.sendline(password)
                     password_prompt_count += 1
-                    continue
                 else:
                     raise LoginAuthenticationError("Got password prompt twice",
                                                    text)
-            elif match == 4 or match == 9:  # "login:"
+            elif match in [4, 9]:  # "login:"
                 if login_prompt_count == 0 and password_prompt_count == 0:
                     if debug:
                         logging.debug("Got username prompt; sending '%s'",
                                       username)
                     session.sendline(username)
                     login_prompt_count += 1
-                    continue
                 else:
                     if login_prompt_count > 0:
                         msg = "Got username prompt twice"
@@ -250,11 +281,9 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
                 if debug:
                     logging.debug("Got 'Please wait'")
                 timeout = 30
-                continue
             elif match == 8:  # "Warning added RSA"
                 if debug:
                     logging.debug("Got 'Warning added RSA to known host list")
-                continue
             elif match == 12:  # prompt
                 if debug:
                     logging.debug("Got shell prompt -- logged in")
@@ -262,7 +291,7 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
             elif match == 13:  # console prompt
                 logging.debug("Got console prompt, send return to show login")
                 session.sendline()
-        except ExpectTimeoutError as e:
+        except ExpectTimeoutError as error:
             # sometimes, linux kernel print some message to console
             # the message maybe impact match login pattern, so send
             # a empty line to avoid unexpect login timeout
@@ -270,11 +299,10 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
                 time.sleep(0.5)
                 session.sendline()
                 last_chance = True
-                continue
             else:
-                raise LoginTimeoutError(e.output)
-        except ExpectProcessTerminatedError as e:
-            raise LoginProcessTerminatedError(e.status, e.output)
+                raise LoginTimeoutError(error.output)
+        except ExpectProcessTerminatedError as error:
+            raise LoginProcessTerminatedError(error.status, error.output)
 
     return output
 
@@ -314,7 +342,7 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
     :raise: Whatever handle_prompts() raises
     :return: A RemoteSession object.
     """
-    verbose = verbose and "-vv" or ""
+    verbose = "-vv" if verbose else ""
     if host and host.lower().startswith("fe80"):
         if not interface:
             raise RemoteError("When using ipv6 linklocal an interface must "
@@ -381,8 +409,8 @@ def wait_for_login(client, host, port, username, password, prompt,
             return remote_login(client, host, port, username, password, prompt,
                                 linesep, log_filename, log_function,
                                 internal_timeout, interface, verbose=verbose)
-        except LoginError as e:
-            logging.debug(e)
+        except LoginError as error:
+            logging.debug(error)
             verbose = True
         time.sleep(2)
     # Timeout expired; try one more time but don't catch exceptions
@@ -428,41 +456,36 @@ def _remote_scp(
             if match == 0:  # "Are you sure you want to continue connecting"
                 logging.debug("Got 'Are you sure...', sending 'yes'")
                 session.sendline("yes")
-                continue
             elif match == 1:  # "password:"
                 if password_prompt_count == 0:
-                    logging.debug("Got password prompt, sending '%s'" %
+                    logging.debug("Got password prompt, sending '%s'",
                                   password_list[password_prompt_count])
                     session.sendline(password_list[password_prompt_count])
                     password_prompt_count += 1
                     timeout = transfer_timeout
                     if scp_type == 1:
                         authentication_done = True
-                    continue
                 elif password_prompt_count == 1 and scp_type == 2:
-                    logging.debug("Got password prompt, sending '%s'" %
+                    logging.debug("Got password prompt, sending '%s'",
                                   password_list[password_prompt_count])
                     session.sendline(password_list[password_prompt_count])
                     password_prompt_count += 1
                     timeout = transfer_timeout
                     authentication_done = True
-                    continue
                 else:
                     raise SCPAuthenticationError("Got password prompt twice",
                                                  text)
             elif match == 2:  # "lost connection"
                 raise SCPError("SCP client said 'lost connection'", text)
-        except ExpectTimeoutError as e:
+        except ExpectTimeoutError as error:
             if authentication_done:
-                raise SCPTransferTimeoutError(e.output)
-            else:
-                raise SCPAuthenticationTimeoutError(e.output)
-        except ExpectProcessTerminatedError as e:
-            if e.status == 0:
+                raise SCPTransferTimeoutError(error.output)
+            raise SCPAuthenticationTimeoutError(error.output)
+        except ExpectProcessTerminatedError as error:
+            if error.status == 0:
                 logging.debug("SCP process terminated with status 0")
                 break
-            else:
-                raise SCPTransferFailedError(e.status, e.output)
+            raise SCPTransferFailedError(error.status, error.output)
 
 
 def remote_scp(command, password_list, log_filename=None, log_function=None,
@@ -490,13 +513,9 @@ def remote_scp(command, password_list, log_filename=None, log_function=None,
     else:
         output_func = None
         output_params = ()
-    session = Expect(command,
-                     output_func=output_func,
-                     output_params=output_params)
-    try:
+    with Expect(command, output_func=output_func,
+                output_params=output_params) as session:
         _remote_scp(session, password_list, transfer_timeout, login_timeout)
-    finally:
-        session.close()
 
 
 def scp_to_remote(host, port, username, password, local_path, remote_path,
@@ -520,7 +539,7 @@ def scp_to_remote(host, port, username, password, local_path, remote_path,
     :param directory: True to copy recursively if the directory to scp
     :raise: Whatever remote_scp() raises
     """
-    if (limit):
+    if limit:
         limit = "-l %s" % (limit)
 
     if host and host.lower().startswith("fe80"):
@@ -532,10 +551,10 @@ def scp_to_remote(host, port, username, password, local_path, remote_path,
     command = "scp"
     if directory:
         command = "%s -r" % command
-    command += (" -v -o UserKnownHostsFile=/dev/null "
-                "-o StrictHostKeyChecking=no "
-                "-o PreferredAuthentications=password %s "
-                "-P %s %s %s@\[%s\]:%s" %
+    command += (r" -v -o UserKnownHostsFile=/dev/null "
+                r"-o StrictHostKeyChecking=no "
+                r"-o PreferredAuthentications=password %s "
+                r"-P %s %s %s@\[%s\]:%s" %
                 (limit, port, quote_path(local_path), username, host,
                  pipes.quote(remote_path)))
     password_list = []
@@ -565,7 +584,7 @@ def scp_from_remote(host, port, username, password, remote_path, local_path,
     :param directory: True to copy recursively if the directory to scp
     :raise: Whatever remote_scp() raises
     """
-    if (limit):
+    if limit:
         limit = "-l %s" % (limit)
     if host and host.lower().startswith("fe80"):
         if not interface:
@@ -576,10 +595,10 @@ def scp_from_remote(host, port, username, password, remote_path, local_path,
     command = "scp"
     if directory:
         command = "%s -r" % command
-    command += (" -v -o UserKnownHostsFile=/dev/null "
-                "-o StrictHostKeyChecking=no "
-                "-o PreferredAuthentications=password %s "
-                "-P %s %s@\[%s\]:%s %s" %
+    command += (r" -v -o UserKnownHostsFile=/dev/null "
+                r"-o StrictHostKeyChecking=no "
+                r"-o PreferredAuthentications=password %s "
+                r"-P %s %s@\[%s\]:%s %s" %
                 (limit, port, username, host, quote_path(remote_path),
                  pipes.quote(local_path)))
     password_list = []
@@ -611,7 +630,7 @@ def scp_between_remotes(src, dst, port, s_passwd, d_passwd, s_name, d_name,
 
     :return: True on success and False on failure.
     """
-    if (limit):
+    if limit:
         limit = "-l %s" % (limit)
     if src and src.lower().startswith("fe80"):
         if not src_inter:
@@ -627,10 +646,10 @@ def scp_between_remotes(src, dst, port, s_passwd, d_passwd, s_name, d_name,
     command = "scp"
     if directory:
         command = "%s -r" % command
-    command += (" -v -o UserKnownHostsFile=/dev/null "
-                "-o StrictHostKeyChecking=no "
-                "-o PreferredAuthentications=password %s -P %s"
-                " %s@\[%s\]:%s %s@\[%s\]:%s" %
+    command += (r" -v -o UserKnownHostsFile=/dev/null "
+                r"-o StrictHostKeyChecking=no "
+                r"-o PreferredAuthentications=password %s -P %s"
+                r" %s@\[%s\]:%s %s@\[%s\]:%s" %
                 (limit, port, s_name, src, quote_path(s_path), d_name, dst,
                  pipes.quote(d_path)))
     password_list = []
@@ -686,10 +705,10 @@ def nc_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
     try:
         s_session.cmd("iptables -I INPUT -p %s -j ACCEPT" % d_protocol)
         d_session.cmd("iptables -I OUTPUT -p %s -j ACCEPT" % d_protocol)
-    except Exception:
+    except Exception:   # pylint: disable=W0703
         pass
 
-    logging.info("Transfer data using netcat from %s to %s" % (src, dst))
+    logging.info("Transfer data using netcat from %s to %s", src, dst)
     cmd = "nc -w %s" % timeout
     if d_protocol == "udp":
         cmd += " -u"
@@ -742,9 +761,7 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
     d_session = remote_login(c_type, dst, s_port, d_name, d_passwd, c_prompt)
 
     def get_abs_path(session, filename, extension):
-        """
-        return file path drive+path
-        """
+        """Return file path drive+path."""
         cmd_tmp = "wmic datafile where \"Filename='%s' and "
         cmd_tmp += "extension='%s'\" get drive^,path"
         cmd = cmd_tmp % (filename, extension)
@@ -756,9 +773,7 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
         return ":".join(drive_path.groups())
 
     def get_file_md5(session, file_path):
-        """
-        Get files md5sums
-        """
+        """Get files md5sums."""
         if c_type == "ssh":
             md5_cmd = "md5sum %s" % file_path
             md5_reg = r"(\w+)\s+%s.*" % file_path
@@ -768,25 +783,27 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
             md5_reg = r"%s\s+(\w+)" % filename
             md5_cmd = '%smd5sums.exe %s | find "%s"' % (drive_path, file_path,
                                                         filename)
-        o = session.cmd_output(md5_cmd)
-        file_md5 = re.findall(md5_reg, o)
-        if not o:
+        output = session.cmd_output(md5_cmd)
+        file_md5 = re.findall(md5_reg, output)
+        if not output:
             raise UDPError("Get file %s md5sum error" % file_path)
         return file_md5
 
     def server_alive(session):
+        """Check if server is alive."""
         if c_type == "ssh":
             check_cmd = "ps aux"
         else:
             check_cmd = "tasklist"
-        o = session.cmd_output(check_cmd)
-        if not o:
+        output = session.cmd_output(check_cmd)
+        if not output:
             raise UDPError("Can not get the server status")
-        if "sendfile" in o.lower():
+        if "sendfile" in output.lower():
             return True
         return False
 
     def start_server(session):
+        """Start the server."""
         if c_type == "ssh":
             start_cmd = "sendfile %s &" % d_port
         else:
@@ -798,6 +815,7 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
             raise UDPError("Start udt server failed")
 
     def start_client(session):
+        """Start the client."""
         if c_type == "ssh":
             client_cmd = "recvfile %s %s %s %s" % (src, d_port,
                                                    s_path, d_path)
@@ -810,6 +828,7 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
         session.cmd_output_safe(client_cmd, timeout)
 
     def stop_server(session):
+        """Stop the server."""
         if c_type == "ssh":
             stop_cmd = "killall sendfile"
         else:
@@ -903,6 +922,7 @@ def throughput_transfer(func):
     print throughput if filesize is not none, else will print elapsed time
     """
     def transfer(*args, **kwargs):
+        """Wrapper transfer function."""
         if "from" in func.__name__:
             msg = (
                 "Copy file from %s:%s to %s, " %
@@ -927,7 +947,7 @@ def throughput_transfer(func):
 @throughput_transfer
 def copy_files_to(address, client, username, password, port, local_path,
                   remote_path, limit="", log_filename=None, log_function=None,
-                  verbose=False, timeout=600, interface=None, filesize=None,
+                  verbose=False, timeout=600, interface=None, filesize=None,  # pylint: disable=unused-argument
                   directory=True):
     """
     Copy files to a remote host (guest) using the selected client.
@@ -960,9 +980,9 @@ def copy_files_to(address, client, username, password, port, local_path,
             log_func = logging.debug
         if interface:
             address = "%s%%%s" % (address, interface)
-        c = rss_client.FileUploadClient(address, port, log_func)
-        c.upload(local_path, remote_path, timeout)
-        c.close()
+        fdclient = rss_client.FileUploadClient(address, port, log_func)
+        fdclient.upload(local_path, remote_path, timeout)
+        fdclient.close()
     else:
         raise TransferBadClientError(client)
 
@@ -970,7 +990,7 @@ def copy_files_to(address, client, username, password, port, local_path,
 @throughput_transfer
 def copy_files_from(address, client, username, password, port, remote_path,
                     local_path, limit="", log_filename=None, log_function=None,
-                    verbose=False, timeout=600, interface=None, filesize=None,
+                    verbose=False, timeout=600, interface=None, filesize=None,  # pylint: disable=unused-argument
                     directory=True):
     """
     Copy files from a remote host (guest) using the selected client.
@@ -1003,8 +1023,8 @@ def copy_files_from(address, client, username, password, port, remote_path,
             log_func = logging.debug
         if interface:
             address = "%s%%%s" % (address, interface)
-        c = rss_client.FileDownloadClient(address, port, log_func)
-        c.download(remote_path, local_path, timeout)
-        c.close()
+        fdclient = rss_client.FileDownloadClient(address, port, log_func)
+        fdclient.download(remote_path, local_path, timeout)
+        fdclient.close()
     else:
         raise TransferBadClientError(client)
