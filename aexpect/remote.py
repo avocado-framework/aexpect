@@ -11,7 +11,7 @@ import shutil
 import tempfile
 
 from aexpect.client import Expect
-from aexpect.client import ShellSession
+from aexpect.client import RemoteSession
 from aexpect.exceptions import ExpectTimeoutError
 from aexpect.exceptions import ExpectProcessTerminatedError
 from aexpect import rss_client
@@ -171,7 +171,7 @@ def handle_prompts(session, username, password, prompt, timeout=10,
     waiting for output from the child (e.g. a password prompt or
     a shell prompt) -- fail.
 
-    :param session: An Expect or ShellSession instance to operate on
+    :param session: An Expect or RemoteSession instance to operate on
     :param username: The username to send in reply to a login prompt
     :param password: The password to send in reply to a password prompt
     :param prompt: The shell prompt that indicates a successful login
@@ -306,7 +306,7 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
                        the neighbour attache
     :raise LoginBadClientError: If an unknown client is requested
     :raise: Whatever handle_prompts() raises
-    :return: A ShellSession object.
+    :return: A RemoteSession object.
     """
     verbose = verbose and "-vv" or ""
     if host and host.lower().startswith("fe80"):
@@ -334,8 +334,10 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
 
     if verbose:
         logging.debug("Login command: '%s'", cmd)
-    session = ShellSession(cmd, linesep=linesep, prompt=prompt,
-                           status_test_command=status_test_command)
+    session = RemoteSession(cmd, linesep=linesep, prompt=prompt,
+                            status_test_command=status_test_command,
+                            client=client, host=host, port=port,
+                            username=username, password=password)
     try:
         handle_prompts(session, username, password, prompt, timeout)
     except Exception:
@@ -362,7 +364,7 @@ def wait_for_login(client, host, port, username, password, prompt,
                 (only use when using ipv6 linklocal address.)
     :see: remote_login()
     :raise: Whatever remote_login() raises
-    :return: A ShellSession object.
+    :return: A RemoteSession object.
     """
     logging.debug("Attempting to log into %s:%s using %s (timeout %ds)",
                   host, port, client, timeout)
@@ -393,7 +395,7 @@ def _remote_scp(
     from the child (e.g. a password prompt), fail.  If transfer_timeout expires
     while waiting for the transfer to complete, fail.
 
-    :param session: An Expect or ShellSession instance to operate on
+    :param session: An Expect or RemoteSession instance to operate on
     :param password_list: Password list to send in reply to the password prompt
     :param transfer_timeout: The time duration (in seconds) to wait for the
             transfer to complete.
