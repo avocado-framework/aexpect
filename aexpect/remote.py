@@ -829,6 +829,68 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
         d_session.close()
 
 
+def login_from_session(session, log_filename=None, log_function=None,
+                       timeout=240, internal_timeout=10, interface=None):
+    """
+    Log in remotely and return a session for the connection with the same
+    configuration as a previous session.
+
+    :param session: an SSH session whose configuration will be reused
+    :type session: RemoteSession object
+    :returns: connection session
+    :rtype: RemoteSession object
+
+    The rest of the arguments are identical to wait_for_login().
+    """
+    return wait_for_login(session.client, session.host, session.port,
+                          session.username, session.password,
+                          session.prompt, session.linesep,
+                          log_filename, log_function,
+                          timeout, internal_timeout, interface)
+
+
+def scp_to_session(session, local_path, remote_path,
+                   limit="", log_filename=None, log_function=None,
+                   timeout=600, interface=None, directory=True):
+    """
+    Secure copy a filepath (w/o wildcard) to a remote location with the same
+    configuration as a previous session.
+
+    :param session: an SSH session whose configuration will be reused
+    :type session: RemoteSession object
+    :param str local_path: local filepath to copy from
+    :param str remote_path: remote filepath to copy to
+
+    The rest of the arguments are identical to scp_to_remote().
+    """
+    scp_to_remote(session.host, session.port,
+                  session.username, session.password,
+                  local_path, remote_path,
+                  limit, log_filename, log_function,
+                  timeout, interface, directory)
+
+
+def scp_from_session(session, remote_path, local_path,
+                     limit="", log_filename=None, log_function=None,
+                     timeout=600, interface=None, directory=True):
+    """
+    Secure copy a filepath (w/o wildcard) from a remote location with the same
+    configuration as a previous session.
+
+    :param session: an SSH session whose configuration will be reused
+    :type session: RemoteSession object
+    :param str remote_path: remote filepath to copy from
+    :param str local_path: local filepath to copy to
+
+    The rest of the arguments are identical to scp_from_remote().
+    """
+    scp_from_remote(session.host, session.port,
+                    session.username, session.password,
+                    remote_path, local_path,
+                    limit, log_filename, log_function,
+                    timeout, interface, directory)
+
+
 def throughput_transfer(func):
     """
     wrapper function for copy_files_to/copy_files_from function, will
