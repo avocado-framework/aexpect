@@ -1204,8 +1204,7 @@ class ShellSession(Expect):
                 success = True
                 break
             except ExpectTimeoutError as error:
-                output = self.remove_command_echo(error.output, cmd)
-                raise ShellTimeoutError(cmd, output)
+                self.sendline()
             except ExpectProcessTerminatedError as error:
                 output = self.remove_command_echo(error.output, cmd)
                 raise ShellProcessTerminatedError(cmd, error.status, output)
