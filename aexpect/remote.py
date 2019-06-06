@@ -17,6 +17,12 @@ from aexpect.exceptions import ExpectProcessTerminatedError
 from aexpect import rss_client
 
 
+#: prompt to be used for shell sessions on linux machines (default)
+PROMPT_LINUX = r"^\[.*\][\#\$]\s*$"
+#: prompt to be used for shell sessions on windows machines
+PROMPT_WINDOWS = r"^\w:\\.*>\s*$"
+
+
 class RemoteError(Exception): pass
 
 
@@ -162,8 +168,8 @@ def quote_path(path):
         return pipes.quote(path)
 
 
-def handle_prompts(session, username, password, prompt, timeout=10,
-                   debug=False):
+def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
+                   timeout=10, debug=False):
     """
     Connect to a remote host (guest) using SSH or Telnet or else.
 
