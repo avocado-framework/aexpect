@@ -42,6 +42,10 @@ We use the following three options to communicate code among remote hosts:
    persistently over the network by extending the usual classes with ones
    that are more serialization compatible (using pyro proxy instances).
 
+Note that this utility is meant to be a testing utility and should not be
+enabled in production machines for security reasons. It does contain a more
+secure approaches based on non-pickle serialization but it does open a door
+of possibilities on a remote system if not fully understood and used with care.
 
 INTERFACE
 ------------------------------------------------------
@@ -60,15 +64,17 @@ import inspect
 import threading
 import tempfile
 import time
+
 # NOTE: enable this before importing the Pyro backend in order to debug issues
 # related to connectivity and perform further development on the this utility.
 # os.environ["PYRO_LOGLEVEL"] = "DEBUG"
-import Pyro4
-
 try:
-    from aexpect import remote
+    import Pyro4
 except ImportError:
-    pass
+    logging.warning("Remote object backend (Pyro4) not found, some functionality"
+                    " of the remote door will not be available")
+
+from aexpect import remote
 
 
 #############################################
@@ -79,8 +85,12 @@ except ImportError:
 SRC_CONTROL_DIR = "."
 #: default location for dumped control files
 DUMP_CONTROL_DIR = "."
+#: default location for the remote control files
+REMOTE_CONTROL_DIR = "/tmp"
+#: default location for remote control logging
+REMOTE_CONTROL_LOG = "/tmp/control.log"
 #: python binary to use for remote door running
-REMOTE_PYTHON_BINARY = "/usr/bin/python3.7"
+REMOTE_PYTHON_BINARY = "python3"
 #: default path for remote utility python path
 REMOTE_PYTHON_PATH = "/tmp/utils"
 
@@ -89,7 +99,7 @@ def _string_call(function, *args, **kwargs):
     arguments = ""
     for arg in args:
         if isinstance(arg, str):
-            arguments = "%s'%s'" % (arguments, arg)
+            arguments = "%sr'%s'" % (arguments, arg)
         else:
             arguments = "%s%s" % (arguments, arg)
         if len(kwargs) > 0 or arg != args[-1]:
@@ -97,7 +107,7 @@ def _string_call(function, *args, **kwargs):
     ordered_kwargs = list(kwargs.keys())
     for key in ordered_kwargs:
         if isinstance(kwargs[key], str):
-            arguments = "%s%s='%s'" % (arguments, key, kwargs[key])
+            arguments = "%s%s=r'%s'" % (arguments, key, kwargs[key])
         else:
             arguments = "%s%s=%s" % (arguments, key, kwargs[key])
         if key != ordered_kwargs[-1]:
@@ -151,7 +161,7 @@ def run_remote_util(session, utility, function, *args, verify=None, detach=False
     run_subcontrol(session, control_path, detach=detach)
 
 
-def running_remotely(function):
+def run_remotely(function):
     """
     Decorator for local functions to be run remotely.
 
@@ -197,7 +207,7 @@ def run_subcontrol(session, control_path, timeout=600, detach=False):
     :param bool detach: whether to detach from session (e.g. if running a
                         daemon or similar long-term utility)
     """
-    remote_control_path = os.path.join("/tmp", os.path.basename(control_path))
+    remote_control_path = os.path.join(REMOTE_CONTROL_DIR, os.path.basename(control_path))
     remote.scp_to_remote(session.host, session.port, session.username, session.password,
                          control_path, remote_control_path)
     cmd = REMOTE_PYTHON_BINARY + " " + remote_control_path
@@ -365,8 +375,10 @@ def set_subcontrol_parameter_object(subcontrol, value):
         registered = pyro_daemon.registered()
         logging.debug("Pyro4 daemon already started, available objects: %s",
                       registered)
-        assert len(registered) == 2
-        assert registered[0] == "Pyro.Daemon"
+        assert len(registered) == 2, "The Pyro4 deamon should contain only two"\
+                                     " initially registered objects"
+        assert registered[0] == "Pyro.Daemon", "The Pyro4 deamon must be first"\
+                                               " registered object"
         uri = "PYRO:" + registered[1] + "@" + host_ip + ":1437"
         pyrod_running = True
 
@@ -375,7 +387,7 @@ def set_subcontrol_parameter_object(subcontrol, value):
         loop = DaemonLoop(pyro_daemon)
         loop.start()
 
-    logging.debug("Pouring the params object to the host via uri %s", uri)
+    logging.debug("Sending the params object to the host via uri %s", uri)
     subcontrol = re.sub("URI[ \t\v]*=[ \t\v]*\".*\"", "URI = \"%s\"" % uri,
                         subcontrol, count=1)
 
@@ -420,9 +432,22 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
     :returns: proxy version of the remote object
     :rtype: Pyro4.Proxy
 
+    If `session` is not `None`, you will not be able to use it after this call
+    since it is reserved for communication with the remote object. For example,
+    do not run::
+        vm, session = vmnet.get_single_vm_with_session()
+        my_util = get_remote_object('package.module', session, ...)
+        session.cmd('ls')   # will time out
+
+    but instead::
+        vm, session = vmnet.get_single_vm_with_session()
+        my_util = get_remote_object('package.module', vm.wait_for_login(), ...)
+        session.cmd('ls')   # works now
+
     To consider whitelisting of shareable functions/classes you have to share
     local objects separately with more manual configuration on the sharing
-    process. This automatic two-way door opening considers simpler cases.
+    process. This automatic two-way door opening considers simpler cases that
+    are focused on testing and not intended for use on production systems.
 
     This method does not rely on any static (template) controls in order to
     work because the remote door takes care to reach back the local one.
@@ -486,13 +511,15 @@ def get_remote_objects(session=None, host="localhost", port=0):
                              os.path.abspath(__file__), REMOTE_PYTHON_PATH)
         run_remote_util(session, "remote_door", "share_local_objects",
                         wait=True, host=host, port=port, detach=True)
+        control_log = session.cmd("cat " + REMOTE_CONTROL_LOG)
         for _ in range(10):
-            if "ready" in session.cmd("cat /tmp/control.log"):
+            if "ready" in control_log:
                 break
             time.sleep(1)
+            control_log = session.cmd("cat " + REMOTE_CONTROL_LOG)
         else:
-            raise OSError("Local objects sharing failed:\n%s" % session.cmd("cat /tmp/control.log"))
-        logging.debug("Local objects sharing output:\n%s", session.cmd("cat /tmp/control.log"))
+            raise OSError("Local objects sharing failed:\n%s" % control_log)
+        logging.debug("Local objects sharing output:\n%s", control_log)
 
         remote_objects = flame.connect(host + ":" + str(port))
         remote_objects._pyroBind()
