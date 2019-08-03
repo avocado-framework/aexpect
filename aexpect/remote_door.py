@@ -185,6 +185,10 @@ def run_remotely(function):
         logging.debug("Running remotey a function using the wrapper control %s",
                       wrapper_control)
 
+        # fix line endings for Windows clients
+        if session.client == "nc":
+            wrapper_control = wrapper_control.replace("\n", "\r\n")
+
         control_path = _string_generated_control(wrapper_control)
         run_subcontrol(session, control_path)
 
@@ -194,6 +198,27 @@ def run_remotely(function):
 ##################################
 #   STATIC (TEMPLATE) CONTROLS   #
 ##################################
+
+
+def _copy_control(session, control_path, is_utility=False):
+    remote_dir = REMOTE_PYTHON_PATH if is_utility else REMOTE_CONTROL_DIR
+    # run on remote Linux hosts
+    if session.client == "ssh":
+        transfer_client = "scp"
+        transfer_port = 22
+        remote_control_path = os.path.join(remote_dir, os.path.basename(control_path))
+    # run on remote Windows hosts
+    elif session.client == "nc":
+        transfer_client = "rss"
+        transfer_port = 10023
+        # ..todo:: use `remote_dir` here
+        remote_control_path = "%TEMP%\\" + os.path.basename(control_path)
+    else:
+        raise NotImplementedError("run_subcontrol not implemented for client %s" % session.client)
+    remote.copy_files_to(session.host, transfer_client,
+                         session.username, session.password, transfer_port,
+                         control_path, remote_control_path)
+    return remote_control_path
 
 
 def run_subcontrol(session, control_path, timeout=600, detach=False):
@@ -207,10 +232,18 @@ def run_subcontrol(session, control_path, timeout=600, detach=False):
     :param bool detach: whether to detach from session (e.g. if running a
                         daemon or similar long-term utility)
     """
-    remote_control_path = os.path.join(REMOTE_CONTROL_DIR, os.path.basename(control_path))
-    remote.scp_to_remote(session.host, session.port, session.username, session.password,
-                         control_path, remote_control_path)
-    cmd = REMOTE_PYTHON_BINARY + " " + remote_control_path
+    remote_control_path = _copy_control(session, control_path)
+    # run on remote Linux hosts
+    if session.client == "ssh":
+        python_binary = REMOTE_PYTHON_BINARY
+    # run on remote Windows hosts
+    # ..todo:: combine with REMOTE_PYTHON_BINARY
+    elif session.client == "nc":
+        python_binary = session.cmd("where python", timeout=timeout,
+                                    print_func=logging.info).strip()
+    else:
+        raise NotImplementedError("run_subcontrol not implemented for client %s" % session.client)
+    cmd = python_binary + " " + remote_control_path
     if detach:
         session.set_output_func(logging.info)
         session.set_output_params(())
@@ -460,8 +493,7 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
             raise
 
         # if there is no door on the other side, open one
-        remote.scp_to_remote(session.host, session.port, session.username, session.password,
-                             os.path.abspath(__file__), REMOTE_PYTHON_PATH)
+        _copy_control(session, os.path.abspath(__file__), is_utility=True)
         run_remote_util(session, "remote_door", "share_local_object",
                         object_name, host=host, port=port, detach=True)
         output, attempts = "", 10
@@ -507,8 +539,7 @@ def get_remote_objects(session=None, host="localhost", port=0):
             raise
 
         # if there is no door on the other side, open one
-        remote.scp_to_remote(session.host, session.port, session.username, session.password,
-                             os.path.abspath(__file__), REMOTE_PYTHON_PATH)
+        _copy_control(session, os.path.abspath(__file__), is_utility=True)
         run_remote_util(session, "remote_door", "share_local_objects",
                         wait=True, host=host, port=port, detach=True)
         control_log = session.cmd("cat " + REMOTE_CONTROL_LOG)

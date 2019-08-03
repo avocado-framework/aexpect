@@ -35,6 +35,7 @@ class RemoteDoorTest(unittest.TestCase):
 
     def setUp(self):
         self.session = mock.MagicMock(name='session')
+        self.session.client = "ssh"
 
     def tearDown(self):
         for control_file in glob.glob("tmp*.control"):
