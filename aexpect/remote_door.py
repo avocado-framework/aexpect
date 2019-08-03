@@ -115,7 +115,22 @@ def _string_call(function, *args, **kwargs):
     return "result = %s(%s)\n" % (function, arguments)
 
 
-def _string_generated_control(control_str):
+def _string_generated_control(client, control_body):
+    control_header = "import logging\n"
+    control_header += "logging.basicConfig(level=logging.DEBUG, format='%(module)-16.16s '\n"  # pylint: disable=C0301
+    control_header += "                    'L%(lineno)-.4d %(levelname)-5.5s| %(message)s')\n"  # pylint: disable=C0301
+    control_header += "import sys\n"
+    control_header += "sys.path.append('%s')\n" % REMOTE_PYTHON_PATH
+
+    # the string call will make sure this variable always exists
+    control_footer = "print('RESULT = ' + str(result))\n"
+
+    control_str = control_header + control_body + control_footer
+
+    # fix line endings for Windows clients
+    if client == "nc":
+        control_str = control_str.replace("\n", "\r\n")
+
     dump_dir = os.path.abspath(DUMP_CONTROL_DIR)
     new_fd, new_path = tempfile.mkstemp(suffix=".control", dir=dump_dir)
     logging.debug("Using %s for generated control file", new_path)
@@ -124,7 +139,7 @@ def _string_generated_control(control_str):
     return new_path
 
 
-def run_remote_util(session, utility, function, *args, verify=None, detach=False, **kwargs):
+def run_remote_util(session, utility, function, *args, detach=False, **kwargs):
     """
     Access a remote utility by generating a small control file to run remotely.
 
@@ -132,11 +147,10 @@ def run_remote_util(session, utility, function, *args, verify=None, detach=False
     :type session: RemoteSession object
     :param str utility: name of the remote utility to run
     :param str function: function of the remote utility to call
-    :param verify: expected return argument from the call to use for
-                   verification of the call execution
-    :type verify: object or None
     :param bool detach: whether to detach from session (e.g. if running a
                         daemon or similar long-term utility)
+    :returns: serialized return argument from the call
+    :rtype: str
 
     If the remote utility call is detached from the session, it will not wait
     for the session command to complete. Its further output (stdout and stderr)
@@ -145,20 +159,17 @@ def run_remote_util(session, utility, function, *args, verify=None, detach=False
     communication from the remote utility in order to avoid polluting its
     output from various detached processes. This is not a problem as multiple
     sessions can be easily created.
-    """
-    wrapper_control = "import logging\n"
-    wrapper_control += "logging.basicConfig(level=logging.DEBUG, format='%(module)-16.16s '\n"
-    wrapper_control += "                    'L%(lineno)-.4d %(levelname)-5.5s| %(message)s')\n"
-    wrapper_control += "import sys\n"
-    wrapper_control += "sys.path.append('%s')\n" % REMOTE_PYTHON_PATH
-    wrapper_control += "import %s\n" % utility
-    wrapper_control += _string_call(utility + "." + function, *args, **kwargs)
-    wrapper_control += "assert result is %s\n" % verify if verify else ""
 
-    control_path = _string_generated_control(wrapper_control)
+    This supports return arguments of the decorated function but needs its own
+    deserialization since all arguments are returned as strings.
+    """
+    control_body = "import %s\n" % utility
+    control_body += _string_call(utility + "." + function, *args, **kwargs)
+    control_path = _string_generated_control(session.client, control_body)
     logging.debug("Accessing %s remote utility using the wrapper control %s",
                   utility, control_path)
-    run_subcontrol(session, control_path, detach=detach)
+    full_output = run_subcontrol(session, control_path, detach=detach)
+    return "None" if detach else re.search("RESULT = (.*)", full_output).group(1)
 
 
 def run_remotely(function):
@@ -172,32 +183,25 @@ def run_remotely(function):
 
     Each function should contain a `_session` as a first argument
     and is expected to follow PEP8 standards.
+
+    This supports return arguments of the decorated function but needs its own
+    deserialization since all arguments are returned as strings.
     """
     def wrapper(session, *args, **kwargs):
         # drop first argument and first line with the decorator since function already runs remotely
         fn_source = inspect.getsourcelines(function)[0][1:]
         indent_number = len(fn_source[0]) - len(fn_source[0].lstrip())
-
         # remove extra indentation from the beginning to allow indented functions
         if indent_number > 0:
             fn_source = [line[indent_number:] for line in fn_source]
 
-        wrapper_control = "import logging\n"
-        wrapper_control += "logging.basicConfig(level=logging.DEBUG, format='%(module)-16.16s '\n"  # pylint: disable=C0301
-        wrapper_control += "                    'L%(lineno)-.4d %(levelname)-5.5s| %(message)s')\n"  # pylint: disable=C0301
-        wrapper_control += "import sys\n"
-        wrapper_control += "sys.path.append('%s')\n" % REMOTE_PYTHON_PATH
-        wrapper_control += "\n" + "".join(fn_source).replace("_session, ", "")
-        wrapper_control += "\n" + _string_call(function.__name__, *args, **kwargs)
-        logging.debug("Running remotey a function using the wrapper control %s",
-                      wrapper_control)
-
-        # fix line endings for Windows clients
-        if session.client == "nc":
-            wrapper_control = wrapper_control.replace("\n", "\r\n")
-
-        control_path = _string_generated_control(wrapper_control)
-        run_subcontrol(session, control_path)
+        control_body = "\n" + "".join(fn_source).replace("_session, ", "")
+        control_body += "\n" + _string_call(function.__name__, *args, **kwargs)
+        control_path = _string_generated_control(session.client, control_body)
+        logging.debug("Running remotely a function using the wrapper control %s",
+                      control_path)
+        full_output = run_subcontrol(session, control_path)
+        return re.search("RESULT = (.*)", full_output).group(1)
 
     return wrapper
 
@@ -238,6 +242,8 @@ def run_subcontrol(session, control_path, timeout=600, detach=False):
     :param int timeout: timeout for the control to complete
     :param bool detach: whether to detach from session (e.g. if running a
                         daemon or similar long-term utility)
+    :returns: the full raw output from the call or empty string if detached
+    :rtype: str
     """
     remote_control_path = _copy_control(session, control_path)
     # run on remote Linux hosts
@@ -255,8 +261,8 @@ def run_subcontrol(session, control_path, timeout=600, detach=False):
         session.set_output_func(logging.info)
         session.set_output_params(())
         session.sendline(cmd)
-    else:
-        session.cmd(cmd, timeout=timeout, print_func=logging.info)
+        return ""
+    return session.cmd(cmd, timeout=timeout, print_func=logging.info)
 
 
 def prep_subcontrol(src_file, src_dir=None):
