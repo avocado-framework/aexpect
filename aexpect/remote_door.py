@@ -174,13 +174,20 @@ def run_remotely(function):
     and is expected to follow PEP8 standards.
     """
     def wrapper(session, *args, **kwargs):
+        # drop first argument and first line with the decorator since function already runs remotely
+        fn_source = inspect.getsourcelines(function)[0][1:]
+        indent_number = len(fn_source[0]) - len(fn_source[0].lstrip())
+
+        # remove extra indentation from the beginning to allow indented functions
+        if indent_number > 0:
+            fn_source = [line[indent_number:] for line in fn_source]
+
         wrapper_control = "import logging\n"
         wrapper_control += "logging.basicConfig(level=logging.DEBUG, format='%(module)-16.16s '\n"  # pylint: disable=C0301
         wrapper_control += "                    'L%(lineno)-.4d %(levelname)-5.5s| %(message)s')\n"  # pylint: disable=C0301
         wrapper_control += "import sys\n"
         wrapper_control += "sys.path.append('%s')\n" % REMOTE_PYTHON_PATH
-        # drop first argument and first line with the decorator since function already runs remotely
-        wrapper_control += "\n" + "\n".join(inspect.getsource(function).split("\n")[1:]).replace("_session, ", "")  # pylint: disable=C0301
+        wrapper_control += "\n" + "".join(fn_source).replace("_session, ", "")
         wrapper_control += "\n" + _string_call(function.__name__, *args, **kwargs)
         logging.debug("Running remotey a function using the wrapper control %s",
                       wrapper_control)
