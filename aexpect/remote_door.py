@@ -61,6 +61,7 @@ import os
 import re
 import logging
 import inspect
+import importlib
 import threading
 import tempfile
 import time
@@ -610,7 +611,6 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
         nsd_running = False
 
     # main retrieval of the local object
-    import importlib
     module = importlib.import_module(object_name)
 
     def proxymethod(fun):
@@ -768,19 +768,40 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     logging.getLogger("Pyro4").setLevel(10)
 
 
-def import_remote_exceptions(exceptions):
+def import_remote_exceptions(exceptions=None, modules=None):
     """
     Make serializable all remote custom exceptions.
 
-    :param exceptions: module dot accessible exception names
-    :type exceptions: [str]
+    :param exceptions: full module path exception names (optional)
+    :type exceptions: [str] or None
+    :param modules: full module paths whose custom exceptions will first be
+                    detected and then automatically imported (optional)
+    :type exceptions: [str] or None
+
+    The deserialization by our Pyro backend requires the full module paths to
+    each exception or module in order to correctly detect the exception type.
 
     .. note:: This wouldn't be needed if we were using the Pickle serializer but its
         security problems at the moment made us prefer the serpent serializer paying
         for it with some extra setup steps and this method.
     """
-    # ..todo:: need a more dynamic way of determining the exceptions like examining
-    # the errors modules and even extracting the exception classes from there
+    def list_module_exceptions(modstr):
+        module = importlib.import_module(modstr)
+        exceptions = []
+        for name in module.__dict__:
+            if not inspect.isclass(module.__dict__[name]):
+                continue
+            if (issubclass(module.__dict__[name], Exception) or name.endswith('Error')):
+                exceptions.append(modstr + "." + name)
+        return exceptions
+
+    exceptions = [] if not exceptions else exceptions
+    modules = [] if not modules else modules
+    for module in modules:
+        exceptions += list_module_exceptions(module)
+    logging.debug("Registering the following exceptions for deserialization: %s",
+                  ", ".join(exceptions))
+
     class RemoteCustomException(Exception):
         """Standard class to instantiate during remote expection deserialization."""
     def recreate_exception(class_name, class_dict):

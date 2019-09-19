@@ -122,3 +122,33 @@ class RemoteDoorTest(unittest.TestCase):
             self.assertIn("result = remote_door.share_local_object(r'module.MyClass', "
                           "host=r'testhost', port=4242)\n",
                           control_lines)
+
+    def test_run_remote_exceptions(self):
+        """Test that selected remote exceptions are properly imported and deserialized."""
+        remote_door.Pyro4 = mock.MagicMock()
+        preselected_exceptions = ["aexpect.remote.RemoteError",
+                                  "aexpect.remote.LoginError",
+                                  "aexpect.remote.TransferError"]
+        remote_door.import_remote_exceptions(preselected_exceptions)
+        register_method = remote_door.Pyro4.util.SerializerBase.register_dict_to_class
+        self.assertEqual(len(register_method.mock_calls), 3)
+
+        def get_first_arg(call):
+            # python 3.8 and above only have the much simpler call:
+            # return call.args[0]
+            call_args = str(call).replace("call(", "").rstrip(")").split(", ")
+            return call_args[0].replace("'", "")
+
+        for i, exception in enumerate(preselected_exceptions):
+            self.assertEqual(exception, get_first_arg(register_method.mock_calls[i]))
+
+        register_method.reset_mock()
+        preselected_modules = ["aexpect.exceptions", "aexpect.remote"]
+        remote_door.import_remote_exceptions([], modules=preselected_modules)
+        imported_classes = [get_first_arg(c) for c in register_method.mock_calls]
+        # assert some detected exceptions from the exceptions module
+        self.assertIn("aexpect.exceptions.ExpectError", imported_classes)
+        self.assertIn("aexpect.exceptions.ShellError", imported_classes)
+        # assert some detected exceptions from the remote module
+        self.assertIn("aexpect.remote.RemoteError", imported_classes)
+        self.assertIn("aexpect.remote.UDPError", imported_classes)
