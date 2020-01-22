@@ -19,6 +19,24 @@
 
 """
 Functions and classes used for logging into guests and transferring files.
+
+Example usage:
+
+::
+
+    import aexpect
+    import aexpect.remote
+
+    with aexpect.ShellSession("sh") as b:
+        b.cmd("echo asdf > /tmp/bbb")
+
+    with aexpect.remote.remote_login("ssh", "127.0.0.1", 5000, "root", "123456",
+                                    aexpect.remote.PROMPT_LINUX) as a:
+        a.cmd("rm /tmp/aaa -Rf")
+        aexpect.remote.scp_to_session(a, "/tmp/bbb", "/tmp/aaa")
+        aexpect.remote.scp_from_session(a, "/tmp/aaa", "/tmp/ccc")
+
+.. warning:: Some of this API is freshly migrated and might still be experimental.
 """
 
 # disable too-many-* as we need them pylint: disable=R0912,R0913,R0914,R0915,C0302
