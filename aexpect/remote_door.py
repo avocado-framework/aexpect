@@ -1,10 +1,22 @@
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#
+# See LICENSE for more details.
+#
+# Copyright: Intra2net AG and aexpect contributors
+# Authors : Plamen Dimitrov <plamen.dimitrov@intra2net.com>
+
 """
 
 SUMMARY
 ------------------------------------------------------
 Share code between remote locations.
-
-Copyright: Intra2net AG
 
 
 CONTENTS
@@ -36,6 +48,11 @@ INTERFACE
 
 """
 
+# disable import issues from optional dependencies or remote extra imports using
+# pylint: disable=E0401,C0415,W0212
+# disable too-many-* as we need them pylint: disable=R0912,R0913,R0914,R0915,C0302
+# ..todo:: we could reduce the disabled issues after more significant refactoring
+
 import os
 import re
 import logging
@@ -55,7 +72,7 @@ except ImportError:
 
 
 #############################################
-### REMOTE UTILITIES / GENERATED CONTROLS ###
+#   REMOTE UTILITIES / GENERATED CONTROLS   #
 #############################################
 
 #: default location for template control files
@@ -134,12 +151,12 @@ def run_remote_util(session, utility, function, *args, verify=None, detach=False
     run_subcontrol(session, control_path, detach=detach)
 
 
-def running_remotely(fn):
+def running_remotely(function):
     """
     Decorator for local functions to be run remotely.
 
-    :param fn: function to run remotely
-    :type fn: function
+    :param function: function to run remotely
+    :type function: function
     :returns: same function converted to remote one
     :rtype: function
 
@@ -148,13 +165,13 @@ def running_remotely(fn):
     """
     def wrapper(session, *args, **kwargs):
         wrapper_control = "import logging\n"
-        wrapper_control += "logging.basicConfig(level=logging.DEBUG, format='%(module)-16.16s '\n"
-        wrapper_control += "                    'L%(lineno)-.4d %(levelname)-5.5s| %(message)s')\n"
+        wrapper_control += "logging.basicConfig(level=logging.DEBUG, format='%(module)-16.16s '\n"  # pylint: disable=C0301
+        wrapper_control += "                    'L%(lineno)-.4d %(levelname)-5.5s| %(message)s')\n"  # pylint: disable=C0301
         wrapper_control += "import sys\n"
         wrapper_control += "sys.path.append('%s')\n" % REMOTE_PYTHON_PATH
         # drop first argument and first line with the decorator since function already runs remotely
-        wrapper_control += "\n" + "\n".join(inspect.getsource(fn).split("\n")[1:]).replace("_session, ", "")
-        wrapper_control += "\n" + _string_call(fn.__name__, *args, **kwargs)
+        wrapper_control += "\n" + "\n".join(inspect.getsource(function).split("\n")[1:]).replace("_session, ", "")  # pylint: disable=C0301
+        wrapper_control += "\n" + _string_call(function.__name__, *args, **kwargs)
         logging.debug("Running remotey a function using the wrapper control %s",
                       wrapper_control)
 
@@ -165,7 +182,7 @@ def running_remotely(fn):
 
 
 ##################################
-### STATIC (TEMPLATE) CONTROLS ###
+#   STATIC (TEMPLATE) CONTROLS   #
 ##################################
 
 
@@ -226,23 +243,23 @@ def prep_subcontrol(src_file, src_dir=None):
     return new_path
 
 
-def set_subcontrol(fn):
+def set_subcontrol(function):
     """
     Decorator for subcontrol code modification.
 
-    :param fn: function to set subcontrol variable
-    :type fn: function
+    :param function: function to set subcontrol variable
+    :type function: function
     :returns: same function with control file handling
     :rtype: function
     """
     def wrapper(*args, **kwargs):
         control_path = args[0]
         control = prep_subcontrol(control_path)
-        with open(control, "rt") as f:
-            subcontrol = f.read()
-        modcontrol = fn(subcontrol, *args[1:], **kwargs)
-        with open(control, "wt") as f:
-            f.write(modcontrol)
+        with open(control, "rt") as handle:
+            subcontrol = handle.read()
+        modcontrol = function(subcontrol, *args[1:], **kwargs)
+        with open(control, "wt") as handle:
+            handle.write(modcontrol)
         return control
     return wrapper
 
@@ -281,7 +298,7 @@ def set_subcontrol_parameter_list(subcontrol, list_name, value):
     .. warning:: The `subcontrol` parameter is control path externally but
         control content internally after decoration.
     """
-    return re.sub("%s[ \t\v]*=[ \t\v]*\[.*\]" % list_name.upper(),
+    return re.sub(r"%s[ \t\v]*=[ \t\v]*\[.*\]" % list_name.upper(),
                   "%s = %s" % (list_name.upper(), repr(value)),
                   subcontrol, count=1)
 
@@ -301,7 +318,7 @@ def set_subcontrol_parameter_dict(subcontrol, dict_name, value):
     .. warning:: The `subcontrol` parameter is control path externally but
         control content internally after decoration.
     """
-    return re.sub("%s[ \t\v]*=[ \t\v]*\{.*\}" % dict_name.upper(),
+    return re.sub(r"%s[ \t\v]*=[ \t\v]*\{.*\}" % dict_name.upper(),
                   "%s = %s" % (dict_name.upper(), repr(value)),
                   subcontrol, count=1)
 
@@ -348,8 +365,8 @@ def set_subcontrol_parameter_object(subcontrol, value):
         registered = pyro_daemon.registered()
         logging.debug("Pyro4 daemon already started, available objects: %s",
                       registered)
-        assert(len(registered) == 2)
-        assert(registered[0] == "Pyro.Daemon")
+        assert len(registered) == 2
+        assert registered[0] == "Pyro.Daemon"
         uri = "PYRO:" + registered[1] + "@" + host_ip + ":1437"
         pyrod_running = True
 
@@ -366,7 +383,7 @@ def set_subcontrol_parameter_object(subcontrol, value):
 
 
 ######################
-### REMOTE OBJECTS ###
+#   REMOTE OBJECTS   #
 ######################
 
 class DaemonLoop(threading.Thread):
@@ -429,7 +446,7 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
                 break
             time.sleep(1)
         else:
-            raise OSError("Local object sharing failed:\n%s", output)
+            raise OSError("Local object sharing failed:\n%s" % output)
         logging.debug("Local object sharing output:\n%s", output)
         logging.getLogger("Pyro4").setLevel(10)
 
@@ -474,7 +491,7 @@ def get_remote_objects(session=None, host="localhost", port=0):
                 break
             time.sleep(1)
         else:
-            raise OSError("Local objects sharing failed:\n%s", session.cmd("cat /tmp/control.log"))
+            raise OSError("Local objects sharing failed:\n%s" % session.cmd("cat /tmp/control.log"))
         logging.debug("Local objects sharing output:\n%s", session.cmd("cat /tmp/control.log"))
 
         remote_objects = flame.connect(host + ":" + str(port))
@@ -531,41 +548,38 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
 
     # main retrieval of the local object
     import importlib
-    import inspect
     module = importlib.import_module(object_name)
-    # decorator to autoproxy all callables
-    def proxymethod(fn):
+    def proxymethod(fun):
+        """Decorator to autoproxy all callables."""
         def wrapper(*args, **kwargs):
-            r = fn(*args, **kwargs)
-            def proxify_type(r):
-                if r is None or type(r) in (bool, int, float, str):
-                    return r
-                if isinstance(r, tuple):
-                    return tuple(proxify_type(e) for e in r)
-                if isinstance(r, list):
-                    return [proxify_type(e) for e in r]
-                if isinstance(r, dict):
-                    return {proxify_type(k): proxify_type(v) for (k, v) in r.items()}
-                pyro_daemon.register(r)
-                return r
+            rarg = fun(*args, **kwargs)
+            def proxify_type(rarg):
+                if rarg is None or type(rarg) in (bool, int, float, str):  # pylint: disable=C0123
+                    return rarg
+                if isinstance(rarg, tuple):
+                    return tuple(proxify_type(e) for e in rarg)
+                if isinstance(rarg, list):
+                    return [proxify_type(e) for e in rarg]
+                if isinstance(rarg, dict):
+                    return {proxify_type(k): proxify_type(v) for (k, v) in rarg.items()}
+                pyro_daemon.register(rarg)
+                return rarg
             import types
-            if isinstance(r, types.GeneratorType):
+            if isinstance(rarg, types.GeneratorType):
                 def generator_wrapper():
-                    for n in r:
-                        yield proxify_type(n)
+                    for nxt in rarg:
+                        yield proxify_type(nxt)
                 return generator_wrapper()
-            else:
-                return proxify_type(r)
+            return proxify_type(rarg)
         return wrapper
-    # module wrapped for transferability
-    class ModuleObject:
-        pass
-    for fname, f in inspect.getmembers(module, inspect.isfunction):
+    class ModuleObject:  # pylint: disable=R0903
+        """Module wrapped for transferability."""
+    for fname, fobj in inspect.getmembers(module, inspect.isfunction):
         if not whitelist or (object_name, fname) in whitelist:
-            setattr(ModuleObject, fname, staticmethod(proxymethod(f)))
-    for cname, c in inspect.getmembers(module, inspect.isclass):
+            setattr(ModuleObject, fname, staticmethod(proxymethod(fobj)))
+    for cname, cobj in inspect.getmembers(module, inspect.isclass):
         if not whitelist or (object_name, cname) in whitelist:
-            setattr(ModuleObject, cname, staticmethod(proxymethod(c)))
+            setattr(ModuleObject, cname, staticmethod(proxymethod(cobj)))
     local_object = ModuleObject()
 
     # we should register to the pyro daemon before entering its loop
@@ -605,7 +619,7 @@ def share_local_objects(wait=False, host="localhost", port=0):
 
     # main retrieval of the local objects
     from Pyro4.utils import flame
-    _uri = flame.start(pyro_daemon)
+    _uri = flame.start(pyro_daemon)  # lgtm [py/unused-local-variable]
 
     # request loop
     loop = DaemonLoop(pyro_daemon)
@@ -650,7 +664,7 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     session.cmd("START " + cmd if os_type == "windows" else cmd + " &")
 
     logging.info("Starting the server daemon for the remote objects")
-    # TODO: later on we can dynamize this further depending on usage of this alternative function
+    # ..todo:: later on we can dynamize this further depending on usage of this alternative function
     transfer_client = "rss" if os_type == "windows" else "scp"
     transfer_port = 10023 if os_type == "windows" else 22
     local_path = set_subcontrol_parameter(control_path, "ro_server_ip", host)
@@ -660,8 +674,10 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     # NOTE: since we are creating the path in Linux but use it in Windows,
     # we replace some of the backslashes
     if os_type == "windows":
-        remote_path = os.path.join(REMOTE_PYTHON_PATH, os.path.basename(control_path)).replace("/", "\\")
-    remote.copy_files_to(session.host, transfer_client, session.username, session.password, transfer_port,
+        remote_path = os.path.join(REMOTE_PYTHON_PATH,
+                                   os.path.basename(control_path)).replace("/", "\\")
+    remote.copy_files_to(session.host, transfer_client,
+                         session.username, session.password, transfer_port,
                          local_path, remote_path, timeout=10)
     middleware_session = remote.wait_for_login(session.client, session.host, session.port,
                                                session.username, session.password,
@@ -697,22 +713,22 @@ def import_remote_exceptions(exceptions):
         security problems at the moment made us prefer the serpent serializer paying
         for it with some extra setup steps and this method.
     """
-    # TODO: need a more dynamic way of determining the exceptions like examining
+    # ..todo:: need a more dynamic way of determining the exceptions like examining
     # the errors modules and even extracting the exception classes from there
     class RemoteCustomException(Exception):
-        pass
+        """Standard class to instantiate during remote expection deserialization."""
     def recreate_exception(class_name, class_dict):
         logging.debug("Remote exception %s data: %s", class_name, class_dict)
         exceptiontype = RemoteCustomException
-        ex = exceptiontype(*class_dict["args"])
+        exception = exceptiontype(*class_dict["args"])
         # in the case of non-custom exceptions the class is properly restored
-        ex.__customclass__ = class_dict.get("__class__", "")
+        exception.__customclass__ = class_dict.get("__class__", "")
 
         if "attributes" in class_dict.keys():
             # restore custom attributes on the exception object
             for attr, value in class_dict["attributes"].items():
-                setattr(ex, attr, value)
-        return ex
+                setattr(exception, attr, value)
+        return exception
 
     for exception in exceptions:
         Pyro4.util.SerializerBase.register_dict_to_class(exception, recreate_exception)
