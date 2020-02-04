@@ -31,3 +31,6 @@ from .client import kill_tail_threads
 from .client import run_tail
 from .client import run_bg
 from .client import run_fg
+
+from . import remote
+from . import rss_client

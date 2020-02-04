@@ -1351,6 +1351,77 @@ class ShellSession(Expect):
         return self.cmd_status(cmd, timeout, internal_timeout, print_func)
 
 
+class RemoteSession(ShellSession):
+
+    """
+    This class includes helpers specifically with regards to remote sessions.
+
+    It provides all services of the shell session and extends it with remote
+    connection attributes like client, host, port, username, and password.
+    """
+
+    def __init__(self, command=None, a_id=None, auto_close=True, echo=False,
+                 linesep="\n", termination_func=None, termination_params=(),
+                 output_func=None, output_params=(), output_prefix="",
+                 thread_name=None, prompt=r"[\#\$]\s*$",
+                 status_test_command="echo $?",
+                 client="ssh", host="localhost", port=22,
+                 username="root", password="test1234",
+                 pass_fds=(), encoding=None):
+        """
+        Initialize the class and run command as a child process.
+
+        :param command: Command to run, or None if accessing an already running
+                server.
+        :param a_id: ID of an already running server, if accessing a running
+                server, or None if starting a new one.
+        :param auto_close: If True, close() the instance automatically when its
+                reference count drops to zero (default True).
+        :param echo: Boolean indicating whether echo should be initially
+                enabled for the pseudo terminal running the subprocess.  This
+                parameter has an effect only when starting a new server.
+        :param linesep: Line separator to be appended to strings sent to the
+                child process by sendline().
+        :param termination_func: Function to call when the process exits.  The
+                function must accept a single exit status parameter.
+        :param termination_params: Parameters to send to termination_func
+                before the exit status.
+        :param output_func: Function to call whenever a line of output is
+                available from the STDOUT or STDERR streams of the process.
+                The function must accept a single string parameter.  The string
+                does not include the final newline.
+        :param output_params: Parameters to send to output_func before the
+                output line.
+        :param output_prefix: String to prepend to lines sent to output_func.
+        :param prompt: Regular expression describing the shell's prompt line.
+        :param status_test_command: Command to be used for getting the last
+                exit status of commands run inside the shell (used by
+                cmd_status_output() and friends).
+        :param client: String client to use for the remote connection.
+        :param host: String host to use for the remote connection.
+        :param port: Integer port to use for the remote connection.
+        :param username: String to use as username for remote authentication.
+        :param password: String to use as password for remote authentication.
+        :param pass_fds: Optional sequence of file descriptors to keep open
+                between the parent and child.
+        :param encoding: Override text encoding (by default: autodetect by
+                locale.getpreferredencoding())
+        """
+        # Init the superclass
+        ShellSession.__init__(self, command, a_id, auto_close, echo, linesep,
+                              termination_func, termination_params,
+                              output_func, output_params, output_prefix, thread_name,
+                              prompt, status_test_command,
+                              pass_fds, encoding)
+
+        # Remember some attributes
+        self.client = client
+        self.host = host
+        self.port = port
+        self.username = username
+        self.password = password
+
+
 def run_tail(command, termination_func=None, output_func=None,
              output_prefix="", timeout=1.0, auto_close=True, pass_fds=(),
              encoding=None):
