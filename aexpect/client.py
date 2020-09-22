@@ -182,16 +182,7 @@ class Spawn(object):
 
         # Start the server (which runs the command)
         if command:
-            # try to find python specific version of aexpect_helper first, then
-            # try unversioned
-            helper_noversion = 'aexpect_helper'
-            helper_versioned = '{0}-{1}.{2}'.format(helper_noversion,
-                                                    sys.version_info[0],
-                                                    sys.version_info[1])
-            try:
-                helper_cmd = utils_path.find_command(helper_versioned)
-            except utils_path.CmdNotFoundError:
-                helper_cmd = utils_path.find_command(helper_noversion)
+            helper_cmd = utils_path.find_command('aexpect_helper')
             sub = subprocess.Popen([helper_cmd],
                                    shell=True,
                                    stdin=subprocess.PIPE,
