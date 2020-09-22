@@ -576,10 +576,12 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
     # main retrieval of the local object
     import importlib
     module = importlib.import_module(object_name)
+
     def proxymethod(fun):
         """Decorator to autoproxy all callables."""
         def wrapper(*args, **kwargs):
             rarg = fun(*args, **kwargs)
+
             def proxify_type(rarg):
                 if rarg is None or type(rarg) in (bool, int, float, str):  # pylint: disable=C0123
                     return rarg
@@ -599,6 +601,7 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
                 return generator_wrapper()
             return proxify_type(rarg)
         return wrapper
+
     class ModuleObject:  # pylint: disable=R0903
         """Module wrapped for transferability."""
     for fname, fobj in inspect.getmembers(module, inspect.isfunction):
@@ -749,6 +752,7 @@ def import_remote_exceptions(exceptions):
         exceptiontype = RemoteCustomException
         exception = exceptiontype(*class_dict["args"])
         # in the case of non-custom exceptions the class is properly restored
+        # pylint: disable=W0201
         exception.__customclass__ = class_dict.get("__class__", "")
 
         if "attributes" in class_dict.keys():
