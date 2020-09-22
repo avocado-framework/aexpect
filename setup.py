@@ -15,17 +15,10 @@
 
 """Aexpect setup script"""
 
-import sys
-# pylint: disable=E0611
-
 from setuptools import setup
 
 
 if __name__ == '__main__':
-    if sys.version_info[0] == 2:
-        REQUIREMENTS = ['subprocess32>=3.2.6']
-    else:
-        REQUIREMENTS = []
     setup(name='aexpect',
           version='1.5.1',
           description='Aexpect',
@@ -35,6 +28,4 @@ if __name__ == '__main__':
           packages=['aexpect',
                     'aexpect.utils'],
           scripts=['scripts/aexpect_helper'],
-          use_2to3=True,
-          install_requires=REQUIREMENTS,
           test_suite='tests')
