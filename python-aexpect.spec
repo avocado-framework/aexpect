@@ -24,8 +24,8 @@
 %global with_tests 0
 
 Name: python-%{srcname}
-Version: 1.5.1
-Release: 2%{?gitrel}%{?dist}
+Version: 1.6.0
+Release: 1%{?gitrel}%{?dist}
 Summary: Aexpect is a python library to control interactive applications
 Group: Development/Tools
 
@@ -84,6 +84,9 @@ selftests/checkall
 %{_bindir}/aexpect_helper*
 
 %changelog
+* Tue Sep 22 2020 Cleber Rosa <cleber@redhat.com> - 1.6.0-1
+- New release
+
 * Tue Sep 22 2020 Cleber Rosa <cleber@redhat.com> - 1.5.1-2
 - Drop Python 2 support and packages
 
