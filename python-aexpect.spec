@@ -10,10 +10,10 @@
 %global gittar		%{srcname}-%{version}.tar.gz
 %else
 %if ! 0%{?commit:1}
-%global commit		012bc0e57fc9d05d2ee4ca2425dc27b07b745a32
+%global commit		be9be4b325ac1da7b0c908e82f1d2c52e43dfd2f
 %endif
 %if ! 0%{?commit_date:1}
-%global commit_date	20180613
+%global commit_date	20200922
 %endif
 %global shortcommit	%(c=%{commit};echo ${c:0:7})
 %global gitrel		.%{commit_date}git%{shortcommit}
@@ -23,23 +23,9 @@
 # Selftests are provided but skipped because they use unsupported tooling.
 %global with_tests 0
 
-%if 0%{?rhel}
-    %if 0%{?rhel} == 7
-        %global with_python2 1
-        %global with_python3 0
-    %else
-        # RHEL 8 and later
-        %global with_python2 0
-        %global with_python3 1
-    %endif
-%else
-    %global with_python2 1
-    %global with_python3 1
-%endif
-
 Name: python-%{srcname}
 Version: 1.5.1
-Release: 1%{?gitrel}%{?dist}
+Release: 2%{?gitrel}%{?dist}
 Summary: Aexpect is a python library to control interactive applications
 Group: Development/Tools
 
@@ -53,46 +39,22 @@ Source0: https://github.com/avocado-framework/%{srcname}/archive/%{commit}.tar.g
 %endif
 
 BuildArch: noarch
-Requires: python
-
-%if %{?with_python2}
-BuildRequires: python2-devel
-BuildRequires: python-subprocess32
-BuildRequires: python-setuptools
-%endif
-
-%if %{?with_python3}
 Requires: python3
 BuildRequires: python3-devel
 BuildRequires: python3-setuptools
-%endif
 
 %description
 Aexpect is a python library used to control interactive applications, very
 similar to pexpect. You can use it to control applications such as ssh, scp
 sftp, telnet, among others.
 
-%package -n python2-%{srcname}
+%package -n python3-%{srcname}
 Summary: %{summary}
-Requires: python-subprocess32
-%{?python_provide:%python_provide python2-%{srcname}}
 
-%description -n python2-%{srcname}
+%description -n python3-%{srcname}
 Aexpect is a python library used to control interactive applications, very
 similar to pexpect. You can use it to control applications such as ssh, scp
 sftp, telnet, among others.
-
-%if %{with_python3}
-%package -n python%{python3_pkgversion}-%{srcname}
-Summary: %{summary}
-%{?python_provide:%python_provide python%{python3_pkgversion}-%{srcname}}
-
-%description -n python%{python3_pkgversion}-%{srcname}
-Aexpect is a python library used to control interactive applications, very
-similar to pexpect. You can use it to control applications such as ssh, scp
-sftp, telnet, among others.
-PYTHON 3 SUPPORT IS CURRENTLY EXPERIMENTAL
-%endif
 
 %prep
 %if 0%{?rel_build}
@@ -102,54 +64,29 @@ PYTHON 3 SUPPORT IS CURRENTLY EXPERIMENTAL
 %endif
 
 %build
-%if %{?with_python2}
-%py2_build
-%endif
-
-%if %{?with_python3}
 %py3_build
-%endif
 
 %install
-%if %{?with_python2}
-%py2_install
-# move and symlink python2 version-specific executables
-mv %{buildroot}%{_bindir}/aexpect_helper %{buildroot}%{_bindir}/aexpect_helper-%{python2_version}
-ln -s aexpect_helper-%{python2_version} %{buildroot}%{_bindir}/aexpect_helper_2
-%endif
-
-%if %{?with_python3}
 %py3_install
-mv %{buildroot}%{_bindir}/aexpect_helper %{buildroot}%{_bindir}/aexpect_helper-%{python3_version}
-ln -s aexpect_helper-%{python3_version} %{buildroot}%{_bindir}/aexpect_helper_3
-%endif
+ln -s aexpect_helper %{buildroot}%{_bindir}/aexpect_helper-%{python3_pkgversion}
+ln -s aexpect_helper %{buildroot}%{_bindir}/aexpect_helper-%{python3_version}
 
 %check
 %if %{with_tests}
 selftests/checkall
 %endif
 
-%if %{?with_python2}
-%files -n python2-%{srcname}
-%license LICENSE
-%doc README.rst
-%{python2_sitelib}/aexpect/
-%{python2_sitelib}/aexpect-%{version}-py%{python2_version}.egg-info
-%{_bindir}/aexpect_helper_2*
-%{_bindir}/aexpect_helper-2*
-%endif
-
-%if %{?with_python3}
 %files -n python%{python3_pkgversion}-%{srcname}
 %license LICENSE
 %doc README.rst
 %{python3_sitelib}/aexpect/
 %{python3_sitelib}/aexpect-%{version}-py%{python3_version}.egg-info
-%{_bindir}/aexpect_helper_3*
-%{_bindir}/aexpect_helper-3*
-%endif
+%{_bindir}/aexpect_helper*
 
 %changelog
+* Tue Sep 22 2020 Cleber Rosa <cleber@redhat.com> - 1.5.1-2
+- Drop Python 2 support and packages
+
 * Wed Nov 20 2019 Cleber Rosa <cleber@redhat.com> - 1.5.1-1
 - Made python2 build conditional
 - Enabled RHEL 8 build with Python 3 only

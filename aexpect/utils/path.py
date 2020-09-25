@@ -72,7 +72,7 @@ def init_dir(*args):
     :return: directory.
     :rtype: str
     """
-    directory = os.path.join(*args)
+    directory = os.path.join(*args)  # pylint: disable=E1120
     if not os.path.isdir(directory):
         os.makedirs(directory)
     return directory

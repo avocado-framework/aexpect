@@ -20,11 +20,11 @@ API used to run/control interactive processes.
 import time
 import signal
 import os
-import sys
 import re
 import threading
 import shutil
 import select
+import subprocess
 import locale
 import logging
 
@@ -51,11 +51,6 @@ from aexpect.utils import genio
 from aexpect.utils import process as utils_process
 from aexpect.utils import path as utils_path
 from aexpect.utils import wait as utils_wait
-
-if sys.version_info[0] < 3:
-    import subprocess32 as subprocess   # pylint: disable=E0401
-else:
-    import subprocess
 
 
 _THREAD_KILL_REQUESTED = threading.Event()
@@ -182,16 +177,7 @@ class Spawn(object):
 
         # Start the server (which runs the command)
         if command:
-            # try to find python specific version of aexpect_helper first, then
-            # try unversioned
-            helper_noversion = 'aexpect_helper'
-            helper_versioned = '{0}-{1}.{2}'.format(helper_noversion,
-                                                    sys.version_info[0],
-                                                    sys.version_info[1])
-            try:
-                helper_cmd = utils_path.find_command(helper_versioned)
-            except utils_path.CmdNotFoundError:
-                helper_cmd = utils_path.find_command(helper_noversion)
+            helper_cmd = utils_path.find_command('aexpect_helper')
             sub = subprocess.Popen([helper_cmd],
                                    shell=True,
                                    stdin=subprocess.PIPE,
@@ -332,9 +318,8 @@ class Spawn(object):
         """
         try:
             with open(self.output_filename, 'rb') as output_file:
-                errors = ('replace' if sys.version_info[0] < 3 else
-                          'backslashreplace')
-                return output_file.read().decode(self.encoding, errors)
+                return output_file.read().decode(self.encoding,
+                                                 'backslashreplace')
         except IOError:
             return None
 
