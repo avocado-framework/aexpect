@@ -83,5 +83,18 @@ clean:
 	rm -rf build/ MANIFEST BUILD BUILDROOT SPECS RPMS SRPMS SOURCES
 	find . -name '*.pyc' -delete
 
+pypi: clean
+	if test ! -d PYPI_UPLOAD; then mkdir PYPI_UPLOAD; fi
+	$(PYTHON) setup.py bdist_wheel -d PYPI_UPLOAD
+	$(PYTHON) setup.py sdist -d PYPI_UPLOAD
+	@echo
+	@echo "Please use the files on PYPI_UPLOAD dir to upload a new version to PyPI"
+	@echo "The URL to do that may be a bit tricky to find, so here it is:"
+	@echo " https://pypi.python.org/pypi?%3Aaction=submit_form"
+	@echo
+	@echo "Alternatively, you can also run a command like: "
+	@echo " twine upload -u <PYPI_USERNAME> PYPI_UPLOAD/*.{tar.gz,whl}"
+	@echo
+
 .PHONY: source install clean
 
