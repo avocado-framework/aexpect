@@ -96,22 +96,14 @@ REMOTE_PYTHON_PATH = "/tmp/utils"
 
 
 def _string_call(function, *args, **kwargs):
-    arguments = ""
-    for arg in args:
+    def arg_to_str(arg):
         if isinstance(arg, str):
-            arguments = "%sr'%s'" % (arguments, arg)
-        else:
-            arguments = "%s%s" % (arguments, arg)
-        if len(kwargs) > 0 or arg != args[-1]:
-            arguments = "%s%s" % (arguments, ", ")
-    ordered_kwargs = list(kwargs.keys())
-    for key in ordered_kwargs:
-        if isinstance(kwargs[key], str):
-            arguments = "%s%s=r'%s'" % (arguments, key, kwargs[key])
-        else:
-            arguments = "%s%s=%s" % (arguments, key, kwargs[key])
-        if key != ordered_kwargs[-1]:
-            arguments = "%s%s" % (arguments, ", ")
+            return "r'%s'" % arg
+        return "%s" % arg
+    args = tuple(arg_to_str(arg) for arg in args)
+    kwargs = tuple("%s=%s" % (key, arg_to_str(value))
+                   for key, value in sorted(kwargs.items()))
+    arguments = ", ".join(args + kwargs)
     return "result = %s(%s)\n" % (function, arguments)
 
 
