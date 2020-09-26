@@ -747,12 +747,13 @@ def import_remote_exceptions(exceptions):
     # the errors modules and even extracting the exception classes from there
     class RemoteCustomException(Exception):
         """Standard class to instantiate during remote expection deserialization."""
+        __customclass__ = None
+
     def recreate_exception(class_name, class_dict):
         logging.debug("Remote exception %s data: %s", class_name, class_dict)
         exceptiontype = RemoteCustomException
         exception = exceptiontype(*class_dict["args"])
         # in the case of non-custom exceptions the class is properly restored
-        # pylint: disable=W0201
         exception.__customclass__ = class_dict.get("__class__", "")
 
         if "attributes" in class_dict.keys():
