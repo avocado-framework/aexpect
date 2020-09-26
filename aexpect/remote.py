@@ -70,7 +70,7 @@ class LoginError(RemoteError):
     """Base class for any remote error related to login and session creation."""
 
     def __init__(self, msg, output=''):
-        RemoteError.__init__(self)
+        super().__init__()
         self.msg = msg
         self.output = output
 
@@ -86,14 +86,14 @@ class LoginTimeoutError(LoginError):
     """Remote error related to login timeout expiration."""
 
     def __init__(self, output=''):
-        LoginError.__init__(self, "Login timeout expired", output)
+        super().__init__("Login timeout expired", output)
 
 
 class LoginProcessTerminatedError(LoginError):
     """Remote error related to login process termination."""
 
     def __init__(self, status, output=''):
-        LoginError.__init__(self, "Client process terminated", output)
+        super().__init__("Client process terminated", output)
         self.status = status
 
     def __str__(self):
@@ -105,7 +105,7 @@ class LoginBadClientError(LoginError):
     """Remote error related to unknown remote shell client."""
 
     def __init__(self, client):
-        LoginError.__init__(self, 'Unknown remote shell client')
+        super().__init__('Unknown remote shell client')
         self.client = client
 
     def __str__(self):
@@ -116,7 +116,7 @@ class TransferError(RemoteError):
     """Base class for any remote error related to data transfer."""
 
     def __init__(self, msg, output):
-        RemoteError.__init__(self)
+        super().__init__()
         self.msg = msg
         self.output = output
 
@@ -128,7 +128,7 @@ class TransferBadClientError(RemoteError):
     """Remote error related to unknown transfer client."""
 
     def __init__(self, client):
-        RemoteError.__init__(self)
+        super().__init__()
         self.client = client
 
     def __str__(self):
@@ -147,22 +147,21 @@ class SCPAuthenticationTimeoutError(SCPAuthenticationError):
     """Remote error related to transfer authentication timeout using SCP."""
 
     def __init__(self, output):
-        SCPAuthenticationError.__init__(self, "Authentication timeout expired",
-                                        output)
+        super().__init__("Authentication timeout expired", output)
 
 
 class SCPTransferTimeoutError(SCPError):
     """Remote error related to transfer timeout using SCP."""
 
     def __init__(self, output):
-        SCPError.__init__(self, "Transfer timeout expired", output)
+        super().__init__("Transfer timeout expired", output)
 
 
 class SCPTransferFailedError(SCPError):
     """Remote error related to transfer failure using SCP."""
 
     def __init__(self, status, output):
-        SCPError.__init__(self, None, output)
+        super().__init__(None, output)
         self.status = status
 
     def __str__(self):
@@ -178,14 +177,14 @@ class NetcatTransferTimeoutError(NetcatError):
     """Remote error related to transfer timeout using netcat."""
 
     def __init__(self, output):
-        NetcatError.__init__(self, "Transfer timeout expired", output)
+        super().__init__("Transfer timeout expired", output)
 
 
 class NetcatTransferFailedError(NetcatError):
     """Remote error related to transfer failure using netcat."""
 
     def __init__(self, status, output):
-        NetcatError.__init__(self, None, output)
+        super().__init__(None, output)
         self.status = status
 
     def __str__(self):
@@ -197,14 +196,14 @@ class NetcatTransferIntegrityError(NetcatError):
     """Remote error related to transfer integrity failure using netcat."""
 
     def __init__(self, output):
-        NetcatError.__init__(self, "Transfer integrity failed", output)
+        super().__init__("Transfer integrity failed", output)
 
 
 class UDPError(TransferError):
     """Remote error related to transfer using UDP."""
 
     def __init__(self, output):
-        TransferError.__init__(self, "UDP transfer failed", output)
+        super().__init__("UDP transfer failed", output)
 
 
 def quote_path(path):

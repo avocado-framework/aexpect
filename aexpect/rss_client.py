@@ -60,7 +60,7 @@ class FileTransferError(Exception):
     """Base class for any error related to file transfer."""
 
     def __init__(self, msg, e=None, filename=None):
-        Exception.__init__(self, msg, e, filename)
+        super().__init__(msg, e, filename)
         self.msg = msg
         self.error = e
         self.filename = filename
@@ -96,7 +96,7 @@ class FileTransferServerError(FileTransferError):
     """Error related to file transfer server."""
 
     def __init__(self, errmsg):
-        FileTransferError.__init__(self, None, errmsg)
+        super().__init__(None, errmsg)
 
     def __str__(self):
         errmsg = "Server said: %r" % self.error
@@ -294,8 +294,7 @@ class FileUploadClient(FileTransferClient):
         :raise FileTransferSocketError: Raised if the RSS_UPLOAD message cannot
                 be sent to the server
         """
-        super(FileUploadClient, self).__init__(
-            address, port, log_func, timeout)
+        super().__init__(address, port, log_func, timeout)
         self._send_msg(RSS_UPLOAD)
 
     def _upload_file(self, path, end_time):
@@ -401,8 +400,7 @@ class FileDownloadClient(FileTransferClient):
         :raise FileTransferSendError: Raised if the RSS_UPLOAD message cannot
                 be sent to the server
         """
-        super(FileDownloadClient, self).__init__(
-            address, port, log_func, timeout)
+        super().__init__(address, port, log_func, timeout)
         self._send_msg(RSS_DOWNLOAD)
 
     def download(self, src_pattern, dst_path, timeout=600):

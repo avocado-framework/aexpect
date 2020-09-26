@@ -501,8 +501,8 @@ class Tail(Spawn):
         self._add_close_hook(Tail._close_log_file)
 
         # Init the superclass
-        Spawn.__init__(self, command, a_id, auto_close, echo, linesep,
-                       pass_fds, encoding)
+        super().__init__(command, a_id, auto_close, echo, linesep,
+                         pass_fds, encoding)
         if thread_name is None:
             self.thread_name = "tail_thread_%s_%s" % (self.a_id,
                                                       str(command)[:10])
@@ -722,10 +722,10 @@ class Expect(Tail):
         self._add_reader("expect")
 
         # Init the superclass
-        Tail.__init__(self, command, a_id, auto_close, echo, linesep,
-                      termination_func, termination_params,
-                      output_func, output_params, output_prefix, thread_name,
-                      pass_fds, encoding)
+        super().__init__(command, a_id, auto_close, echo, linesep,
+                         termination_func, termination_params,
+                         output_func, output_params, output_prefix, thread_name,
+                         pass_fds, encoding)
 
     def __reduce__(self):
         return self.__class__, (self.__getinitargs__())
@@ -1017,10 +1017,10 @@ class ShellSession(Expect):
                 locale.getpreferredencoding())
         """
         # Init the superclass
-        Expect.__init__(self, command, a_id, auto_close, echo, linesep,
-                        termination_func, termination_params,
-                        output_func, output_params, output_prefix, thread_name,
-                        pass_fds, encoding)
+        super().__init__(command, a_id, auto_close, echo, linesep,
+                         termination_func, termination_params,
+                         output_func, output_params, output_prefix, thread_name,
+                         pass_fds, encoding)
 
         # Remember some attributes
         self.prompt = prompt
@@ -1395,11 +1395,11 @@ class RemoteSession(ShellSession):
                 locale.getpreferredencoding())
         """
         # Init the superclass
-        ShellSession.__init__(self, command, a_id, auto_close, echo, linesep,
-                              termination_func, termination_params,
-                              output_func, output_params, output_prefix, thread_name,
-                              prompt, status_test_command,
-                              pass_fds, encoding)
+        super().__init__(command, a_id, auto_close, echo, linesep,
+                         termination_func, termination_params,
+                         output_func, output_params, output_prefix, thread_name,
+                         prompt, status_test_command,
+                         pass_fds, encoding)
 
         # Remember some attributes
         self.client = client

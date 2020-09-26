@@ -408,7 +408,7 @@ class DaemonLoop(threading.Thread):
         :param pyro_daemon: daemon for the remote python objects
         :type pyro_daemon: Pyro4.Daemon object
         """
-        threading.Thread.__init__(self)
+        super().__init__()
         self.pyro_daemon = pyro_daemon
         self.daemon = True     # make this a Daemon Thread
 
