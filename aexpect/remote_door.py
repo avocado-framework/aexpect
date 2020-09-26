@@ -75,7 +75,13 @@ except ImportError:
     logging.warning("Remote object backend (Pyro4) not found, some functionality"
                     " of the remote door will not be available")
 
-from aexpect import remote
+# NOTE: disable aexpect importing on the remote side if not available as the
+# remote door can run code remotely without the requirement for the aexpect
+# module, alas, offering just limited functionality
+try:
+    from aexpect import remote
+except ImportError:
+    pass
 
 
 #############################################
