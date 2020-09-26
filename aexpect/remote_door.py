@@ -455,7 +455,7 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
     try:
         remote_object = Pyro4.Proxy("PYRONAME:" + object_name + "@" + host + ":" + str(port))
         remote_object._pyroBind()
-    except Pyro4.errors.PyroError:
+    except Pyro4.errors.PyroError as error:
         if not session:
             raise
 
@@ -471,7 +471,7 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
                 break
             time.sleep(1)
         else:
-            raise OSError("Local object sharing failed:\n%s" % output)
+            raise OSError("Local object sharing failed:\n%s" % output) from error
         logging.debug("Local object sharing output:\n%s", output)
         logging.getLogger("Pyro4").setLevel(10)
 
@@ -502,7 +502,7 @@ def get_remote_objects(session=None, host="localhost", port=0):
     try:
         remote_objects = flame.connect(host + ":" + str(port))
         remote_objects._pyroBind()
-    except Pyro4.errors.PyroError:
+    except Pyro4.errors.PyroError as error:
         if not session:
             raise
 
@@ -518,7 +518,7 @@ def get_remote_objects(session=None, host="localhost", port=0):
             time.sleep(1)
             control_log = session.cmd("cat " + REMOTE_CONTROL_LOG)
         else:
-            raise OSError("Local objects sharing failed:\n%s" % control_log)
+            raise OSError("Local objects sharing failed:\n%s" % control_log) from error
         logging.debug("Local objects sharing output:\n%s", control_log)
 
         remote_objects = flame.connect(host + ":" + str(port))

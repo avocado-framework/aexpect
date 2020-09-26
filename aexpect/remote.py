@@ -318,9 +318,9 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
                 session.sendline()
                 last_chance = True
             else:
-                raise LoginTimeoutError(error.output)
+                raise LoginTimeoutError(error.output) from error
         except ExpectProcessTerminatedError as error:
-            raise LoginProcessTerminatedError(error.status, error.output)
+            raise LoginProcessTerminatedError(error.status, error.output) from error
 
     return output
 
@@ -497,13 +497,13 @@ def _remote_scp(
                 raise SCPError("SCP client said 'lost connection'", text)
         except ExpectTimeoutError as error:
             if authentication_done:
-                raise SCPTransferTimeoutError(error.output)
-            raise SCPAuthenticationTimeoutError(error.output)
+                raise SCPTransferTimeoutError(error.output) from error
+            raise SCPAuthenticationTimeoutError(error.output) from error
         except ExpectProcessTerminatedError as error:
             if error.status == 0:
                 logging.debug("SCP process terminated with status 0")
                 break
-            raise SCPTransferFailedError(error.status, error.output)
+            raise SCPTransferFailedError(error.status, error.output) from error
 
 
 def remote_scp(command, password_list, log_filename=None, log_function=None,

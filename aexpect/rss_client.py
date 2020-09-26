@@ -136,13 +136,13 @@ class FileTransferClient(object):
             self._socket.connect(addrinfo[0][4])
         except socket.error as error:
             raise FileTransferConnectError("Cannot connect to server at "
-                                           "%s:%s" % (address, port), error)
+                                           "%s:%s" % (address, port), error) from error
         try:
             if self._receive_msg(timeout) != RSS_MAGIC:
                 raise FileTransferConnectError("Received wrong magic number")
         except FileTransferTimeoutError:
             raise FileTransferConnectError("Timeout expired while waiting to "
-                                           "receive magic number")
+                                           "receive magic number") from error
         self._send(struct.pack("=i", CHUNKSIZE))
         self._log_func = log_func
         self._last_time = time.time()
@@ -164,11 +164,11 @@ class FileTransferClient(object):
                 raise socket.timeout
             self._socket.settimeout(timeout)
             self._socket.sendall(data)
-        except socket.timeout:
+        except socket.timeout as error:
             raise FileTransferTimeoutError("Timeout expired while sending "
-                                           "data to server")
+                                           "data to server") from error
         except socket.error as error:
-            raise FileTransferSocketError("Could not send data to server", error)
+            raise FileTransferSocketError("Could not send data to server", error) from error
 
     def _receive(self, size, timeout=60):
         strs = []
@@ -187,12 +187,12 @@ class FileTransferClient(object):
                                                     "server")
                 strs.append(data)
                 size -= len(data)
-        except socket.timeout:
+        except socket.timeout as error:
             raise FileTransferTimeoutError("Timeout expired while receiving "
-                                           "data from server")
+                                           "data from server") from error
         except socket.error as error:
             raise FileTransferSocketError("Error receiving data from server",
-                                          error)
+                                          error) from error
         return b"".join(strs)
 
     def _report_stats(self, data):

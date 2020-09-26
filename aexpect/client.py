@@ -1148,13 +1148,13 @@ class ShellSession(Expect):
             out = self.read_up_to_prompt(timeout, internal_timeout, print_func)
         except ExpectTimeoutError as error:
             output = self.remove_command_echo(error.output, cmd)
-            raise ShellTimeoutError(cmd, output)
+            raise ShellTimeoutError(cmd, output) from error
         except ExpectProcessTerminatedError as error:
             output = self.remove_command_echo(error.output, cmd)
-            raise ShellProcessTerminatedError(cmd, error.status, output)
+            raise ShellProcessTerminatedError(cmd, error.status, output) from error
         except ExpectError as error:
             output = self.remove_command_echo(error.output, cmd)
-            raise ShellError(cmd, output)
+            raise ShellError(cmd, output) from error
 
         # Remove the echoed command and the final shell prompt
         return self.remove_last_nonempty_line(self.remove_command_echo(out,
@@ -1194,10 +1194,10 @@ class ShellSession(Expect):
                 self.sendline()
             except ExpectProcessTerminatedError as error:
                 output = self.remove_command_echo(error.output, cmd)
-                raise ShellProcessTerminatedError(cmd, error.status, output)
+                raise ShellProcessTerminatedError(cmd, error.status, output) from error
             except ExpectError as error:
                 output = self.remove_command_echo(error.output, cmd)
-                raise ShellError(cmd, output)
+                raise ShellError(cmd, output) from error
 
         if not success:
             raise ShellTimeoutError(cmd, out)
@@ -1236,8 +1236,8 @@ class ShellSession(Expect):
             # Send the 'echo $?' (or equivalent) command to get the exit status
             status = self.cmd_output(self.status_test_command, 30,
                                      internal_timeout, print_func, safe)
-        except ShellError:
-            raise ShellStatusError(cmd, out)
+        except ShellError as error:
+            raise ShellStatusError(cmd, out) from error
 
         # Get the first line consisting of digits only
         digit_lines = [l for l in status.splitlines()
