@@ -480,12 +480,12 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
     If `session` is not `None`, you will not be able to use it after this call
     since it is reserved for communication with the remote object. For example,
     do not run::
-        vm, session = vmnet.get_single_vm_with_session()
+        session = remote.wait_for_login(...)
         my_util = get_remote_object('package.module', session, ...)
         session.cmd('ls')   # will time out
 
     but instead::
-        vm, session = vmnet.get_single_vm_with_session()
+        session = remote.wait_for_login(...)
         my_util = get_remote_object('package.module', vm.wait_for_login(), ...)
         session.cmd('ls')   # works now
 
