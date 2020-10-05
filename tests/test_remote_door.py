@@ -12,118 +12,199 @@
 # Copyright: Intra2net AG and aexpect contributors
 # Author: Plamen Dimitrov <plamen.dimitrov@intra2net.com>
 #
-# selftests pylint: disable=C0111,C0111
+# selftests pylint: disable=C0111,C0111,W0613,R0913
 
 import os
 import glob
 import re
+import shutil
 import unittest
 import unittest.mock as mock
 
 from aexpect import remote_door
+from aexpect.client import RemoteSession
 
 
-@remote_door.run_remotely
-def add_one(number):
-    """A small decorated test function."""
-    return number + 1
+def _local_login(client, host, port, username, password, prompt,
+                 linesep="\n", log_filename=None, log_function=None,
+                 timeout=10, internal_timeout=10, interface=None):
+    return RemoteSession("sh", prompt=prompt, client=client)
 
 
-@mock.patch('aexpect.remote_door.remote', mock.MagicMock())
+def _local_copy(address, client, username, password, port, local_path,
+                remote_path, limit="", log_filename=None, log_function=None,
+                verbose=False, timeout=600, interface=None, filesize=None,
+                directory=True):
+    shutil.copy(local_path, remote_path)
+
+
+@mock.patch('aexpect.remote_door.remote.copy_files_to', _local_copy)
+@mock.patch('aexpect.remote_door.remote.wait_for_login', _local_login)
 class RemoteDoorTest(unittest.TestCase):
     """Unit test class for the remote door."""
 
     def setUp(self):
-        self.session = mock.MagicMock(name='session')
-        self.session.client = "ssh"
+        self.session = RemoteSession("sh", client="ssh")
+        if not os.path.isdir(remote_door.REMOTE_PYTHON_PATH):
+            os.mkdir(remote_door.REMOTE_PYTHON_PATH)
 
     def tearDown(self):
         for control_file in glob.glob("tmp*.control"):
             os.unlink(control_file)
+        for control_file in glob.glob(os.path.join(remote_door.REMOTE_CONTROL_DIR,
+                                                   "tmp*.control")):
+            os.unlink(control_file)
+        deployed_remote_door = os.path.join(remote_door.REMOTE_PYTHON_PATH, "remote_door.py")
+        if os.path.exists(deployed_remote_door):
+            os.unlink(deployed_remote_door)
+        os.rmdir(remote_door.REMOTE_PYTHON_PATH)
+        self.session.close()
 
     def test_run_remote_util(self):
-        """Test that a remote utility can be run properly."""
-        remote_door.run_remote_util(self.session, "foo_util", "bar_func",
-                                    42, "spring", sing="zazz")
-        # python 3.6 and above
-        if hasattr(self.session.cmd, "assert_called_once"):
-            self.session.cmd.assert_called_once()
-        else:
-            self.assertEqual(self.session.cmd.call_count, 1)
-        command = self.session.cmd.call_args[0][0]
-        self.assertTrue(re.match(r"python3 /tmp/tmp.+\.control", command),
-                        "A control file has to be generated and called on the peer")
-        control = os.path.basename(command.lstrip("python3 "))
-        with open(control) as handle:
+        """Test that a remote utility runs properly."""
+        result = remote_door.run_remote_util(self.session, "math", "gcd", 2, 3)
+        self.assertEqual(int(result), 1)
+        local_controls = glob.glob("tmp*.control")
+        remote_controls = glob.glob(os.path.join(remote_door.REMOTE_CONTROL_DIR,
+                                                 "tmp*.control"))
+        self.assertEqual(len(local_controls), len(remote_controls))
+        self.assertEqual(len(remote_controls), 1)
+        self.assertEqual(os.path.basename(local_controls[0]),
+                         os.path.basename(remote_controls[0]))
+        with open(remote_controls[0]) as handle:
             control_lines = handle.readlines()
-            self.assertIn("import foo_util\n", control_lines)
-            self.assertIn("result = foo_util.bar_func(42, r'spring', sing=r'zazz')\n",
-                          control_lines)
+        self.assertIn("import math\n", control_lines)
+        self.assertIn("result = math.gcd(2, 3)\n", control_lines)
+
+    def test_run_remote_util_arg_types(self):
+        """Test that a remote utility runs properly with different argument types."""
+        result = remote_door.run_remote_util(self.session, "json", "dumps",
+                                             ["foo", {"bar": ["baz", None, 1.0, 2]}],
+                                             skipkeys=False, separators=None,
+                                             # must be boolean but we want to test string
+                                             allow_nan="string for yes")
+        self.assertEqual(result, '["foo", {"bar": ["baz", null, 1.0, 2]}]')
+        local_controls = glob.glob("tmp*.control")
+        remote_controls = glob.glob(os.path.join(remote_door.REMOTE_CONTROL_DIR,
+                                                 "tmp*.control"))
+        self.assertEqual(len(local_controls), len(remote_controls))
+        self.assertEqual(len(remote_controls), 1)
+        self.assertEqual(os.path.basename(local_controls[0]),
+                         os.path.basename(remote_controls[0]))
+        with open(remote_controls[0]) as handle:
+            control_lines = handle.readlines()
+        self.assertIn("import json\n", control_lines)
+        self.assertIn("result = json.dumps(['foo', {'bar': ['baz', None, 1.0, 2]}], "
+                      "allow_nan=r'string for yes', separators=None, skipkeys=False)\n",
+                      control_lines)
 
     def test_run_remote_util_object(self):
-        """Test that a remote utility object can be run properly."""
-        util_object = "BarClass(val1, 'val2')"
-        remote_door.run_remote_util(self.session, "foo_util",
-                                    "%s.baz_func" % util_object,
-                                    "Wonderland is fun", wanderer=None)
-        # python 3.6 and above
-        if hasattr(self.session.cmd, "assert_called_once"):
-            self.session.cmd.assert_called_once()
-        else:
-            self.assertEqual(self.session.cmd.call_count, 1)
-        command = self.session.cmd.call_args[0][0]
-        self.assertTrue(re.match(r"python3 /tmp/tmp.+\.control", command),
-                        "A control file has to be generated and called on the peer")
-        control = os.path.basename(command.lstrip("python3 "))
-        with open(control) as handle:
+        """Test that a remote utility object runs properly."""
+        result = remote_door.run_remote_util(self.session, "collections",
+                                             "OrderedDict().get", "akey")
+        self.assertEqual(result, "None")
+
+        local_controls = glob.glob("tmp*.control")
+        remote_controls = glob.glob(os.path.join(remote_door.REMOTE_CONTROL_DIR,
+                                                 "tmp*.control"))
+        self.assertEqual(len(local_controls), len(remote_controls))
+        self.assertEqual(len(remote_controls), 1)
+        self.assertEqual(os.path.basename(local_controls[0]),
+                         os.path.basename(remote_controls[0]))
+        with open(remote_controls[0]) as handle:
             control_lines = handle.readlines()
-            self.assertIn("import foo_util\n", control_lines)
-            self.assertIn("result = foo_util.BarClass(val1, 'val2').baz_func("
-                          "r'Wonderland is fun', wanderer=None)\n",
-                          control_lines)
+        self.assertIn("result = collections.OrderedDict().get(r'akey')\n",
+                      control_lines)
 
     def test_run_remote_decorator(self):
-        """Test that a remote utility object can be run properly."""
-        _ = add_one(self.session, 3)  # pylint: disable=E1121
-        # python 3.6 and above
-        if hasattr(self.session.cmd, "assert_called_once"):
-            self.session.cmd.assert_called_once()
-        else:
-            self.assertEqual(self.session.cmd.call_count, 1)
-        command = self.session.cmd.call_args[0][0]
-        self.assertTrue(re.match(r"python3 /tmp/tmp.+\.control", command),
-                        "A control file has to be generated and called on the peer")
-        control = os.path.basename(command.lstrip("python3 "))
-        with open(control) as handle:
-            control_lines = handle.readlines()
-            self.assertIn("def add_one(number):\n", control_lines)
-            self.assertIn("    return number + 1\n", control_lines)
-            self.assertIn("result = add_one(3)\n", control_lines)
+        """Test that a remote decorated function runs properly."""
+        @remote_door.run_remotely
+        def add_one(number):
+            """A small decorated test function with extra nesting."""
+            def do_nothing():
 
-    def test_run_remote_object(self):
-        """Test that a remote utility object can be run properly."""
+                pass
+
+            do_nothing()
+            return number + 1
+        result = add_one(self.session, 3)  # pylint: disable=E1121
+        self.assertEqual(int(result), 4)
+
+        local_controls = glob.glob("tmp*.control")
+        remote_controls = glob.glob(os.path.join(remote_door.REMOTE_CONTROL_DIR,
+                                                 "tmp*.control"))
+        self.assertEqual(len(local_controls), len(remote_controls))
+        self.assertEqual(len(remote_controls), 1)
+        self.assertEqual(os.path.basename(local_controls[0]),
+                         os.path.basename(remote_controls[0]))
+        with open(remote_controls[0]) as handle:
+            control_lines = handle.readlines()
+        self.assertIn("def add_one(number):\n", control_lines)
+        self.assertIn("result = add_one(3)\n", control_lines)
+
+    def test_get_remote_object(self):
+        """Test that a remote object can be retrieved properly."""
+        self.session = mock.MagicMock(name='session')
+        self.session.client = "ssh"
         remote_door.Pyro4 = mock.MagicMock()
         disconnect = remote_door.Pyro4.errors.PyroError = Exception
         remote_door.Pyro4.Proxy.side_effect = [disconnect("no such object"), mock.DEFAULT]
-        self.session.get_output.return_value = "ready"
-        remote_door.get_remote_object("module.MyClass", self.session,
-                                      "testhost", 4242)
+        self.session.get_output.return_value = "Local object sharing ready\n"
+        self.session.get_output.return_value += "RESULT = None\n"
+
+        remote_door.get_remote_object("html", self.session, "testhost", 4242)
+
         if hasattr(self.session.cmd, "assert_called_once"):
             self.session.sendline.assert_called_once()
         else:
             self.assertEqual(self.session.sendline.call_count, 1)
         command = self.session.sendline.call_args[0][0]
-        self.assertTrue(re.match(r"python3 /tmp/tmp.+\.control", command),
-                        "A control file has to be generated and called on the peer")
-        control = os.path.basename(command.lstrip("python3 "))
-        with open(control) as handle:
+        match = re.match(r"python3 /tmp/(tmp.+\.control)", command)
+        self.assertIsNotNone(match, "A control file has to be called on the peer side")
+        control_file = match.group(1)
+        local_controls = glob.glob("tmp*.control")
+        remote_controls = glob.glob(os.path.join(remote_door.REMOTE_CONTROL_DIR,
+                                                 "tmp*.control"))
+        self.assertEqual(len(local_controls), len(remote_controls))
+        self.assertEqual(len(remote_controls), 1)
+        self.assertEqual(os.path.basename(local_controls[0]),
+                         os.path.basename(remote_controls[0]))
+        self.assertEqual(control_file, os.path.basename(remote_controls[0]))
+        with open(control_file) as handle:
             control_lines = handle.readlines()
             self.assertIn("import remote_door\n", control_lines)
-            self.assertIn("result = remote_door.share_local_object(r'module.MyClass', "
+            self.assertIn("result = remote_door.share_local_object(r'html', "
                           "host=r'testhost', port=4242)\n",
                           control_lines)
 
-    def test_run_remote_exceptions(self):
+        # since the local run was face redo it here
+        remote_door.share_local_object("html", None, "testhost", 4242)
+
+    def test_share_remote_objects(self):
+        """Test that a remote object can be shared properly and remotely."""
+        self.session = mock.MagicMock(name='session')
+        self.session.client = "ssh"
+        remote_door.Pyro4 = mock.MagicMock()
+
+        control_file = os.path.join(remote_door.REMOTE_CONTROL_DIR,
+                                    "tmpxxxxxxxx.control")
+        with open(control_file, "wt") as handle:
+            handle.write("print('Remote objects shared over the network')")
+
+        middleware = remote_door.share_remote_objects(self.session, control_file,
+                                                      "testhost", 4242,
+                                                      os_type="linux")
+        # we just test dummy initialization for the remote object control server
+        middleware.close()
+
+        if hasattr(self.session.cmd, "assert_called_once"):
+            self.session.cmd.assert_called_once()
+        else:
+            self.assertEqual(self.session.cmd.call_count, 1)
+        command = self.session.cmd.call_args[0][0]
+        self.assertEqual("python -m Pyro4.naming -n testhost -p 4242 &", command)
+
+    def test_import_remote_exceptions(self):
         """Test that selected remote exceptions are properly imported and deserialized."""
         remote_door.Pyro4 = mock.MagicMock()
         preselected_exceptions = ["aexpect.remote.RemoteError",

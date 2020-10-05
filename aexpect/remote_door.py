@@ -712,9 +712,11 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     :param int port: port of the remote sharing server
     :param str os_type: OS type of the session, either "linux" or "windows"
     :param extra_params: extra parameters to pass to the remote object sharing
-                         control file (similarly to subcontrol setting above),
+                         control file (sismilarly to subcontrol setting above),
                          with keys usually prepended with "ro_" prefix
     :type extra_params: {str, str}
+    :returns: newly created middleware session for the remote object server
+    :rtype: :py:class:`RemoteSession`
     :raises: :py:class:`RuntimeError` if the object server failed to start
 
     In comparison to :py:func:`share_local_object`, this function fires up a
@@ -729,6 +731,7 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     .. note:: Created and works specifically for Windows and Linux.
     """
     logging.info("Sharing the remote objects over the network")
+    extra_params = {} if extra_params is None else extra_params
 
     # setup remote objects server
     logging.info("Starting nameserver for the remote objects")
@@ -743,11 +746,12 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     # optional parameters (set only if present and/or available)
     for key in extra_params.keys():
         local_path = set_subcontrol_parameter(local_path, key, extra_params[key])
+    remote_path = os.path.join(REMOTE_CONTROL_DIR,
+                               os.path.basename(control_path))
     # NOTE: since we are creating the path in Linux but use it in Windows,
     # we replace some of the backslashes
     if os_type == "windows":
-        remote_path = os.path.join(REMOTE_PYTHON_PATH,
-                                   os.path.basename(control_path)).replace("/", "\\")
+        remote_path = remote_path.replace("/", "\\")
     remote.copy_files_to(session.host, transfer_client,
                          session.username, session.password, transfer_port,
                          local_path, remote_path, timeout=10)
@@ -772,6 +776,7 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
 
     Pyro4.config.NS_HOST = host
     logging.getLogger("Pyro4").setLevel(10)
+    return middleware_session
 
 
 def import_remote_exceptions(exceptions=None, modules=None):
