@@ -61,6 +61,7 @@ import os
 import re
 import logging
 import inspect
+import importlib
 import threading
 import tempfile
 import time
@@ -74,7 +75,13 @@ except ImportError:
     logging.warning("Remote object backend (Pyro4) not found, some functionality"
                     " of the remote door will not be available")
 
-from aexpect import remote
+# NOTE: disable aexpect importing on the remote side if not available as the
+# remote door can run code remotely without the requirement for the aexpect
+# module, alas, offering just limited functionality
+try:
+    from aexpect import remote
+except ImportError:
+    pass
 
 
 #############################################
@@ -96,26 +103,33 @@ REMOTE_PYTHON_PATH = "/tmp/utils"
 
 
 def _string_call(function, *args, **kwargs):
-    arguments = ""
-    for arg in args:
+    def arg_to_str(arg):
         if isinstance(arg, str):
-            arguments = "%sr'%s'" % (arguments, arg)
-        else:
-            arguments = "%s%s" % (arguments, arg)
-        if len(kwargs) > 0 or arg != args[-1]:
-            arguments = "%s%s" % (arguments, ", ")
-    ordered_kwargs = list(kwargs.keys())
-    for key in ordered_kwargs:
-        if isinstance(kwargs[key], str):
-            arguments = "%s%s=r'%s'" % (arguments, key, kwargs[key])
-        else:
-            arguments = "%s%s=%s" % (arguments, key, kwargs[key])
-        if key != ordered_kwargs[-1]:
-            arguments = "%s%s" % (arguments, ", ")
+            return "r'%s'" % arg
+        return "%s" % arg
+    args = tuple(arg_to_str(arg) for arg in args)
+    kwargs = tuple("%s=%s" % (key, arg_to_str(value))
+                   for key, value in sorted(kwargs.items()))
+    arguments = ", ".join(args + kwargs)
     return "result = %s(%s)\n" % (function, arguments)
 
 
-def _string_generated_control(control_str):
+def _string_generated_control(client, control_body):
+    control_header = "import logging\n"
+    control_header += "logging.basicConfig(level=logging.DEBUG, format='%(module)-16.16s '\n"  # pylint: disable=C0301
+    control_header += "                    'L%(lineno)-.4d %(levelname)-5.5s| %(message)s')\n"  # pylint: disable=C0301
+    control_header += "import sys\n"
+    control_header += "sys.path.append('%s')\n" % REMOTE_PYTHON_PATH
+
+    # the string call will make sure this variable always exists
+    control_footer = "print('RESULT = ' + str(result))\n"
+
+    control_str = control_header + control_body + control_footer
+
+    # fix line endings for Windows clients
+    if client == "nc":
+        control_str = control_str.replace("\n", "\r\n")
+
     dump_dir = os.path.abspath(DUMP_CONTROL_DIR)
     new_fd, new_path = tempfile.mkstemp(suffix=".control", dir=dump_dir)
     logging.debug("Using %s for generated control file", new_path)
@@ -124,7 +138,7 @@ def _string_generated_control(control_str):
     return new_path
 
 
-def run_remote_util(session, utility, function, *args, verify=None, detach=False, **kwargs):
+def run_remote_util(session, utility, function, *args, detach=False, **kwargs):
     """
     Access a remote utility by generating a small control file to run remotely.
 
@@ -132,11 +146,10 @@ def run_remote_util(session, utility, function, *args, verify=None, detach=False
     :type session: RemoteSession object
     :param str utility: name of the remote utility to run
     :param str function: function of the remote utility to call
-    :param verify: expected return argument from the call to use for
-                   verification of the call execution
-    :type verify: object or None
     :param bool detach: whether to detach from session (e.g. if running a
                         daemon or similar long-term utility)
+    :returns: serialized return argument from the call
+    :rtype: str
 
     If the remote utility call is detached from the session, it will not wait
     for the session command to complete. Its further output (stdout and stderr)
@@ -145,20 +158,17 @@ def run_remote_util(session, utility, function, *args, verify=None, detach=False
     communication from the remote utility in order to avoid polluting its
     output from various detached processes. This is not a problem as multiple
     sessions can be easily created.
-    """
-    wrapper_control = "import logging\n"
-    wrapper_control += "logging.basicConfig(level=logging.DEBUG, format='%(module)-16.16s '\n"
-    wrapper_control += "                    'L%(lineno)-.4d %(levelname)-5.5s| %(message)s')\n"
-    wrapper_control += "import sys\n"
-    wrapper_control += "sys.path.append('%s')\n" % REMOTE_PYTHON_PATH
-    wrapper_control += "import %s\n" % utility
-    wrapper_control += _string_call(utility + "." + function, *args, **kwargs)
-    wrapper_control += "assert result is %s\n" % verify if verify else ""
 
-    control_path = _string_generated_control(wrapper_control)
+    This supports return arguments of the decorated function but needs its own
+    deserialization since all arguments are returned as strings.
+    """
+    control_body = "import %s\n" % utility
+    control_body += _string_call(utility + "." + function, *args, **kwargs)
+    control_path = _string_generated_control(session.client, control_body)
     logging.debug("Accessing %s remote utility using the wrapper control %s",
                   utility, control_path)
-    run_subcontrol(session, control_path, detach=detach)
+    full_output = run_subcontrol(session, control_path, detach=detach)
+    return "None" if detach else re.search("RESULT = (.*)", full_output).group(1)
 
 
 def run_remotely(function):
@@ -172,21 +182,25 @@ def run_remotely(function):
 
     Each function should contain a `_session` as a first argument
     and is expected to follow PEP8 standards.
+
+    This supports return arguments of the decorated function but needs its own
+    deserialization since all arguments are returned as strings.
     """
     def wrapper(session, *args, **kwargs):
-        wrapper_control = "import logging\n"
-        wrapper_control += "logging.basicConfig(level=logging.DEBUG, format='%(module)-16.16s '\n"  # pylint: disable=C0301
-        wrapper_control += "                    'L%(lineno)-.4d %(levelname)-5.5s| %(message)s')\n"  # pylint: disable=C0301
-        wrapper_control += "import sys\n"
-        wrapper_control += "sys.path.append('%s')\n" % REMOTE_PYTHON_PATH
         # drop first argument and first line with the decorator since function already runs remotely
-        wrapper_control += "\n" + "\n".join(inspect.getsource(function).split("\n")[1:]).replace("_session, ", "")  # pylint: disable=C0301
-        wrapper_control += "\n" + _string_call(function.__name__, *args, **kwargs)
-        logging.debug("Running remotey a function using the wrapper control %s",
-                      wrapper_control)
+        fn_source = inspect.getsourcelines(function)[0][1:]
+        indent_number = len(fn_source[0]) - len(fn_source[0].lstrip())
+        # remove extra indentation from the beginning to allow indented functions
+        if indent_number > 0:
+            fn_source = [line[indent_number:] for line in fn_source]
 
-        control_path = _string_generated_control(wrapper_control)
-        run_subcontrol(session, control_path)
+        control_body = "\n" + "".join(fn_source).replace("_session, ", "")
+        control_body += "\n" + _string_call(function.__name__, *args, **kwargs)
+        control_path = _string_generated_control(session.client, control_body)
+        logging.debug("Running remotely a function using the wrapper control %s",
+                      control_path)
+        full_output = run_subcontrol(session, control_path)
+        return re.search("RESULT = (.*)", full_output).group(1)
 
     return wrapper
 
@@ -194,6 +208,27 @@ def run_remotely(function):
 ##################################
 #   STATIC (TEMPLATE) CONTROLS   #
 ##################################
+
+
+def _copy_control(session, control_path, is_utility=False):
+    remote_dir = REMOTE_PYTHON_PATH if is_utility else REMOTE_CONTROL_DIR
+    # run on remote Linux hosts
+    if session.client == "ssh":
+        transfer_client = "scp"
+        transfer_port = 22
+        remote_control_path = os.path.join(remote_dir, os.path.basename(control_path))
+    # run on remote Windows hosts
+    elif session.client == "nc":
+        transfer_client = "rss"
+        transfer_port = 10023
+        # ..todo:: use `remote_dir` here
+        remote_control_path = "%TEMP%\\" + os.path.basename(control_path)
+    else:
+        raise NotImplementedError("run_subcontrol not implemented for client %s" % session.client)
+    remote.copy_files_to(session.host, transfer_client,
+                         session.username, session.password, transfer_port,
+                         control_path, remote_control_path)
+    return remote_control_path
 
 
 def run_subcontrol(session, control_path, timeout=600, detach=False):
@@ -206,17 +241,27 @@ def run_subcontrol(session, control_path, timeout=600, detach=False):
     :param int timeout: timeout for the control to complete
     :param bool detach: whether to detach from session (e.g. if running a
                         daemon or similar long-term utility)
+    :returns: the full raw output from the call or empty string if detached
+    :rtype: str
     """
-    remote_control_path = os.path.join(REMOTE_CONTROL_DIR, os.path.basename(control_path))
-    remote.scp_to_remote(session.host, session.port, session.username, session.password,
-                         control_path, remote_control_path)
-    cmd = REMOTE_PYTHON_BINARY + " " + remote_control_path
+    remote_control_path = _copy_control(session, control_path)
+    # run on remote Linux hosts
+    if session.client == "ssh":
+        python_binary = REMOTE_PYTHON_BINARY
+    # run on remote Windows hosts
+    # ..todo:: combine with REMOTE_PYTHON_BINARY
+    elif session.client == "nc":
+        python_binary = session.cmd("where python", timeout=timeout,
+                                    print_func=logging.info).strip()
+    else:
+        raise NotImplementedError("run_subcontrol not implemented for client %s" % session.client)
+    cmd = python_binary + " " + remote_control_path
     if detach:
         session.set_output_func(logging.info)
         session.set_output_params(())
         session.sendline(cmd)
-    else:
-        session.cmd(cmd, timeout=timeout, print_func=logging.info)
+        return ""
+    return session.cmd(cmd, timeout=timeout, print_func=logging.info)
 
 
 def prep_subcontrol(src_file, src_dir=None):
@@ -435,12 +480,12 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
     If `session` is not `None`, you will not be able to use it after this call
     since it is reserved for communication with the remote object. For example,
     do not run::
-        vm, session = vmnet.get_single_vm_with_session()
+        session = remote.wait_for_login(...)
         my_util = get_remote_object('package.module', session, ...)
         session.cmd('ls')   # will time out
 
     but instead::
-        vm, session = vmnet.get_single_vm_with_session()
+        session = remote.wait_for_login(...)
         my_util = get_remote_object('package.module', vm.wait_for_login(), ...)
         session.cmd('ls')   # works now
 
@@ -460,8 +505,7 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
             raise
 
         # if there is no door on the other side, open one
-        remote.scp_to_remote(session.host, session.port, session.username, session.password,
-                             os.path.abspath(__file__), REMOTE_PYTHON_PATH)
+        _copy_control(session, os.path.abspath(__file__), is_utility=True)
         run_remote_util(session, "remote_door", "share_local_object",
                         object_name, host=host, port=port, detach=True)
         output, attempts = "", 10
@@ -507,8 +551,7 @@ def get_remote_objects(session=None, host="localhost", port=0):
             raise
 
         # if there is no door on the other side, open one
-        remote.scp_to_remote(session.host, session.port, session.username, session.password,
-                             os.path.abspath(__file__), REMOTE_PYTHON_PATH)
+        _copy_control(session, os.path.abspath(__file__), is_utility=True)
         run_remote_util(session, "remote_door", "share_local_objects",
                         wait=True, host=host, port=port, detach=True)
         control_log = session.cmd("cat " + REMOTE_CONTROL_LOG)
@@ -574,7 +617,6 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
         nsd_running = False
 
     # main retrieval of the local object
-    import importlib
     module = importlib.import_module(object_name)
 
     def proxymethod(fun):
@@ -670,9 +712,11 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     :param int port: port of the remote sharing server
     :param str os_type: OS type of the session, either "linux" or "windows"
     :param extra_params: extra parameters to pass to the remote object sharing
-                         control file (similarly to subcontrol setting above),
+                         control file (sismilarly to subcontrol setting above),
                          with keys usually prepended with "ro_" prefix
     :type extra_params: {str, str}
+    :returns: newly created middleware session for the remote object server
+    :rtype: :py:class:`RemoteSession`
     :raises: :py:class:`RuntimeError` if the object server failed to start
 
     In comparison to :py:func:`share_local_object`, this function fires up a
@@ -687,6 +731,7 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     .. note:: Created and works specifically for Windows and Linux.
     """
     logging.info("Sharing the remote objects over the network")
+    extra_params = {} if extra_params is None else extra_params
 
     # setup remote objects server
     logging.info("Starting nameserver for the remote objects")
@@ -701,11 +746,12 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     # optional parameters (set only if present and/or available)
     for key in extra_params.keys():
         local_path = set_subcontrol_parameter(local_path, key, extra_params[key])
+    remote_path = os.path.join(REMOTE_CONTROL_DIR,
+                               os.path.basename(control_path))
     # NOTE: since we are creating the path in Linux but use it in Windows,
     # we replace some of the backslashes
     if os_type == "windows":
-        remote_path = os.path.join(REMOTE_PYTHON_PATH,
-                                   os.path.basename(control_path)).replace("/", "\\")
+        remote_path = remote_path.replace("/", "\\")
     remote.copy_files_to(session.host, transfer_client,
                          session.username, session.password, transfer_port,
                          local_path, remote_path, timeout=10)
@@ -730,21 +776,43 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
 
     Pyro4.config.NS_HOST = host
     logging.getLogger("Pyro4").setLevel(10)
+    return middleware_session
 
 
-def import_remote_exceptions(exceptions):
+def import_remote_exceptions(exceptions=None, modules=None):
     """
     Make serializable all remote custom exceptions.
 
-    :param exceptions: module dot accessible exception names
-    :type exceptions: [str]
+    :param exceptions: full module path exception names (optional)
+    :type exceptions: [str] or None
+    :param modules: full module paths whose custom exceptions will first be
+                    detected and then automatically imported (optional)
+    :type exceptions: [str] or None
+
+    The deserialization by our Pyro backend requires the full module paths to
+    each exception or module in order to correctly detect the exception type.
 
     .. note:: This wouldn't be needed if we were using the Pickle serializer but its
         security problems at the moment made us prefer the serpent serializer paying
         for it with some extra setup steps and this method.
     """
-    # ..todo:: need a more dynamic way of determining the exceptions like examining
-    # the errors modules and even extracting the exception classes from there
+    def list_module_exceptions(modstr):
+        module = importlib.import_module(modstr)
+        exceptions = []
+        for name in module.__dict__:
+            if not inspect.isclass(module.__dict__[name]):
+                continue
+            if (issubclass(module.__dict__[name], Exception) or name.endswith('Error')):
+                exceptions.append(modstr + "." + name)
+        return exceptions
+
+    exceptions = [] if not exceptions else exceptions
+    modules = [] if not modules else modules
+    for module in modules:
+        exceptions += list_module_exceptions(module)
+    logging.debug("Registering the following exceptions for deserialization: %s",
+                  ", ".join(exceptions))
+
     class RemoteCustomException(Exception):
         """Standard class to instantiate during remote expection deserialization."""
         __customclass__ = None
