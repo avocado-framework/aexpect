@@ -17,7 +17,7 @@ class ExpectError(Exception):
     """Generic Expect error"""
 
     def __init__(self, patterns, output):
-        Exception.__init__(self, patterns, output)
+        super().__init__(patterns, output)
         self.patterns = patterns
         self.output = output
 
@@ -45,8 +45,7 @@ class ExpectProcessTerminatedError(ExpectError):
     """Worker terminated while doing some operation"""
 
     def __init__(self, patterns, status, output):
-        super(ExpectProcessTerminatedError, self).__init__(patterns,
-                                                           output)
+        super().__init__(patterns, output)
         self.status = status
 
     def __str__(self):
@@ -60,7 +59,7 @@ class ShellError(Exception):
     """Shell error"""
 
     def __init__(self, cmd, output):
-        Exception.__init__(self, cmd, output)
+        super().__init__(cmd, output)
         self.cmd = cmd
         self.output = output
 
@@ -86,7 +85,7 @@ class ShellProcessTerminatedError(ShellError):
     """
 
     def __init__(self, cmd, status, output):
-        ShellError.__init__(self, cmd, output)
+        super().__init__(cmd, output)
         self.status = status
 
     def __str__(self):
@@ -103,7 +102,7 @@ class ShellCmdError(ShellError):
     """
 
     def __init__(self, cmd, status, output):
-        ShellError.__init__(self, cmd, output)
+        super().__init__(cmd, output)
         self.status = status
 
     def __str__(self):

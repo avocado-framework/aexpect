@@ -408,7 +408,7 @@ class DaemonLoop(threading.Thread):
         :param pyro_daemon: daemon for the remote python objects
         :type pyro_daemon: Pyro4.Daemon object
         """
-        threading.Thread.__init__(self)
+        super().__init__()
         self.pyro_daemon = pyro_daemon
         self.daemon = True     # make this a Daemon Thread
 
@@ -455,7 +455,7 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
     try:
         remote_object = Pyro4.Proxy("PYRONAME:" + object_name + "@" + host + ":" + str(port))
         remote_object._pyroBind()
-    except Pyro4.errors.PyroError:
+    except Pyro4.errors.PyroError as error:
         if not session:
             raise
 
@@ -471,7 +471,7 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
                 break
             time.sleep(1)
         else:
-            raise OSError("Local object sharing failed:\n%s" % output)
+            raise OSError("Local object sharing failed:\n%s" % output) from error
         logging.debug("Local object sharing output:\n%s", output)
         logging.getLogger("Pyro4").setLevel(10)
 
@@ -502,7 +502,7 @@ def get_remote_objects(session=None, host="localhost", port=0):
     try:
         remote_objects = flame.connect(host + ":" + str(port))
         remote_objects._pyroBind()
-    except Pyro4.errors.PyroError:
+    except Pyro4.errors.PyroError as error:
         if not session:
             raise
 
@@ -518,7 +518,7 @@ def get_remote_objects(session=None, host="localhost", port=0):
             time.sleep(1)
             control_log = session.cmd("cat " + REMOTE_CONTROL_LOG)
         else:
-            raise OSError("Local objects sharing failed:\n%s" % control_log)
+            raise OSError("Local objects sharing failed:\n%s" % control_log) from error
         logging.debug("Local objects sharing output:\n%s", control_log)
 
         remote_objects = flame.connect(host + ":" + str(port))
@@ -747,12 +747,13 @@ def import_remote_exceptions(exceptions):
     # the errors modules and even extracting the exception classes from there
     class RemoteCustomException(Exception):
         """Standard class to instantiate during remote expection deserialization."""
+        __customclass__ = None
+
     def recreate_exception(class_name, class_dict):
         logging.debug("Remote exception %s data: %s", class_name, class_dict)
         exceptiontype = RemoteCustomException
         exception = exceptiontype(*class_dict["args"])
         # in the case of non-custom exceptions the class is properly restored
-        # pylint: disable=W0201
         exception.__customclass__ = class_dict.get("__class__", "")
 
         if "attributes" in class_dict.keys():

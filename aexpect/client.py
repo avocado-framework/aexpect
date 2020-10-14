@@ -501,8 +501,8 @@ class Tail(Spawn):
         self._add_close_hook(Tail._close_log_file)
 
         # Init the superclass
-        Spawn.__init__(self, command, a_id, auto_close, echo, linesep,
-                       pass_fds, encoding)
+        super().__init__(command, a_id, auto_close, echo, linesep,
+                         pass_fds, encoding)
         if thread_name is None:
             self.thread_name = "tail_thread_%s_%s" % (self.a_id,
                                                       str(command)[:10])
@@ -722,10 +722,10 @@ class Expect(Tail):
         self._add_reader("expect")
 
         # Init the superclass
-        Tail.__init__(self, command, a_id, auto_close, echo, linesep,
-                      termination_func, termination_params,
-                      output_func, output_params, output_prefix, thread_name,
-                      pass_fds, encoding)
+        super().__init__(command, a_id, auto_close, echo, linesep,
+                         termination_func, termination_params,
+                         output_func, output_params, output_prefix, thread_name,
+                         pass_fds, encoding)
 
     def __reduce__(self):
         return self.__class__, (self.__getinitargs__())
@@ -1017,10 +1017,10 @@ class ShellSession(Expect):
                 locale.getpreferredencoding())
         """
         # Init the superclass
-        Expect.__init__(self, command, a_id, auto_close, echo, linesep,
-                        termination_func, termination_params,
-                        output_func, output_params, output_prefix, thread_name,
-                        pass_fds, encoding)
+        super().__init__(command, a_id, auto_close, echo, linesep,
+                         termination_func, termination_params,
+                         output_func, output_params, output_prefix, thread_name,
+                         pass_fds, encoding)
 
         # Remember some attributes
         self.prompt = prompt
@@ -1148,13 +1148,13 @@ class ShellSession(Expect):
             out = self.read_up_to_prompt(timeout, internal_timeout, print_func)
         except ExpectTimeoutError as error:
             output = self.remove_command_echo(error.output, cmd)
-            raise ShellTimeoutError(cmd, output)
+            raise ShellTimeoutError(cmd, output) from error
         except ExpectProcessTerminatedError as error:
             output = self.remove_command_echo(error.output, cmd)
-            raise ShellProcessTerminatedError(cmd, error.status, output)
+            raise ShellProcessTerminatedError(cmd, error.status, output) from error
         except ExpectError as error:
             output = self.remove_command_echo(error.output, cmd)
-            raise ShellError(cmd, output)
+            raise ShellError(cmd, output) from error
 
         # Remove the echoed command and the final shell prompt
         return self.remove_last_nonempty_line(self.remove_command_echo(out,
@@ -1194,10 +1194,10 @@ class ShellSession(Expect):
                 self.sendline()
             except ExpectProcessTerminatedError as error:
                 output = self.remove_command_echo(error.output, cmd)
-                raise ShellProcessTerminatedError(cmd, error.status, output)
+                raise ShellProcessTerminatedError(cmd, error.status, output) from error
             except ExpectError as error:
                 output = self.remove_command_echo(error.output, cmd)
-                raise ShellError(cmd, output)
+                raise ShellError(cmd, output) from error
 
         if not success:
             raise ShellTimeoutError(cmd, out)
@@ -1236,8 +1236,8 @@ class ShellSession(Expect):
             # Send the 'echo $?' (or equivalent) command to get the exit status
             status = self.cmd_output(self.status_test_command, 30,
                                      internal_timeout, print_func, safe)
-        except ShellError:
-            raise ShellStatusError(cmd, out)
+        except ShellError as error:
+            raise ShellStatusError(cmd, out) from error
 
         # Get the first line consisting of digits only
         digit_lines = [l for l in status.splitlines()
@@ -1395,11 +1395,11 @@ class RemoteSession(ShellSession):
                 locale.getpreferredencoding())
         """
         # Init the superclass
-        ShellSession.__init__(self, command, a_id, auto_close, echo, linesep,
-                              termination_func, termination_params,
-                              output_func, output_params, output_prefix, thread_name,
-                              prompt, status_test_command,
-                              pass_fds, encoding)
+        super().__init__(command, a_id, auto_close, echo, linesep,
+                         termination_func, termination_params,
+                         output_func, output_params, output_prefix, thread_name,
+                         prompt, status_test_command,
+                         pass_fds, encoding)
 
         # Remember some attributes
         self.client = client

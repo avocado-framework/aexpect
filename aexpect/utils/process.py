@@ -28,7 +28,7 @@ class CmdError(Exception):
     """Error describing failed command execution"""
 
     def __init__(self, command=None, result=None):
-        super(CmdError, self).__init__()
+        super().__init__()
         self.command = command
         self.result = result
 

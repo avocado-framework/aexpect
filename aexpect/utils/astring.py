@@ -53,10 +53,10 @@ def strip_console_codes(output, custom_codes=None):
             continue
         try:
             special_code = re.findall(console_codes, tmp_word)[0]
-        except IndexError:
+        except IndexError as error:
             if index + tmp_index < len(output):
                 raise ValueError("%s is not included in the known console "
-                                 "codes list %s" % (tmp_word, console_codes))
+                                 "codes list %s" % (tmp_word, console_codes)) from error
             continue
         if special_code == tmp_word:
             continue

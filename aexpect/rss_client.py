@@ -60,7 +60,7 @@ class FileTransferError(Exception):
     """Base class for any error related to file transfer."""
 
     def __init__(self, msg, e=None, filename=None):
-        Exception.__init__(self, msg, e, filename)
+        super().__init__(msg, e, filename)
         self.msg = msg
         self.error = e
         self.filename = filename
@@ -96,7 +96,7 @@ class FileTransferServerError(FileTransferError):
     """Error related to file transfer server."""
 
     def __init__(self, errmsg):
-        FileTransferError.__init__(self, None, errmsg)
+        super().__init__(None, errmsg)
 
     def __str__(self):
         errmsg = "Server said: %r" % self.error
@@ -136,13 +136,13 @@ class FileTransferClient(object):
             self._socket.connect(addrinfo[0][4])
         except socket.error as error:
             raise FileTransferConnectError("Cannot connect to server at "
-                                           "%s:%s" % (address, port), error)
+                                           "%s:%s" % (address, port), error) from error
         try:
             if self._receive_msg(timeout) != RSS_MAGIC:
                 raise FileTransferConnectError("Received wrong magic number")
         except FileTransferTimeoutError:
             raise FileTransferConnectError("Timeout expired while waiting to "
-                                           "receive magic number")
+                                           "receive magic number") from error
         self._send(struct.pack("=i", CHUNKSIZE))
         self._log_func = log_func
         self._last_time = time.time()
@@ -164,11 +164,11 @@ class FileTransferClient(object):
                 raise socket.timeout
             self._socket.settimeout(timeout)
             self._socket.sendall(data)
-        except socket.timeout:
+        except socket.timeout as error:
             raise FileTransferTimeoutError("Timeout expired while sending "
-                                           "data to server")
+                                           "data to server") from error
         except socket.error as error:
-            raise FileTransferSocketError("Could not send data to server", error)
+            raise FileTransferSocketError("Could not send data to server", error) from error
 
     def _receive(self, size, timeout=60):
         strs = []
@@ -187,12 +187,12 @@ class FileTransferClient(object):
                                                     "server")
                 strs.append(data)
                 size -= len(data)
-        except socket.timeout:
+        except socket.timeout as error:
             raise FileTransferTimeoutError("Timeout expired while receiving "
-                                           "data from server")
+                                           "data from server") from error
         except socket.error as error:
             raise FileTransferSocketError("Error receiving data from server",
-                                          error)
+                                          error) from error
         return b"".join(strs)
 
     def _report_stats(self, data):
@@ -294,8 +294,7 @@ class FileUploadClient(FileTransferClient):
         :raise FileTransferSocketError: Raised if the RSS_UPLOAD message cannot
                 be sent to the server
         """
-        super(FileUploadClient, self).__init__(
-            address, port, log_func, timeout)
+        super().__init__(address, port, log_func, timeout)
         self._send_msg(RSS_UPLOAD)
 
     def _upload_file(self, path, end_time):
@@ -401,8 +400,7 @@ class FileDownloadClient(FileTransferClient):
         :raise FileTransferSendError: Raised if the RSS_UPLOAD message cannot
                 be sent to the server
         """
-        super(FileDownloadClient, self).__init__(
-            address, port, log_func, timeout)
+        super().__init__(address, port, log_func, timeout)
         self._send_msg(RSS_DOWNLOAD)
 
     def download(self, src_pattern, dst_path, timeout=600):
