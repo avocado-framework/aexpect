@@ -24,7 +24,7 @@
 %global with_tests 0
 
 Name: python-%{srcname}
-Version: 1.6.0
+Version: 1.6.1
 Release: 1%{?gitrel}%{?dist}
 Summary: Aexpect is a python library to control interactive applications
 Group: Development/Tools
@@ -84,6 +84,23 @@ selftests/checkall
 %{_bindir}/aexpect_helper*
 
 %changelog
+* Mon Nov 2 2020 Lucas Meneghel Rodrigues <lookkas@gmail.com> - 1.6.1-1
+- Plamen Dimitrov
+- Remove pylint issues due to improperly initialized exception attribute
+- Fix reraising from previous exceptions
+- Use python 3 style super() call
+- Fix the order of remote keyword arguments
+- Detect and deserialize exceptions from a module if provided
+- Disable aexpect importing on the remote side if not available
+- Use known (local) methods to obtain a session in a door usage example
+- Convert the remote door unit tests to functional tests
+- Samir Aguiar
+- Add support for invoking remote functions and objects on Windows
+- Add support for indented functions
+- Return serialized remote function or utility arguments
+- Xiaodai Wang:
+- Migrate ssh options and handle_prompts changes from avocado-vt to aexpect
+
 * Tue Sep 22 2020 Cleber Rosa <cleber@redhat.com> - 1.6.0-1
 - New release
 
