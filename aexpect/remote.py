@@ -258,7 +258,9 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
                  r"[Cc]onnection.*closed", r"[Cc]onnection.*refused",
                  r"[Pp]lease wait", r"[Ww]arning", r"[Ee]nter.*username",
                  r"[Ee]nter.*password", r"[Cc]onnection timed out", prompt,
-                 r"Escape character is.*"],
+                 r"Escape character is.*",
+                 r"Command>",
+                 r"[Ll]ost connection"],
                 timeout=timeout, internal_timeout=0.5)
             output += text
             if match == 0:  # "Are you sure you want to continue connecting"
@@ -288,17 +290,19 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
                     else:
                         msg = "Got username prompt after password prompt"
                     raise LoginAuthenticationError(msg, text)
-            elif match == 5:  # "Connection closed"
+            elif match == 5:   # "Connection closed"
                 raise LoginError("Client said 'connection closed'", text)
-            elif match == 6:  # "Connection refused"
+            elif match == 6:   # "Connection refused"
                 raise LoginError("Client said 'connection refused'", text)
             elif match == 11:  # Connection timeout
                 raise LoginError("Client said 'connection timeout'", text)
-            elif match == 7:  # "Please wait"
+            elif match == 15:  # Connection lost
+                raise LoginError("Disconnected to vm on remote host", text)
+            elif match == 7:   # "Please wait"
                 if debug:
                     logging.debug("Got 'Please wait'")
                 timeout = 30
-            elif match == 8:  # "Warning added RSA"
+            elif match == 8:   # "Warning added RSA"
                 if debug:
                     logging.debug("Got 'Warning added RSA to known host list")
             elif match == 12:  # prompt
@@ -308,6 +312,17 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
             elif match == 13:  # console prompt
                 logging.debug("Got console prompt, send return to show login")
                 session.sendline()
+            elif match == 14:  # VMware vCenter command prompt
+                # Some old vsphere version (e.x. 6.0.0) needs to enable first.
+                cmd = 'shell.set --enabled True'
+                logging.debug(
+                    "Got VMware VCenter prompt, "
+                    "send '%s' to enable shell first", cmd)
+                session.sendline(cmd)
+                logging.debug(
+                    "Got VMware VCenter prompt, "
+                    "send 'shell' to launch bash")
+                session.sendline('shell')
         except ExpectTimeoutError as error:
             # sometimes, linux kernel print some message to console
             # the message maybe impact match login pattern, so send
@@ -327,7 +342,9 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
 def remote_login(client, host, port, username, password, prompt, linesep="\n",
                  log_filename=None, log_function=None, timeout=10,
                  interface=None, identity_file=None,
-                 status_test_command="echo $?", verbose=False, bind_ip=None):
+                 status_test_command="echo $?", verbose=False, bind_ip=None,
+                 preferred_authenticaton='password',
+                 user_known_hosts_file='/dev/null'):
     """
     Log into a remote host (guest) using SSH/Telnet/Netcat.
 
@@ -353,6 +370,8 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
             cmd_status_output() and friends).
     :param bind_ip: ssh through specific interface on
                     client(specify interface ip)
+    :param preferred_authenticaton: Given value of PreferredAuthentications in ssh
+    :param user_known_hosts_file: Given value of UserKnownHostsFile in ssh
     :raise LoginError: If using ipv6 linklocal but not assign a interface that
                        the neighbour attache
     :raise LoginBadClientError: If an unknown client is requested
@@ -366,15 +385,15 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
                               "be assigned")
         host = "%s%%%s" % (host, interface)
     if client == "ssh":
-        cmd = ("ssh %s -o UserKnownHostsFile=/dev/null "
+        cmd = ("ssh %s -o UserKnownHostsFile=%s "
                "-o StrictHostKeyChecking=no -p %s" %
-               (verbose, port))
+               (verbose, user_known_hosts_file, port))
         if bind_ip:
             cmd += (" -b %s" % bind_ip)
         if identity_file:
             cmd += (" -i %s" % identity_file)
         else:
-            cmd += " -o PreferredAuthentications=password"
+            cmd += " -o PreferredAuthentications=%s" % preferred_authenticaton
         cmd += " %s@%s" % (username, host)
     elif client == "telnet":
         cmd = "telnet -l %s %s %s" % (username, host, port)
@@ -403,7 +422,9 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
 
 def wait_for_login(client, host, port, username, password, prompt,
                    linesep="\n", log_filename=None, log_function=None,
-                   timeout=240, internal_timeout=10, interface=None):
+                   timeout=240, internal_timeout=10, interface=None,
+                   preferred_authenticaton='password',
+                   user_known_hosts_file='/dev/null'):
     """
     Make multiple attempts to log into a guest until one succeeds or timeouts.
 
@@ -411,6 +432,8 @@ def wait_for_login(client, host, port, username, password, prompt,
     :param internal_timeout: The maximum time duration (in seconds) to wait for
                              each step of the login procedure (e.g. the
                              "Are you sure" prompt or the password prompt)
+    :param preferred_authenticaton: Given value of PreferredAuthentications in ssh
+    :param user_known_hosts_file: Given value of UserKnownHostsFile in ssh
     :interface: The interface the neighbours attach to
                 (only use when using ipv6 linklocal address.)
     :see: remote_login()
@@ -425,7 +448,9 @@ def wait_for_login(client, host, port, username, password, prompt,
         try:
             return remote_login(client, host, port, username, password, prompt,
                                 linesep, log_filename, log_function,
-                                internal_timeout, interface, verbose=verbose)
+                                internal_timeout, interface, verbose=verbose,
+                                preferred_authenticaton=preferred_authenticaton,
+                                user_known_hosts_file=user_known_hosts_file)
         except LoginError as error:
             logging.debug(error)
             verbose = True
@@ -433,7 +458,9 @@ def wait_for_login(client, host, port, username, password, prompt,
     # Timeout expired; try one more time but don't catch exceptions
     return remote_login(client, host, port, username, password, prompt,
                         linesep, log_filename, log_function,
-                        internal_timeout, interface)
+                        internal_timeout, interface,
+                        preferred_authenticaton=preferred_authenticaton,
+                        user_known_hosts_file=user_known_hosts_file)
 
 
 def _remote_scp(
