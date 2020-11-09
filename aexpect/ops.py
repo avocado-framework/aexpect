@@ -26,7 +26,8 @@ environment (i. e. Cygwin) is present.
 
 This module aims to provide convenient wrappers for butter-and-bread
 functionality on a Linux system. Currently, the implemented functions fall
-under a few categories: ``stat``, ``test``, common file ops, and utilities.
+under a few categories: ``stat``, ``test``, common file ops, common utilities,
+and system utilities.
 
 stat:
 Allows passing an optional format argument (``-c``). Custom wrappers for
@@ -44,7 +45,10 @@ message. All functions :py:func:`shlex.quote` their args for better security.
 utilities:
 More complex linux utilities for tarball extraction, file hashing, etc.
 
-..warning:: This module runs commands on raw shell sessions, and although we usually
+system:
+System related operations like restarting or stopping services.
+
+..warning:: This module runs commands on raw shell sessions and although we usually
     quote the main arguments, we do not perform complex checks for escapes. It is
     meant only for some convenience in simple enough use cases and using it might
     result in data loss or worse.
@@ -473,3 +477,94 @@ def extract_tarball(session, tarball, target_dir, flags="-ap"):
         output = output.strip()
     if status != 0:
         raise RuntimeError(f'Failed to extract {tarball} to {target_dir}: {output}')
+
+
+###############################################################################
+# system
+###############################################################################
+
+
+def start_services(session, services, timeout=60):
+    """
+    Try starting all services in given list.
+
+    :param session: virtual machine session
+    :type session: :py:class:`aexpect.ShellSession`
+    :param services: list of services to modify
+    :type services: [str]
+    :param int timeout: timeout for each service to start
+    :returns: statuses for each modified service
+    :rtype: [int]
+    """
+    statuses = []
+    for service in services:
+        status = session.cmd_status(f'service {service} status')
+        if status == 0:      # is running --> skip
+            LOG.debug(f'Service {service} already started - skipping')
+        elif status == 3:    # is stopped --> ok
+            LOG.debug(f'Service {service} stopped - starting')
+            status = session.cmd_status(f'service {service} start', timeout)
+        else:                # not sure, try restarting
+            LOG.debug(f'Querying status for service {service} resulted in '
+                      f'unexpected return code {status}. Try starting it')
+            status = session.cmd_status(f'service {service} start', timeout)
+        LOG.debug(f'Starting service {service} resulted in status {status}')
+        statuses += [status]
+    return statuses
+
+
+def stop_services(session, services, timeout=60):
+    """
+    Try stopping all services in given list.
+
+    :param session: virtual machine session
+    :type session: :py:class:`aexpect.ShellSession`
+    :param services: list of services to modify
+    :type services: [str]
+    :param int timeout: timeout for each service to stop
+    :returns: statuses for each modified service
+    :rtype: [int]
+    """
+    statuses = []
+    for service in services:
+        status = session.cmd_status(f'service {service} status')
+        if status == 0:      # is running --> stop
+            status = session.cmd_status(f'service {service} stop', timeout)
+        elif status == 3:    # is stopped --> ok
+            LOG.debug(f'Service {service} stopped already')
+        else:                # not sure, try stopping
+            LOG.debug(f'Querying status for service {service} resulted in '
+                      f'unexpected return code {status}. Try stopping it')
+            status = session.cmd_status(f'service {service} stop', timeout)
+        LOG.debug(f'Stopping service {service} resulted in status {status}')
+        statuses += [status]
+    return statuses
+
+
+def restart_services(session, services, timeout=60):
+    """
+    Try restarting all services in given list.
+
+    :param session: virtual machine session
+    :type session: :py:class:`aexpect.ShellSession`
+    :param services: list of services to modify
+    :type services: [str]
+    :param int timeout: timeout for each service to restart
+    :returns: statuses for each modified service
+    :rtype: [int]
+    """
+    statuses = []
+    for service in services:
+        status = session.cmd_status(f'service {service} status')
+        if status == 0:      # is running --> restart
+            status = session.cmd_status(f'service {service} restart', timeout)
+        elif status == 3:    # is stopped --> ok
+            LOG.debug(f'Service {service} stopped - starting')
+            status = session.cmd_status(f'service {service} start', timeout)
+        else:                # not sure, try restarting
+            LOG.debug(f'Querying status for service {service} resulted in '
+                      f'unexpected return code {status}. Try restarting it')
+            status = session.cmd_status(f'service {service} restart', timeout)
+        LOG.debug(f'Restarting service {service} resulted in status {status}')
+        statuses += [status]
+    return statuses
