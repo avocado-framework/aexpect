@@ -60,6 +60,14 @@ from aexpect.exceptions import ShellCmdError
 LOG = logging.getLogger(__name__)
 
 
+def _process_status_output(command, status, output):
+    if output != "":
+        output = output.strip()
+    if status != 0:
+        raise ShellCmdError(command, status, output)
+    return status, output
+
+
 ###############################################################################
 # stat(2)
 ###############################################################################
@@ -225,10 +233,7 @@ def ls(session, path, quote_path=True, flags="-1UNq"):  # pylint: disable=C0103
     """
     cmd = f'ls {flags} {quote(path)}' if quote_path else f'ls {flags} {path}'
     status, output = session.cmd_status_output(cmd)
-    if output:
-        output = output.strip()
-    if status != 0:
-        raise RuntimeError(f'Failed to ls {path}: {output}')
+    status, output = _process_status_output(cmd, status, output)
     return output.splitlines()
 
 
@@ -250,9 +255,7 @@ def move(session, source, target, quote_path=True, flags=""):
     cmd = f'mv {flags} {quote(source)} {quote(target)}' if quote_path \
         else f'mv {flags} {source} {target}'
     status, output = session.cmd_status_output(cmd)
-    if status != 0:
-        raise RuntimeError(f"Failed to move {source} to {target}: "
-                           f"{output.strip() if output else ''}")
+    _process_status_output(cmd, status, output)
 
 
 def copy(session, source, target, quote_path=True, flags=""):
@@ -273,9 +276,7 @@ def copy(session, source, target, quote_path=True, flags=""):
     cmd = f'cp {flags} {quote(source)} {quote(target)}' if quote_path \
         else f'cp {flags} {source} {target}'
     status, output = session.cmd_status_output(cmd)
-    if status != 0:
-        raise RuntimeError(f"Failed to copy {source} to {target}: "
-                           f"{output.strip() if output else ''}")
+    _process_status_output(cmd, status, output)
 
 
 def remove(session, path, quote_path=True, flags="-fr"):
@@ -293,9 +294,7 @@ def remove(session, path, quote_path=True, flags="-fr"):
     """
     cmd = f'rm {flags} {quote(path)}' if quote_path else f'rm {flags} {path}'
     status, output = session.cmd_status_output(cmd)
-    if status != 0:
-        raise RuntimeError(f"Failed to remove {path}: "
-                           f"{output.strip() if output else ''}")
+    _process_status_output(cmd, status, output)
 
 
 def make_tempdir(session, template=None):
@@ -314,10 +313,7 @@ def make_tempdir(session, template=None):
     """
     cmd = f'mktemp -d {template}' if template is not None else 'mktemp -d'
     status, output = session.cmd_status_output(cmd)
-    if output:
-        output = output.strip()
-    if status != 0:
-        raise RuntimeError(f'Failed to create temporary directory: {output}')
+    _, output = _process_status_output(cmd, status, output)
     return output
 
 
@@ -337,10 +333,7 @@ def make_tempfile(session, template=None):
     """
     cmd = f'mktemp {template}' if template is not None else 'mktemp'
     status, output = session.cmd_status_output(cmd)
-    if output:
-        output = output.strip()
-    if status != 0:
-        raise RuntimeError(f'Failed to create temporary file: {output}')
+    _, output = _process_status_output(cmd, status, output)
     return output
 
 
@@ -362,10 +355,7 @@ def cat(session, filename, quote_path=True, flags=""):
     """
     cmd = f'cat {flags} {quote(filename)}' if quote_path else f'cat {flags} {filename}'
     status, output = session.cmd_status_output(cmd)
-    if output:
-        output = output.strip()
-    if status != 0:
-        raise RuntimeError(f'Failed to cat {filename}: {output}')
+    _, output = _process_status_output(cmd, status, output)
     return output
 
 
@@ -414,8 +404,7 @@ def grep(session, expr, path, check=False, flags="-a"):
     status, output = session.cmd_status_output(grep_command)
     if check:
         return status == 0
-    if status != 0:
-        raise ShellCmdError(grep_command, status, output)
+    _, output = _process_status_output(grep_command, status, output)
     return output
 
 
@@ -475,7 +464,4 @@ def extract_tarball(session, tarball, target_dir, flags="-ap"):
     """
     cmd = f'tar -C {quote(target_dir)} {flags} -xf {quote(tarball)}'
     status, output = session.cmd_status_output(cmd)
-    if output:
-        output = output.strip()
-    if status != 0:
-        raise RuntimeError(f'Failed to extract {tarball} to {target_dir}: {output}')
+    _process_status_output(cmd, status, output)
