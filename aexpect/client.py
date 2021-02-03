@@ -27,6 +27,7 @@ import select
 import subprocess
 import locale
 import logging
+import random
 
 from aexpect.exceptions import ExpectError
 from aexpect.exceptions import ExpectProcessTerminatedError
@@ -52,6 +53,7 @@ from aexpect.utils import process as utils_process
 from aexpect.utils import path as utils_path
 from aexpect.utils import wait as utils_wait
 
+import xmlrpc.client
 
 _THREAD_KILL_REQUESTED = threading.Event()
 
@@ -106,7 +108,7 @@ class Spawn(object):
     """
 
     def __init__(self, command=None, a_id=None, auto_close=False, echo=False,
-                 linesep="\n", pass_fds=(), encoding=None):
+                 linesep="\n", pass_fds=(), encoding=None, proxy_uri=None):
         """
         Initialize the class and run command as a child process.
 
@@ -126,6 +128,11 @@ class Spawn(object):
         :param encoding: Override text encoding (by default: autodetect by
                 locale.getpreferredencoding())
         """
+        self.proxy_uri = proxy_uri
+
+        if self.proxy_uri:
+            proxy = xmlrpc.client.ServerProxy(self.proxy_uri, allow_none=True)
+
         self.a_id = a_id or data_factory.generate_random_string(8)
         self.log_file = None
         self.closed = False
@@ -136,21 +143,40 @@ class Spawn(object):
         else:
             self.encoding = encoding
         self.reader_fds = {}
-        base_dir = os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id)
+        if self.proxy_uri:
+            base_dir = proxy.os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id)
+        else:
+            base_dir = os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id)
 
         # Define filenames for communication with server
-        utils_path.init_dir(base_dir)
+        if self.proxy_uri:
+            proxy.aexpect.utils.path.init_dir(base_dir)
+        else:
+            utils_path.init_dir(base_dir)
 
-        (self.shell_pid_filename,
-         self.status_filename,
-         self.output_filename,
-         self.inpipe_filename,
-         self.ctrlpipe_filename,
-         self.lock_server_running_filename,
-         self.lock_client_starting_filename,
-         self.server_log_filename) = get_filenames(base_dir)
+        if self.proxy_uri:
+            (self.shell_pid_filename,
+             self.status_filename,
+             self.output_filename,
+             self.inpipe_filename,
+             self.ctrlpipe_filename,
+             self.lock_server_running_filename,
+             self.lock_client_starting_filename,
+             self.server_log_filename) = proxy.aexpect.shared.get_filenames(base_dir)
+        else:
+            (self.shell_pid_filename,
+             self.status_filename,
+             self.output_filename,
+             self.inpipe_filename,
+             self.ctrlpipe_filename,
+             self.lock_server_running_filename,
+             self.lock_client_starting_filename,
+             self.server_log_filename) = get_filenames(base_dir)
 
-        assert os.path.isdir(base_dir)
+        if self.proxy_uri:
+            assert proxy.os.path.isdir(base_dir)
+        else:
+            assert os.path.isdir(base_dir)
 
         self.command = command
 
@@ -166,46 +192,71 @@ class Spawn(object):
             self.close_hooks = []
 
         # Define the reader filenames
-        self.reader_filenames = dict(
-            (reader, get_reader_filename(base_dir, reader))
-            for reader in self.readers)
+        if self.proxy_uri:
+            self.reader_filenames = dict(
+                    (reader, proxy.aexpect.shared.get_reader_filename(base_dir, reader))
+                    for reader in self.readers)
+        else:
+            self.reader_filenames = dict(
+                    (reader, get_reader_filename(base_dir, reader))
+                    for reader in self.readers)
 
         # Let the server know a client intends to open some pipes;
         # if the executed command terminates quickly, the server will wait for
         # the client to release the lock before exiting
-        lock_client_starting = get_lock_fd(self.lock_client_starting_filename)
+        if self.proxy_uri:
+            lock_client_starting = proxy.aexpect.shared.get_lock_fd(
+                self.lock_client_starting_filename)
+        else:
+            lock_client_starting = get_lock_fd(self.lock_client_starting_filename)
 
         # Start the server (which runs the command)
         if command:
-            helper_cmd = utils_path.find_command('aexpect_helper')
-            sub = subprocess.Popen([helper_cmd],
-                                   shell=True,
-                                   stdin=subprocess.PIPE,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT,
-                                   pass_fds=pass_fds)
-            # Send parameters to the server
-            sub.stdin.write(("%s\n" % self.a_id).encode(self.encoding))
-            sub.stdin.write(("%s\n" % echo).encode(self.encoding))
-            readers = "%s\n" % ",".join(self.readers)
-            sub.stdin.write(readers.encode(self.encoding))
-            sub.stdin.write(("%s\n" % command).encode(self.encoding))
-            sub.stdin.flush()
-            # Wait for the server to complete its initialization
-            while ("Server %s ready" % self.a_id not in
-                   sub.stdout.readline().decode(self.encoding, "ignore")):
-                pass
+            if self.proxy_uri:
+                proxy.aexpect.subprocess.Popen(pass_fds, self.a_id,
+                                                    self.encoding,
+                                                    self.echo, self.readers,
+                                                    command)
+            else:
+                helper_cmd = utils_path.find_command('aexpect_helper')
+                sub = subprocess.Popen([helper_cmd],
+                                       shell=True,
+                                       stdin=subprocess.PIPE,
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT,
+                                       pass_fds=pass_fds)
+                # Send parameters to the server
+                sub.stdin.write(("%s\n" % self.a_id).encode(self.encoding))
+                sub.stdin.write(("%s\n" % echo).encode(self.encoding))
+                readers = "%s\n" % ",".join(self.readers)
+                sub.stdin.write(readers.encode(self.encoding))
+                sub.stdin.write(("%s\n" % command).encode(self.encoding))
+                sub.stdin.flush()
+                # Wait for the server to complete its initialization
+                while ("Server %s ready" % self.a_id not in
+                       sub.stdout.readline().decode(self.encoding, "ignore")):
+                    pass
 
         # Open the reading pipes
         try:
-            assert is_file_locked(self.lock_server_running_filename)
-            for reader, filename in self.reader_filenames.items():
-                self.reader_fds[reader] = os.open(filename, os.O_RDONLY)
-        except (AssertionError, OSError):
+            if self.proxy_uri:
+                assert proxy.aexpect.shared.is_file_locked(
+                    self.lock_server_running_filename)
+                for reader, filename in self.reader_filenames.items():
+                    self.reader_fds[reader] = proxy.os.open(filename,
+                                                                 os.O_RDONLY)
+            else:
+                assert is_file_locked(self.lock_server_running_filename)
+                for reader, filename in self.reader_filenames.items():
+                    self.reader_fds[reader] = os.open(filename, os.O_RDONLY)
+        except (AssertionError, OSError, xmlrpc.client.Fault):
             pass
 
         # Allow the server to continue
-        unlock_fd(lock_client_starting)
+        if self.proxy_uri:
+            proxy.aexpect.shared.unlock_fd(lock_client_starting)
+        else:
+            unlock_fd(lock_client_starting)
 
     # The following two functions are defined to make sure the state is set
     # exclusively by the constructor call as specified in __getinitargs__().
@@ -270,8 +321,13 @@ class Spawn(object):
         """
         for fd_reader in self.reader_fds.values():
             try:
-                os.close(fd_reader)
-            except OSError:
+                if self.proxy_uri:
+                    proxy = xmlrpc.client.ServerProxy(self.proxy_uri,
+                                                      allow_none=True)
+                    proxy.os.close(fd_reader)
+                else:
+                    os.close(fd_reader)
+            except (OSError, xmlrpc.client.Fault):
                 pass
 
     def get_id(self):
@@ -288,6 +344,11 @@ class Spawn(object):
         Note: this may be the PID of the shell process running the user given
         command.
         """
+        if self.proxy_uri:
+            proxy = xmlrpc.client.ServerProxy(self.proxy_uri,
+                                              allow_none=True)
+            return proxy.aexpect.utils.client.get_pid(self.shell_pid_filename)
+
         try:
             with open(self.shell_pid_filename, 'r') as pid_file:
                 try:
@@ -302,6 +363,12 @@ class Spawn(object):
         Wait for the process to exit and return its exit status, or None
         if the exit status is not available.
         """
+        if self.proxy_uri:
+            proxy = xmlrpc.client.ServerProxy(self.proxy_uri,
+                                              allow_none=True)
+            return proxy.aexpect.utils.client.get_status(
+                    self.lock_server_running_filename, self.status_filename)
+
         wait_for_lock(self.lock_server_running_filename)
         try:
             with open(self.status_filename, 'r') as status_file:
@@ -316,6 +383,12 @@ class Spawn(object):
         """
         Return the STDOUT and STDERR output of the process so far.
         """
+        if self.proxy_uri:
+            proxy = xmlrpc.client.ServerProxy(self.proxy_uri,
+                                              allow_none=True)
+            return proxy.aexpect.utils.client.get_output(
+                    self.output_filename, self.encoding)
+
         try:
             with open(self.output_filename, 'rb') as output_file:
                 return output_file.read().decode(self.encoding,
@@ -334,12 +407,22 @@ class Spawn(object):
         """
         Return True if the process is running.
         """
+        if self.proxy_uri:
+            proxy = xmlrpc.client.ServerProxy(self.proxy_uri,
+                                              allow_none=True)
+            return proxy.aexpect.shared.is_file_locked(self.lock_server_running_filename)
+
         return is_file_locked(self.lock_server_running_filename)
 
     def is_defunct(self):
         """
         Return True if the process is defunct (zombie).
         """
+        if self.proxy_uri:
+            proxy = xmlrpc.client.ServerProxy(self.proxy_uri,
+                                              allow_none=True)
+            return proxy.aexpect.utils.process.process_in_ptree_is_defunct(self.get_pid())
+
         return utils_process.process_in_ptree_is_defunct(self.get_pid())
 
     def kill(self, sig=signal.SIGKILL):
@@ -348,6 +431,12 @@ class Spawn(object):
         """
         # Kill it if it's alive
         if self.is_alive():
+            if self.proxy_uri:
+                proxy = xmlrpc.client.ServerProxy(self.proxy_uri,
+                                                  allow_none=True)
+                # To fix "cannot marshal <enum 'Signals'> objects", int(sig)
+                return proxy.aexpect.utils.process.kill_process_tree(
+                    self.get_pid(), int(sig))
             utils_process.kill_process_tree(self.get_pid(), sig)
 
     def close(self, sig=signal.SIGKILL):
@@ -359,7 +448,12 @@ class Spawn(object):
         if not self.closed:
             self.kill(sig=sig)
             # Wait for the server to exit
-            wait_for_lock(self.lock_server_running_filename)
+
+            if self.proxy_uri:
+                proxy = xmlrpc.client.ServerProxy(self.proxy_uri, allow_none=True)
+                proxy.aexpect.shared.wait_for_lock(self.lock_server_running_filename)
+            else:
+                wait_for_lock(self.lock_server_running_filename)
             # Call all cleanup routines
             for hook in self.close_hooks:
                 hook(self)
@@ -367,8 +461,13 @@ class Spawn(object):
             self._close_reader_fds()
             self.reader_fds = {}
             # Remove all used files
-            if 'AEXPECT_DEBUG' not in os.environ:
-                shutil.rmtree(os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id))
+            if self.proxy_uri:
+                if 'AEXPECT_DEBUG' not in os.environ:
+                    proxy.shutil.rmtree(
+                        proxy.os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id))
+            else:
+                if 'AEXPECT_DEBUG' not in os.environ:
+                    shutil.rmtree(os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id))
             self.closed = True
 
     def set_linesep(self, linesep):
@@ -385,6 +484,12 @@ class Spawn(object):
 
         :param cont: String to send to the child process.
         """
+        if self.proxy_uri:
+            proxy = xmlrpc.client.ServerProxy(self.proxy_uri,
+                                              allow_none=True)
+            return proxy.aexpect.utils.client.send(
+                    self.inpipe_filename, cont, self.encoding)
+
         try:
             proc_input_pipe = os.open(self.inpipe_filename, os.O_RDWR)
             os.write(proc_input_pipe, cont.encode(self.encoding))
@@ -429,6 +534,12 @@ class Spawn(object):
         :param control_str: Control string to send to the child process
                             container.
         """
+        if self.proxy_uri:
+            proxy = xmlrpc.client.ServerProxy(self.proxy_uri,
+                                              allow_none=True)
+            return proxy.aexpect.utils.client.send_ctrl(
+                    self.ctrlpipe_filename, control_str, self.encoding)
+
         try:
             helper_control_pipe = os.open(self.ctrlpipe_filename, os.O_RDWR)
             data = "%10d%s" % (len(control_str), control_str)
@@ -463,7 +574,7 @@ class Tail(Spawn):
     def __init__(self, command=None, a_id=None, auto_close=False, echo=False,
                  linesep="\n", termination_func=None, termination_params=(),
                  output_func=None, output_params=(), output_prefix="",
-                 thread_name=None, pass_fds=(), encoding=None):
+                 thread_name=None, pass_fds=(), encoding=None, proxy_uri=None):
         """
         Initialize the class and run command as a child process.
 
@@ -502,7 +613,7 @@ class Tail(Spawn):
 
         # Init the superclass
         super().__init__(command, a_id, auto_close, echo, linesep,
-                         pass_fds, encoding)
+                         pass_fds, encoding, proxy_uri)
         if thread_name is None:
             self.thread_name = "tail_thread_%s_%s" % (self.a_id,
                                                       str(command)[:10])
@@ -607,24 +718,42 @@ class Tail(Spawn):
 
         try:
             tail_pipe = self._get_fd("tail")
-            poller = select.poll()
-            poller.register(tail_pipe, select.POLLIN)
+            if self.proxy_uri:
+                tail_poller_proxy = xmlrpc.client.ServerProxy(
+                        self.proxy_uri, allow_none=True, use_builtin_types=True)
+                poller_name = str(random.random())
+                tail_poller_proxy.avocado_vt.virttest.utils_select.create_poller(poller_name)
+                tail_poller_proxy.avocado_vt.virttest.utils_select.register_poller(
+                    poller_name, tail_pipe, select.POLLIN)
+            else:
+                poller = select.poll()
+                poller.register(tail_pipe, select.POLLIN)
             bfr = ""
             while True:
                 if _THREAD_KILL_REQUESTED.is_set():
                     try:
-                        os.close(tail_pipe)
-                    except OSError:
+                        if self.proxy_uri:
+                            tail_poller_proxy.os.close(tail_pipe)
+                        else:
+                            os.close(tail_pipe)
+                    except (OSError, xmlrpc.client.Fault):
                         pass
                     return
                 try:
                     # See if there's any data to read from the pipe
-                    poll_status = poller.poll(50)
+                    if self.proxy_uri:
+                        poll_status = tail_poller_proxy.avocado_vt.virttest.utils_select.poll_poller(
+                                poller_name, 50)
+                    else:
+                        poll_status = poller.poll(50)
                 except select.error:
                     break
                 if poll_status:
                     # Some data is available; read it
-                    new_data = os.read(tail_pipe, 1024)
+                    if self.proxy_uri:
+                        new_data = tail_poller_proxy.os.read(tail_pipe, 1024)
+                    else:
+                        new_data = os.read(tail_pipe, 1024)
                     if not new_data:
                         break
                     new_data = new_data.decode(self.encoding, "ignore")
@@ -649,7 +778,11 @@ class Tail(Spawn):
             if bfr:
                 _print_line(bfr)
             # Get the exit status, print it and send it to termination_func
-            status = self.get_status()
+            if self.proxy_uri:
+                status = tail_poller_proxy.aexpect.utils.client.get_status(
+                        self.lock_server_running_filename, self.status_filename)
+            else:
+                status = self.get_status()
             if status is None:
                 return
             _print_line("(Process terminated with status %s)" % status)
@@ -687,7 +820,7 @@ class Expect(Tail):
     def __init__(self, command=None, a_id=None, auto_close=True, echo=False,
                  linesep="\n", termination_func=None, termination_params=(),
                  output_func=None, output_params=(), output_prefix="",
-                 thread_name=None, pass_fds=(), encoding=None):
+                 thread_name=None, pass_fds=(), encoding=None, proxy_uri=None):
         """
         Initialize the class and run command as a child process.
 
@@ -725,7 +858,7 @@ class Expect(Tail):
         super().__init__(command, a_id, auto_close, echo, linesep,
                          termination_func, termination_params,
                          output_func, output_params, output_prefix, thread_name,
-                         pass_fds, encoding)
+                         pass_fds, encoding, proxy_uri)
 
     def __reduce__(self):
         return self.__class__, (self.__getinitargs__())
@@ -750,16 +883,33 @@ class Expect(Tail):
         if timeout:
             end_time = time.time() + timeout
         expect_pipe = self._get_fd("expect")
-        poller = select.poll()
-        poller.register(expect_pipe, select.POLLIN)
+        if self.proxy_uri:
+            expect_poller_proxy = xmlrpc.client.ServerProxy(
+                    self.proxy_uri, allow_none=True, use_builtin_types=True)
+            poller_name = str(random.random())
+            expect_poller_proxy.avocado_vt.virttest.utils_select.create_poller(
+                poller_name)
+            expect_poller_proxy.avocado_vt.virttest.utils_select.register_poller(
+                    poller_name, expect_pipe, select.POLLIN)
+        else:
+            poller = select.poll()
+            poller.register(expect_pipe, select.POLLIN)
         data = ""
         while True:
             try:
-                poll_status = poller.poll(internal_timeout)
+                if self.proxy_uri:
+                    poll_status = expect_poller_proxy.avocado_vt.virttest.utils_select.poll_poller(
+                                poller_name, internal_timeout)
+                else:
+                    poll_status = poller.poll(internal_timeout)
             except select.error:
                 return data
             if poll_status:
-                new_data = os.read(expect_pipe, 1024).decode(self.encoding,
+                if self.proxy_uri:
+                    new_data = expect_poller_proxy.os.read(expect_pipe, 1024).decode(self.encoding,
+                                                                 "ignore")
+                else:
+                    new_data = os.read(expect_pipe, 1024).decode(self.encoding,
                                                              "ignore")
                 if not new_data:
                     return data
@@ -839,14 +989,28 @@ class Expect(Tail):
         if not match_func:
             match_func = self.match_patterns
         expect_pipe = self._get_fd("expect")
-        poller = select.poll()
-        poller.register(expect_pipe, select.POLLIN)
+        if self.proxy_uri:
+            expect_poller_proxy = xmlrpc.client.ServerProxy(
+                    self.proxy_uri, allow_none=True, use_builtin_types=True)
+            poller_name = str(random.random())
+            expect_poller_proxy.avocado_vt.virttest.utils_select.create_poller(
+                poller_name)
+            expect_poller_proxy.avocado_vt.virttest.utils_select.register_poller(
+                    poller_name, expect_pipe, select.POLLIN)
+        else:
+            poller = select.poll()
+            poller.register(expect_pipe, select.POLLIN)
         output = ""
         end_time = time.time() + timeout
         while True:
             try:
-                poll_timeout_ms = max(0, (end_time - time.time()) * 1000)
-                poll_status = poller.poll(poll_timeout_ms)
+                if self.proxy_uri:
+                    poll_timeout_ms = max(0, (end_time - time.time()) * 1000)
+                    poll_status = expect_poller_proxy.avocado_vt.virttest.utils_select.poll_poller(
+                                poller_name, poll_timeout_ms)
+                else:
+                    poll_timeout_ms = max(0, (end_time - time.time()) * 1000)
+                    poll_status = poller.poll(poll_timeout_ms)
             except select.error:
                 break
             if not poll_status:
@@ -981,7 +1145,8 @@ class ShellSession(Expect):
                  linesep="\n", termination_func=None, termination_params=(),
                  output_func=None, output_params=(), output_prefix="",
                  thread_name=None, prompt=r"[\#\$]\s*$",
-                 status_test_command="echo $?", pass_fds=(), encoding=None):
+                 status_test_command="echo $?", pass_fds=(), encoding=None,
+                 proxy_uri=None):
         """
         Initialize the class and run command as a child process.
 
@@ -1020,7 +1185,7 @@ class ShellSession(Expect):
         super().__init__(command, a_id, auto_close, echo, linesep,
                          termination_func, termination_params,
                          output_func, output_params, output_prefix, thread_name,
-                         pass_fds, encoding)
+                         pass_fds, encoding, proxy_uri)
 
         # Remember some attributes
         self.prompt = prompt
@@ -1411,7 +1576,7 @@ class RemoteSession(ShellSession):
 
 def run_tail(command, termination_func=None, output_func=None,
              output_prefix="", timeout=1.0, auto_close=True, pass_fds=(),
-             encoding=None):
+             encoding=None, proxy_uri=None):
     """
     Run a subprocess in the background and collect its output and exit status.
 
@@ -1444,7 +1609,8 @@ def run_tail(command, termination_func=None, output_func=None,
                       output_prefix=output_prefix,
                       auto_close=auto_close,
                       pass_fds=pass_fds,
-                      encoding=encoding)
+                      encoding=encoding,
+                      proxy_uri=proxy_uri)
 
     end_time = time.time() + timeout
     while time.time() < end_time and bg_process.is_alive():
