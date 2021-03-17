@@ -1311,9 +1311,8 @@ class ShellSession(Expect):
             return output
         except ShellError:
             if ignore_all_errors:
-                pass
-            else:
-                raise
+                return None
+            raise
 
     def get_command_output(self, cmd, timeout=60, internal_timeout=None,
                            print_func=None):
