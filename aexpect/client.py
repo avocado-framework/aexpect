@@ -855,7 +855,7 @@ class Expect(Tail):
             data = self.read_nonblocking(internal_timeout,
                                          end_time - time.time())
             if not data:
-                break
+                continue
             # Print it if necessary
             if print_func:
                 for line in data.splitlines():
