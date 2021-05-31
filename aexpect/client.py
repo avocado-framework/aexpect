@@ -733,7 +733,7 @@ class Expect(Tail):
     def __getinitargs__(self):
         return Tail.__getinitargs__(self)
 
-    def read_nonblocking(self, internal_timeout=None, timeout=None):
+    def _read_nonblocking(self, internal_timeout=None, timeout=None):
         """
         Read from child until there is nothing to read for timeout seconds.
 
@@ -741,6 +741,7 @@ class Expect(Tail):
                                  reading from the child process, or None to
                                  use the default value.
         :param timeout: Timeout for reading child process output.
+        :returns: tuple(number_of_read_raw_chars, decoded_string)
         """
         if internal_timeout is None:
             internal_timeout = 100
@@ -753,21 +754,34 @@ class Expect(Tail):
         poller = select.poll()
         poller.register(expect_pipe, select.POLLIN)
         data = ""
+        read = 0
         while True:
             try:
                 poll_status = poller.poll(internal_timeout)
             except select.error:
-                return data
+                return read, data
             if poll_status:
-                new_data = os.read(expect_pipe, 1024).decode(self.encoding,
-                                                             "ignore")
-                if not new_data:
-                    return data
-                data += new_data
+                raw_data = os.read(expect_pipe, 1024)
+                if not raw_data:
+                    return read, data
+                read += len(raw_data)
+                data += raw_data.decode(self.encoding, "ignore")
             else:
-                return data
+                return read, data
             if end_time and time.time() > end_time:
-                return data
+                return read, data
+
+    def read_nonblocking(self, internal_timeout=None, timeout=None):
+        """
+        Read from child until there is nothing to read for timeout seconds.
+
+        :param internal_timeout: Time (seconds) to wait before we give up
+                                 reading from the child process, or None to
+                                 use the default value.
+        :param timeout: Timeout for reading child process output.
+        :returns: decoded string
+        """
+        return self._read_nonblocking(internal_timeout, timeout)[1]
 
     @staticmethod
     def match_patterns(cont, patterns):
