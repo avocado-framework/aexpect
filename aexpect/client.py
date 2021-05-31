@@ -866,10 +866,12 @@ class Expect(Tail):
             if not poll_status:
                 raise ExpectTimeoutError(patterns, output)
             # Read data from child
-            data = self.read_nonblocking(internal_timeout,
-                                         end_time - time.time())
-            if not data:
+            read, data = self._read_nonblocking(internal_timeout,
+                                                end_time - time.time())
+            if not read:
                 break
+            if not data:
+                continue
             # Print it if necessary
             if print_func:
                 for line in data.splitlines():
