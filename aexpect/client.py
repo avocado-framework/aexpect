@@ -153,6 +153,7 @@ class Spawn(object):
         assert os.path.isdir(base_dir)
 
         self.command = command
+        self._aexpect_helper = None
 
         # Remember some attributes
         self.auto_close = auto_close
@@ -178,12 +179,13 @@ class Spawn(object):
         # Start the server (which runs the command)
         if command:
             helper_cmd = utils_path.find_command('aexpect_helper')
-            sub = subprocess.Popen([helper_cmd],
-                                   shell=True,
-                                   stdin=subprocess.PIPE,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT,
-                                   pass_fds=pass_fds)
+            self._aexpect_helper = subprocess.Popen([helper_cmd],
+                                                    shell=True,
+                                                    stdin=subprocess.PIPE,
+                                                    stdout=subprocess.PIPE,
+                                                    stderr=subprocess.STDOUT,
+                                                    pass_fds=pass_fds)
+            sub = self._aexpect_helper
             # Send parameters to the server
             sub.stdin.write(("%s\n" % self.a_id).encode(self.encoding))
             sub.stdin.write(("%s\n" % echo).encode(self.encoding))
@@ -370,6 +372,12 @@ class Spawn(object):
             if 'AEXPECT_DEBUG' not in os.environ:
                 shutil.rmtree(os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id))
             self.closed = True
+        if self._aexpect_helper:
+            try:
+                self._aexpect_helper.wait(10)
+            except subprocess.TimeoutExpired:
+                self._aexpect_helper.kill()
+                self._aexpect_helper.wait(10)
 
     def set_linesep(self, linesep):
         """
