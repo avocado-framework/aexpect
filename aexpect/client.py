@@ -179,7 +179,7 @@ class Spawn(object):
         # Start the server (which runs the command)
         if command:
             helper_cmd = utils_path.find_command('aexpect_helper')
-            self._aexpect_helper = subprocess.Popen([helper_cmd],
+            self._aexpect_helper = subprocess.Popen([helper_cmd],   # pylint: disable=R1732,E0012
                                                     shell=True,
                                                     stdin=subprocess.PIPE,
                                                     stdout=subprocess.PIPE,

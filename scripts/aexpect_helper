@@ -86,9 +86,8 @@ def main():     # too-many-* pylint:disable=R0914,R0912,R0915
                                                                   command)
             tmp_file = tempfile.mktemp(suffix='.sh',
                                        prefix='aexpect-', dir=base_dir)
-            fd_cmd = open(tmp_file, "w")
-            fd_cmd.write(command)
-            fd_cmd.close()
+            with open(tmp_file, "w") as fd_cmd:
+                fd_cmd.write(command)
             os.execv("/bin/bash", ["/bin/bash", "-c", "source %s" % tmp_file])
             os.remove(tmp_file)
         else:
@@ -103,92 +102,92 @@ def main():     # too-many-* pylint:disable=R0914,R0912,R0915
         makestandard(shell_fd, echo)
 
         server_log.info('Opening output file %s', output_filename)
-        output_file = open(output_filename, "wb")
-        server_log.info('Opening input pipe %s', inpipe_filename)
-        os.mkfifo(inpipe_filename)
-        inpipe_fd = os.open(inpipe_filename, os.O_RDWR)
-        server_log.info('Opening control pipe %s', ctrlpipe_filename)
-        os.mkfifo(ctrlpipe_filename)
-        ctrlpipe_fd = os.open(ctrlpipe_filename, os.O_RDWR)
-        # Open output pipes (readers)
-        reader_fds = []
-        for filename in reader_filenames:
-            server_log.info('Opening output pipe %s', filename)
-            os.mkfifo(filename)
-            reader_fds.append(os.open(filename, os.O_RDWR))
-        server_log.info('Reader fd list: %s', reader_fds)
+        with open(output_filename, "wb") as output_file:
+            server_log.info('Opening input pipe %s', inpipe_filename)
+            os.mkfifo(inpipe_filename)
+            inpipe_fd = os.open(inpipe_filename, os.O_RDWR)
+            server_log.info('Opening control pipe %s', ctrlpipe_filename)
+            os.mkfifo(ctrlpipe_filename)
+            ctrlpipe_fd = os.open(ctrlpipe_filename, os.O_RDWR)
+            # Open output pipes (readers)
+            reader_fds = []
+            for filename in reader_filenames:
+                server_log.info('Opening output pipe %s', filename)
+                os.mkfifo(filename)
+                reader_fds.append(os.open(filename, os.O_RDWR))
+            server_log.info('Reader fd list: %s', reader_fds)
 
-        # Write shell PID to file
-        server_log.info('Writing shell PID file %s', shell_pid_filename)
-        with open(shell_pid_filename, "w") as file_obj:
-            file_obj.write(str(shell_pid))
+            # Write shell PID to file
+            server_log.info('Writing shell PID file %s', shell_pid_filename)
+            with open(shell_pid_filename, "w") as file_obj:
+                file_obj.write(str(shell_pid))
 
-        # Print something to stdout so the client can start working
-        print("Server %s ready" % a_id)    # py3k pylint: disable=C0325
-        sys.stdout.flush()
+            # Print something to stdout so the client can start working
+            print("Server %s ready" % a_id)    # py3k pylint: disable=C0325
+            sys.stdout.flush()
 
-        # Initialize buffers
-        buffers = [b"" for reader in readers]
+            # Initialize buffers
+            buffers = [b"" for reader in readers]
 
-        # Read from child and write to files/pipes
-        server_log.info('Entering main read loop')
-        status = 1  # lgtm [py/multiple-definition]
-        while True:
-            check_termination = False
-            # Make a list of reader pipes whose buffers are not empty
-            fds = [reader_fd for (i, reader_fd) in enumerate(reader_fds)
-                   if buffers[i]]
-            # Wait until there's something to do
-            r_fds, w_fds = select.select([shell_fd, inpipe_fd, ctrlpipe_fd],
-                                         fds, [], 0.5)[:2]
-            # If a reader pipe is ready for writing --
-            for (i, reader_fd) in enumerate(reader_fds):
-                if reader_fd in w_fds:
-                    bytes_written = os.write(reader_fd, buffers[i])
-                    buffers[i] = buffers[i][bytes_written:]
-            if ctrlpipe_fd in r_fds:
-                cmd_len = int(os.read(ctrlpipe_fd, 10))
-                data = os.read(ctrlpipe_fd, cmd_len)
-                if data == "raw":
-                    makeraw(shell_fd)
-                elif data == "standard":
-                    makestandard(shell_fd, echo)
-            # If there's data to read from the child process --
-            if shell_fd in r_fds:
-                try:
-                    data = os.read(shell_fd, 16384)
-                except OSError:
-                    data = b""
-                if not data:
-                    check_termination = True
-                # Remove carriage returns from the data -- they often cause
-                # trouble and are normally not needed
-                data = data.replace(b"\r", b"")
-                output_file.write(data)
-                output_file.flush()
-                for i in range(len(readers)):
-                    buffers[i] += data
-            # If os.read() raised an exception or there was nothing to read --
-            if check_termination or shell_fd not in r_fds:
-                pid, status = os.waitpid(shell_pid, os.WNOHANG)
-                if pid:
-                    status = os.WEXITSTATUS(status)
-                    break
-            # If there's data to read from the client --
-            if inpipe_fd in r_fds:
-                data = os.read(inpipe_fd, 1024)
-                os.write(shell_fd, data)
+            # Read from child and write to files/pipes
+            server_log.info('Entering main read loop')
+            status = 1  # lgtm [py/multiple-definition]
+            while True:
+                check_termination = False
+                # Make a list of reader pipes whose buffers are not empty
+                fds = [reader_fd for (i, reader_fd) in enumerate(reader_fds)
+                       if buffers[i]]
+                # Wait until there's something to do
+                r_fds, w_fds = select.select([shell_fd, inpipe_fd,
+                                              ctrlpipe_fd],
+                                             fds, [], 0.5)[:2]
+                # If a reader pipe is ready for writing --
+                for (i, reader_fd) in enumerate(reader_fds):
+                    if reader_fd in w_fds:
+                        bytes_written = os.write(reader_fd, buffers[i])
+                        buffers[i] = buffers[i][bytes_written:]
+                if ctrlpipe_fd in r_fds:
+                    cmd_len = int(os.read(ctrlpipe_fd, 10))
+                    data = os.read(ctrlpipe_fd, cmd_len)
+                    if data == "raw":
+                        makeraw(shell_fd)
+                    elif data == "standard":
+                        makestandard(shell_fd, echo)
+                # If there's data to read from the child process --
+                if shell_fd in r_fds:
+                    try:
+                        data = os.read(shell_fd, 16384)
+                    except OSError:
+                        data = b""
+                    if not data:
+                        check_termination = True
+                    # Remove carriage returns from the data; they often cause
+                    # trouble and are normally not needed
+                    data = data.replace(b"\r", b"")
+                    output_file.write(data)
+                    output_file.flush()
+                    for i in range(len(readers)):
+                        buffers[i] += data
+                # os.read() raised an exception or there was nothing to read
+                if check_termination or shell_fd not in r_fds:
+                    pid, status = os.waitpid(shell_pid, os.WNOHANG)
+                    if pid:
+                        status = os.WEXITSTATUS(status)
+                        break
+                # If there's data to read from the client --
+                if inpipe_fd in r_fds:
+                    data = os.read(inpipe_fd, 1024)
+                    os.write(shell_fd, data)
 
-        server_log.info('Out of the main read loop. Writing status to %s',
-                        status_filename)
-        with open(status_filename, "w") as file_obj:
-            file_obj.write(str(status))
+            server_log.info('Out of the main read loop. Writing status to %s',
+                            status_filename)
+            with open(status_filename, "w") as file_obj:
+                file_obj.write(str(status))
 
-        # Wait for the client to finish initializing
-        wait_for_lock(lock_client_starting_filename)
+            # Wait for the client to finish initializing
+            wait_for_lock(lock_client_starting_filename)
 
         # Close all files and pipes
-        output_file.close()
         os.close(inpipe_fd)
         server_log.info('Closed input pipe')
         for reader_fd in reader_fds:
