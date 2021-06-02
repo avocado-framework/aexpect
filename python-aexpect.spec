@@ -10,10 +10,10 @@
 %global gittar		%{srcname}-%{version}.tar.gz
 %else
 %if ! 0%{?commit:1}
-%global commit		be9be4b325ac1da7b0c908e82f1d2c52e43dfd2f
+%global commit		9f53e380ef4f4eb3cdf04845deab27be5d3ed7ac
 %endif
 %if ! 0%{?commit_date:1}
-%global commit_date	20200922
+%global commit_date	20210602
 %endif
 %global shortcommit	%(c=%{commit};echo ${c:0:7})
 %global gitrel		.%{commit_date}git%{shortcommit}
@@ -24,7 +24,7 @@
 %global with_tests 0
 
 Name: python-%{srcname}
-Version: 1.6.1
+Version: 1.6.2
 Release: 1%{?gitrel}%{?dist}
 Summary: Aexpect is a python library to control interactive applications
 Group: Development/Tools
@@ -84,6 +84,9 @@ selftests/checkall
 %{_bindir}/aexpect_helper*
 
 %changelog
+* Wed Jun  2 2021 Cleber Rosa <cleber@redhat.com> - 1.6.2-1
+- New release
+
 * Mon Nov 2 2020 Lucas Meneghel Rodrigues <lookkas@gmail.com> - 1.6.1-1
 - Plamen Dimitrov
 - Remove pylint issues due to improperly initialized exception attribute
