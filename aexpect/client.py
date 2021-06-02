@@ -153,6 +153,7 @@ class Spawn(object):
         assert os.path.isdir(base_dir)
 
         self.command = command
+        self._aexpect_helper = None
 
         # Remember some attributes
         self.auto_close = auto_close
@@ -178,12 +179,13 @@ class Spawn(object):
         # Start the server (which runs the command)
         if command:
             helper_cmd = utils_path.find_command('aexpect_helper')
-            sub = subprocess.Popen([helper_cmd],
-                                   shell=True,
-                                   stdin=subprocess.PIPE,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT,
-                                   pass_fds=pass_fds)
+            self._aexpect_helper = subprocess.Popen([helper_cmd],   # pylint: disable=R1732
+                                                    shell=True,
+                                                    stdin=subprocess.PIPE,
+                                                    stdout=subprocess.PIPE,
+                                                    stderr=subprocess.STDOUT,
+                                                    pass_fds=pass_fds)
+            sub = self._aexpect_helper
             # Send parameters to the server
             sub.stdin.write(("%s\n" % self.a_id).encode(self.encoding))
             sub.stdin.write(("%s\n" % echo).encode(self.encoding))
@@ -370,6 +372,12 @@ class Spawn(object):
             if 'AEXPECT_DEBUG' not in os.environ:
                 shutil.rmtree(os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id))
             self.closed = True
+        if self._aexpect_helper:
+            try:
+                self._aexpect_helper.wait(10)
+            except subprocess.TimeoutExpired:
+                self._aexpect_helper.kill()
+                self._aexpect_helper.wait(10)
 
     def set_linesep(self, linesep):
         """
@@ -733,7 +741,7 @@ class Expect(Tail):
     def __getinitargs__(self):
         return Tail.__getinitargs__(self)
 
-    def read_nonblocking(self, internal_timeout=None, timeout=None):
+    def _read_nonblocking(self, internal_timeout=None, timeout=None):
         """
         Read from child until there is nothing to read for timeout seconds.
 
@@ -741,6 +749,7 @@ class Expect(Tail):
                                  reading from the child process, or None to
                                  use the default value.
         :param timeout: Timeout for reading child process output.
+        :returns: tuple(number_of_read_raw_chars, decoded_string)
         """
         if internal_timeout is None:
             internal_timeout = 100
@@ -753,21 +762,34 @@ class Expect(Tail):
         poller = select.poll()
         poller.register(expect_pipe, select.POLLIN)
         data = ""
+        read = 0
         while True:
             try:
                 poll_status = poller.poll(internal_timeout)
             except select.error:
-                return data
+                return read, data
             if poll_status:
-                new_data = os.read(expect_pipe, 1024).decode(self.encoding,
-                                                             "ignore")
-                if not new_data:
-                    return data
-                data += new_data
+                raw_data = os.read(expect_pipe, 1024)
+                if not raw_data:
+                    return read, data
+                read += len(raw_data)
+                data += raw_data.decode(self.encoding, "ignore")
             else:
-                return data
+                return read, data
             if end_time and time.time() > end_time:
-                return data
+                return read, data
+
+    def read_nonblocking(self, internal_timeout=None, timeout=None):
+        """
+        Read from child until there is nothing to read for timeout seconds.
+
+        :param internal_timeout: Time (seconds) to wait before we give up
+                                 reading from the child process, or None to
+                                 use the default value.
+        :param timeout: Timeout for reading child process output.
+        :returns: decoded string
+        """
+        return self._read_nonblocking(internal_timeout, timeout)[1]
 
     @staticmethod
     def match_patterns(cont, patterns):
@@ -852,10 +874,12 @@ class Expect(Tail):
             if not poll_status:
                 raise ExpectTimeoutError(patterns, output)
             # Read data from child
-            data = self.read_nonblocking(internal_timeout,
-                                         end_time - time.time())
-            if not data:
+            read, data = self._read_nonblocking(internal_timeout,
+                                                end_time - time.time())
+            if not read:
                 break
+            if not data:
+                continue
             # Print it if necessary
             if print_func:
                 for line in data.splitlines():

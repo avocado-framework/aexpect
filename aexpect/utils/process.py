@@ -18,9 +18,9 @@ import os
 
 def getoutput(cmd):
     """Executes command and returns stdout+stderr without tailing \n\r"""
-    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE)
-    return proc.communicate()[0].decode().rstrip("\n\r")
+    with subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE) as proc:
+        return proc.communicate()[0].decode().rstrip("\n\r")
 
 
 class CmdError(Exception):
