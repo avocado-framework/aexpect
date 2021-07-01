@@ -21,7 +21,8 @@ BASE_DIR = os.environ.get('TMPDIR', '/tmp')
 def get_lock_fd(filename):
     """Lock a file"""
     if not os.path.exists(filename):
-        open(filename, "w").close()
+        with open(filename, "w"):
+            pass
     lock_fd = os.open(filename, os.O_RDWR)
     fcntl.lockf(lock_fd, fcntl.LOCK_EX)
     return lock_fd

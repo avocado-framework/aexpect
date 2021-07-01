@@ -19,7 +19,7 @@ import glob
 import re
 import shutil
 import unittest
-import unittest.mock as mock
+from unittest import mock
 
 from aexpect import remote_door
 from aexpect.client import RemoteSession
