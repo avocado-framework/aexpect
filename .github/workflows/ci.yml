@@ -1,0 +1,23 @@
+---
+name: Aexpect CI
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+jobs:
+  selftests:
+    name: ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.x]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -r requirements-travis.txt
+      - run: make check
