@@ -26,9 +26,8 @@ def close_log_file(filename):
     """
 
     remove = []
-    for log_file in _open_log_files:
+    for log_file, log_fd in _open_log_files.items():
         if os.path.basename(log_file) == filename:
-            log_fd = _open_log_files[log_file]
             log_fd.close()
             remove.append(log_file)
     if remove:
