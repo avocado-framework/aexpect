@@ -1,5 +1,3 @@
-%global srcname aexpect
-
 # Conditional for release vs. snapshot builds. Set to 1 for release build.
 %if ! 0%{?rel_build:1}
     %global rel_build 1
@@ -7,7 +5,7 @@
 
 # Settings used for build from snapshots.
 %if 0%{?rel_build}
-%global gittar		%{srcname}-%{version}.tar.gz
+%global gittar		aexpect-%{version}.tar.gz
 %else
 %if ! 0%{?commit:1}
 %global commit		9f53e380ef4f4eb3cdf04845deab27be5d3ed7ac
@@ -17,29 +15,27 @@
 %endif
 %global shortcommit	%(c=%{commit};echo ${c:0:7})
 %global gitrel		.%{commit_date}git%{shortcommit}
-%global gittar		%{srcname}-%{shortcommit}.tar.gz
+%global gittar		aexpect-%{shortcommit}.tar.gz
 %endif
 
 # Selftests are provided but skipped because they use unsupported tooling.
 %global with_tests 0
 
-Name: python-%{srcname}
+Name: python-aexpect
 Version: 1.6.2
-Release: 1%{?gitrel}%{?dist}
+Release: 2%{?gitrel}%{?dist}
 Summary: Aexpect is a python library to control interactive applications
-Group: Development/Tools
 
-License: GPLv2
+License: GPLv2+
 URL: https://github.com/avocado-framework/aexpect
 
 %if 0%{?rel_build}
-Source0: https://github.com/avocado-framework/%{srcname}/archive/%{version}.tar.gz#/%{gittar}
+Source0: %{url}/archive/%{version}/%{gittar}
 %else
-Source0: https://github.com/avocado-framework/%{srcname}/archive/%{commit}.tar.gz#/%{gittar}
+Source0: %{url}/archive/%{commit}/%{gittar}
 %endif
 
 BuildArch: noarch
-Requires: python3
 BuildRequires: python3-devel
 BuildRequires: python3-setuptools
 
@@ -48,19 +44,19 @@ Aexpect is a python library used to control interactive applications, very
 similar to pexpect. You can use it to control applications such as ssh, scp
 sftp, telnet, among others.
 
-%package -n python3-%{srcname}
+%package -n python3-aexpect
 Summary: %{summary}
 
-%description -n python3-%{srcname}
+%description -n python3-aexpect
 Aexpect is a python library used to control interactive applications, very
 similar to pexpect. You can use it to control applications such as ssh, scp
 sftp, telnet, among others.
 
 %prep
 %if 0%{?rel_build}
-%autosetup -n %{srcname}-%{version}
+%autosetup -n aexpect-%{version} -p 1
 %else
-%autosetup -n %{srcname}-%{commit}
+%autosetup -n aexpect-%{commit} -p 1
 %endif
 
 %build
@@ -71,19 +67,22 @@ sftp, telnet, among others.
 ln -s aexpect_helper %{buildroot}%{_bindir}/aexpect_helper-%{python3_pkgversion}
 ln -s aexpect_helper %{buildroot}%{_bindir}/aexpect_helper-%{python3_version}
 
-%check
 %if %{with_tests}
+%check
 selftests/checkall
 %endif
 
-%files -n python%{python3_pkgversion}-%{srcname}
+%files -n python3-aexpect
 %license LICENSE
 %doc README.rst
 %{python3_sitelib}/aexpect/
-%{python3_sitelib}/aexpect-%{version}-py%{python3_version}.egg-info
+%{python3_sitelib}/aexpect-%{version}-py%{python3_version}.egg-info/
 %{_bindir}/aexpect_helper*
 
 %changelog
+* Mon Jun 28 2021 Merlin Mathesius <mmathesi@redhat.com> - 1.6.2-2
+- Spec file cleanup resulting from downstream package review.
+
 * Wed Jun  2 2021 Cleber Rosa <cleber@redhat.com> - 1.6.2-1
 - New release
 
