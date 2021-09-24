@@ -55,7 +55,6 @@ from aexpect.exceptions import ExpectTimeoutError
 from aexpect.exceptions import ExpectProcessTerminatedError
 from aexpect import rss_client
 
-
 #: prompt to be used for shell sessions on linux machines (default)
 PROMPT_LINUX = r"^\[.*\][\#\$]\s*$"
 #: prompt to be used for shell sessions on windows machines
@@ -75,7 +74,7 @@ class LoginError(RemoteError):
         self.output = output
 
     def __str__(self):
-        return "%s    (output: %r)" % (self.msg, self.output)
+        return f"{self.msg}    (output: {self.output!r})"
 
 
 class LoginAuthenticationError(LoginError):
@@ -97,8 +96,8 @@ class LoginProcessTerminatedError(LoginError):
         self.status = status
 
     def __str__(self):
-        return ("%s    (status: %s,    output: %r)" %
-                (self.msg, self.status, self.output))
+        return (f"{self.msg}    (status: {self.status},    "
+                f"output: {self.output!r})")
 
 
 class LoginBadClientError(LoginError):
@@ -109,7 +108,7 @@ class LoginBadClientError(LoginError):
         self.client = client
 
     def __str__(self):
-        return "%s    (value: %r)" % (self.msg, self.client)
+        return f"{self.msg}    (value: {self.client!r})"
 
 
 class TransferError(RemoteError):
@@ -121,7 +120,7 @@ class TransferError(RemoteError):
         self.output = output
 
     def __str__(self):
-        return "%s    (output: %r)" % (self.msg, self.output)
+        return f"{self.msg}    (output: {self.output!r})"
 
 
 class TransferBadClientError(RemoteError):
@@ -132,7 +131,8 @@ class TransferBadClientError(RemoteError):
         self.client = client
 
     def __str__(self):
-        return "Unknown file copy client: '%s', valid values are scp and rss" % self.client
+        return (f"Unknown file copy client: '{self.client}', "
+                "valid values are scp and rss")
 
 
 class SCPError(TransferError):
@@ -165,8 +165,8 @@ class SCPTransferFailedError(SCPError):
         self.status = status
 
     def __str__(self):
-        return ("SCP transfer failed    (status: %s,    output: %r)" %
-                (self.status, self.output))
+        return (f"SCP transfer failed    (status: {self.status},    "
+                f"output: {self.output!r})")
 
 
 class NetcatError(TransferError):
@@ -188,8 +188,8 @@ class NetcatTransferFailedError(NetcatError):
         self.status = status
 
     def __str__(self):
-        return ("Netcat transfer failed    (status: %s,    output: %r)" %
-                (self.status, self.output))
+        return (f"Netcat transfer failed    (status: {self.status},    "
+                f"output: {self.output!r})")
 
 
 class NetcatTransferIntegrityError(NetcatError):
@@ -290,19 +290,19 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
                     else:
                         msg = "Got username prompt after password prompt"
                     raise LoginAuthenticationError(msg, text)
-            elif match == 5:   # "Connection closed"
+            elif match == 5:  # "Connection closed"
                 raise LoginError("Client said 'connection closed'", text)
-            elif match == 6:   # "Connection refused"
+            elif match == 6:  # "Connection refused"
                 raise LoginError("Client said 'connection refused'", text)
             elif match == 11:  # Connection timeout
                 raise LoginError("Client said 'connection timeout'", text)
             elif match == 15:  # Connection lost
                 raise LoginError("Disconnected to vm on remote host", text)
-            elif match == 7:   # "Please wait"
+            elif match == 7:  # "Please wait"
                 if debug:
                     logging.debug("Got 'Please wait'")
                 timeout = 30
-            elif match == 8:   # "Warning added RSA"
+            elif match == 8:  # "Warning added RSA"
                 if debug:
                     logging.debug("Got 'Warning added RSA to known host list")
             elif match == 12:  # prompt
@@ -383,22 +383,21 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
         if not interface:
             raise RemoteError("When using ipv6 linklocal an interface must "
                               "be assigned")
-        host = "%s%%%s" % (host, interface)
+        host = f"{host}%{interface}"
     if client == "ssh":
-        cmd = ("ssh %s -o UserKnownHostsFile=%s "
-               "-o StrictHostKeyChecking=no -p %s" %
-               (verbose, user_known_hosts_file, port))
+        cmd = (f"ssh {verbose} -o UserKnownHostsFile={user_known_hosts_file} "
+               f"-o StrictHostKeyChecking=no -p {port}")
         if bind_ip:
-            cmd += (" -b %s" % bind_ip)
+            cmd += f" -b {bind_ip}"
         if identity_file:
-            cmd += (" -i %s" % identity_file)
+            cmd += f" -i {identity_file}"
         else:
-            cmd += " -o PreferredAuthentications=%s" % preferred_authenticaton
-        cmd += " %s@%s" % (username, host)
+            cmd += f" -o PreferredAuthentications={preferred_authenticaton}"
+        cmd += f" {username}@{host}"
     elif client == "telnet":
-        cmd = "telnet -l %s %s %s" % (username, host, port)
+        cmd = f"telnet -l {username} {host} {port}"
     elif client == "nc":
-        cmd = "nc %s %s %s" % (verbose, host, port)
+        cmd = f"nc {verbose} {host} {port}"
     else:
         raise LoginBadClientError(client)
 
@@ -584,23 +583,22 @@ def scp_to_remote(host, port, username, password, local_path, remote_path,
     :raise: Whatever remote_scp() raises
     """
     if limit:
-        limit = "-l %s" % (limit)
+        limit = f"-l {limit}"
 
     if host and host.lower().startswith("fe80"):
         if not interface:
             raise SCPError("When using ipv6 linklocal address must assign",
                            "the interface the neighbour attache")
-        host = "%s%%%s" % (host, interface)
+        host = f"{host}%{interface}"
 
     command = "scp"
     if directory:
-        command = "%s -r" % command
+        command = f"{command} -r"
     command += (r" -v -o UserKnownHostsFile=/dev/null "
                 r"-o StrictHostKeyChecking=no "
-                r"-o PreferredAuthentications=password %s "
-                r"-P %s %s %s@\[%s\]:%s" %
-                (limit, port, quote_path(local_path), username, host,
-                 pipes.quote(remote_path)))
+                fr"-o PreferredAuthentications=password {limit} "
+                fr"-P {port} {quote_path(local_path)} {username}@\[{host}\]:"
+                fr"{pipes.quote(remote_path)}")
     password_list = []
     password_list.append(password)
     return remote_scp(command, password_list,
@@ -629,22 +627,21 @@ def scp_from_remote(host, port, username, password, remote_path, local_path,
     :raise: Whatever remote_scp() raises
     """
     if limit:
-        limit = "-l %s" % (limit)
+        limit = f"-l {limit}"
     if host and host.lower().startswith("fe80"):
         if not interface:
             raise SCPError("When using ipv6 linklocal address must assign, ",
                            "the interface the neighbour attache")
-        host = "%s%%%s" % (host, interface)
+        host = f"{host}%{interface}"
 
     command = "scp"
     if directory:
-        command = "%s -r" % command
+        command = f"{command} -r"
     command += (r" -v -o UserKnownHostsFile=/dev/null "
                 r"-o StrictHostKeyChecking=no "
-                r"-o PreferredAuthentications=password %s "
-                r"-P %s %s@\[%s\]:%s %s" %
-                (limit, port, username, host, quote_path(remote_path),
-                 pipes.quote(local_path)))
+                fr"-o PreferredAuthentications=password {limit} "
+                fr"-P {port} {username}@\[{host}\]:{quote_path(remote_path)} "
+                fr"{pipes.quote(local_path)}")
     password_list = []
     password_list.append(password)
     remote_scp(command, password_list,
@@ -675,27 +672,26 @@ def scp_between_remotes(src, dst, port, s_passwd, d_passwd, s_name, d_name,
     :return: True on success and False on failure.
     """
     if limit:
-        limit = "-l %s" % (limit)
+        limit = f"-l {limit}"
     if src and src.lower().startswith("fe80"):
         if not src_inter:
             raise SCPError("When using ipv6 linklocal address must assign ",
                            "the interface the neighbour attache")
-        src = "%s%%%s" % (src, src_inter)
+        src = f"{src}%{src_inter}"
     if dst and dst.lower().startswith("fe80"):
         if not dst_inter:
             raise SCPError("When using ipv6 linklocal address must assign ",
                            "the interface the neighbour attache")
-        dst = "%s%%%s" % (dst, dst_inter)
+        dst = f"{dst}%{dst_inter}"
 
     command = "scp"
     if directory:
-        command = "%s -r" % command
+        command = f"{command} -r"
     command += (r" -v -o UserKnownHostsFile=/dev/null "
                 r"-o StrictHostKeyChecking=no "
-                r"-o PreferredAuthentications=password %s -P %s"
-                r" %s@\[%s\]:%s %s@\[%s\]:%s" %
-                (limit, port, s_name, src, quote_path(s_path), d_name, dst,
-                 pipes.quote(d_path)))
+                fr"-o PreferredAuthentications=password {limit} -P {port}"
+                fr" {s_name}@\[{src}\]:{quote_path(s_path)} {d_name}@\[{dst}\]"
+                fr":{pipes.quote(d_path)}")
     password_list = []
     password_list.append(s_passwd)
     password_list.append(d_passwd)
@@ -747,40 +743,38 @@ def nc_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
                                  c_prompt)
 
     try:
-        s_session.cmd("iptables -I INPUT -p %s -j ACCEPT" % d_protocol)
-        d_session.cmd("iptables -I OUTPUT -p %s -j ACCEPT" % d_protocol)
-    except Exception:   # pylint: disable=W0703
+        s_session.cmd(f"iptables -I INPUT -p {d_protocol} -j ACCEPT")
+        d_session.cmd(f"iptables -I OUTPUT -p {d_protocol} -j ACCEPT")
+    except Exception:  # pylint: disable=W0703
         pass
 
     logging.info("Transfer data using netcat from %s to %s", src, dst)
-    cmd = "nc -w %s" % timeout
+    cmd = f"nc -w {timeout}"
     if d_protocol == "udp":
         cmd += " -u"
-    receive_cmd = ("echo %s | %s -l %s > %s" %
-                   (check_string, cmd, d_port, d_path))
+    receive_cmd = (f"echo {check_string} | {cmd} -l {d_port} > {d_path}")
     d_session.sendline(receive_cmd)
-    send_cmd = "%s %s %s < %s" % (cmd, dst, d_port, s_path)
+    send_cmd = f"{cmd} {dst} {d_port} < {s_path}"
     status, output = s_session.cmd_status_output(
         send_cmd, timeout=file_transfer_timeout)
     if status:
-        err = "Fail to transfer file between %s -> %s." % (src, dst)
+        err = f"Fail to transfer file between {src} -> {dst}."
         if check_string not in output:
             err += ("src did not receive check "
-                    "string %s sent by dst." % check_string)
-        err += "send nc command %s, output %s" % (send_cmd, output)
-        err += "Receive nc command %s." % receive_cmd
+                    f"string {check_string} sent by dst.")
+        err += f"send nc command {send_cmd}, output {output}"
+        err += f"Receive nc command {receive_cmd}."
         raise NetcatTransferFailedError(status, err)
 
     if check_sum:
         logging.info("md5sum cmd = md5sum %s", s_path)
-        output = s_session.cmd("md5sum %s" % s_path)
+        output = s_session.cmd(f"md5sum {s_path}")
         src_md5 = output.split()[0]
-        dst_md5 = d_session.cmd("md5sum %s" % d_path).split()[0]
+        dst_md5 = d_session.cmd(f"md5sum {d_path}").split()[0]
         if src_md5.strip() != dst_md5.strip():
             err_msg = ("Files md5sum mismatch, "
-                       "file %s md5sum is '%s', "
-                       "but the file %s md5sum is %s" %
-                       (s_path, src_md5, d_path, dst_md5))
+                       f"file {s_path} md5sum is '{src_md5}', "
+                       f"but the file {d_path} md5sum is {dst_md5}")
             raise NetcatTransferIntegrityError(err_msg)
     return True
 
@@ -812,25 +806,25 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
         info = session.cmd_output(cmd, timeout=360).strip()
         drive_path = re.search(r'(\w):\s+(\S+)', info, re.M)
         if not drive_path:
-            raise UDPError("Not found file %s.%s in your guest"
-                           % (filename, extension))
+            raise UDPError(f"Not found file {filename}.{extension} "
+                           "in your guest")
         return ":".join(drive_path.groups())
 
     def get_file_md5(session, file_path):
         """Get files md5sums."""
         if c_type == "ssh":
-            md5_cmd = "md5sum %s" % file_path
-            md5_reg = r"(\w+)\s+%s.*" % file_path
+            md5_cmd = f"md5sum {file_path}"
+            md5_reg = fr"(\w+)\s+{file_path}.*"
         else:
             drive_path = get_abs_path(session, "md5sums", "exe")
             filename = file_path.split("\\")[-1]
-            md5_reg = r"%s\s+(\w+)" % filename
-            md5_cmd = '%smd5sums.exe %s | find "%s"' % (drive_path, file_path,
-                                                        filename)
+            md5_reg = fr"{filename}\s+(\w+)"
+            md5_cmd = (f'{drive_path}md5sums.exe {file_path} | '
+                       f'find "{filename}"')
         output = session.cmd_output(md5_cmd)
         file_md5 = re.findall(md5_reg, output)
         if not output:
-            raise UDPError("Get file %s md5sum error" % file_path)
+            raise UDPError(f"Get file {file_path} md5sum error")
         return file_md5
 
     def server_alive(session):
@@ -849,11 +843,10 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
     def start_server(session):
         """Start the server."""
         if c_type == "ssh":
-            start_cmd = "sendfile %s &" % d_port
+            start_cmd = f"sendfile {d_port} &"
         else:
             drive_path = get_abs_path(session, "sendfile", "exe")
-            start_cmd = "start /b %ssendfile.exe %s" % (drive_path,
-                                                        d_port)
+            start_cmd = f"start /b {drive_path}sendfile.exe {d_port}"
         session.cmd_output_safe(start_cmd)
         if not server_alive(session):
             raise UDPError("Start udt server failed")
@@ -861,8 +854,7 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
     def start_client(session):
         """Start the client."""
         if c_type == "ssh":
-            client_cmd = "recvfile %s %s %s %s" % (src, d_port,
-                                                   s_path, d_path)
+            client_cmd = f"recvfile {src} {d_port} {s_path} {d_path}"
         else:
             drive_path = get_abs_path(session, "recvfile", "exe")
             client_cmd_tmp = "%srecvfile.exe %s %s %s %s"
@@ -888,9 +880,8 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
         dst_md5 = get_file_md5(d_session, d_path)
         if src_md5 != dst_md5:
             err_msg = ("Files md5sum mismatch, "
-                       "file %s md5sum is '%s', "
-                       "but the file %s md5sum is %s" %
-                       (s_path, src_md5, d_path, dst_md5))
+                       f"file {s_path} md5sum is '{src_md5}', "
+                       f"but the file {d_path} md5sum is {dst_md5}")
             raise UDPError(err_msg)
     finally:
         stop_server(s_session)
@@ -965,26 +956,24 @@ def throughput_transfer(func):
     wrapper function for copy_files_to/copy_files_from function, will
     print throughput if filesize is not none, else will print elapsed time
     """
+
     def transfer(*args, **kwargs):
         """Wrapper transfer function."""
         if "from" in func.__name__:
-            msg = (
-                "Copy file from %s:%s to %s, " %
-                (args[0], args[5], args[6]))
+            msg = f"Copy file from {args[0]}:{args[5]} to {args[6]}, "
         else:
-            msg = (
-                "Copy file from %s to %s:%s, " %
-                (args[5], args[0], args[6]))
+            msg = f"Copy file from {args[5]} to {args[0]}:{args[6]}, "
         start_time = time.time()
         ret = func(*args, **kwargs)
         elapsed_time = time.time() - start_time
         if kwargs.get("fileszie", None) is not None:
             throughput = kwargs["filesize"] / elapsed_time
-            msg += "estimated throughput: %.2f MB/s" % throughput
+            msg += f"estimated throughput: {throughput:.2f} MB/s"
         else:
-            msg += "elapsed time: %s" % elapsed_time
+            msg += f"elapsed time: {elapsed_time}"
         logging.info(msg)
         return ret
+
     return transfer
 
 
@@ -1023,7 +1012,7 @@ def copy_files_to(address, client, username, password, port, local_path,
         if verbose:
             log_func = logging.debug
         if interface:
-            address = "%s%%%s" % (address, interface)
+            address = f"{address}%{interface}"
         fdclient = rss_client.FileUploadClient(address, port, log_func)
         fdclient.upload(local_path, remote_path, timeout)
         fdclient.close()
@@ -1066,7 +1055,7 @@ def copy_files_from(address, client, username, password, port, remote_path,
         if verbose:
             log_func = logging.debug
         if interface:
-            address = "%s%%%s" % (address, interface)
+            address = f"{address}%{interface}"
         fdclient = rss_client.FileDownloadClient(address, port, log_func)
         fdclient.download(remote_path, local_path, timeout)
         fdclient.close()

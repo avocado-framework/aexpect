@@ -71,7 +71,7 @@ class RemoteDoorTest(unittest.TestCase):
         self.assertEqual(len(remote_controls), 1)
         self.assertEqual(os.path.basename(local_controls[0]),
                          os.path.basename(remote_controls[0]))
-        with open(remote_controls[0]) as handle:
+        with open(remote_controls[0], encoding="utf-8") as handle:
             control_lines = handle.readlines()
         self.assertIn("import math\n", control_lines)
         self.assertIn("result = math.gcd(2, 3)\n", control_lines)
@@ -91,7 +91,7 @@ class RemoteDoorTest(unittest.TestCase):
         self.assertEqual(len(remote_controls), 1)
         self.assertEqual(os.path.basename(local_controls[0]),
                          os.path.basename(remote_controls[0]))
-        with open(remote_controls[0]) as handle:
+        with open(remote_controls[0], encoding="utf-8") as handle:
             control_lines = handle.readlines()
         self.assertIn("import json\n", control_lines)
         self.assertIn("result = json.dumps(['foo', {'bar': ['baz', None, 1.0, 2]}], "
@@ -111,22 +111,25 @@ class RemoteDoorTest(unittest.TestCase):
         self.assertEqual(len(remote_controls), 1)
         self.assertEqual(os.path.basename(local_controls[0]),
                          os.path.basename(remote_controls[0]))
-        with open(remote_controls[0]) as handle:
+        with open(remote_controls[0], encoding="utf-8") as handle:
             control_lines = handle.readlines()
         self.assertIn("result = collections.OrderedDict().get(r'akey')\n",
                       control_lines)
 
     def test_run_remote_decorator(self):
         """Test that a remote decorated function runs properly."""
+
         @remote_door.run_remotely
         def add_one(number):
             """A small decorated test function with extra nesting."""
+
             def do_nothing():
 
                 pass
 
             do_nothing()
             return number + 1
+
         result = add_one(self.session, 3)  # pylint: disable=E1121
         self.assertEqual(int(result), 4)
 
@@ -137,7 +140,7 @@ class RemoteDoorTest(unittest.TestCase):
         self.assertEqual(len(remote_controls), 1)
         self.assertEqual(os.path.basename(local_controls[0]),
                          os.path.basename(remote_controls[0]))
-        with open(remote_controls[0]) as handle:
+        with open(remote_controls[0], encoding="utf-8") as handle:
             control_lines = handle.readlines()
         self.assertIn("def add_one(number):\n", control_lines)
         self.assertIn("result = add_one(3)\n", control_lines)
@@ -170,7 +173,7 @@ class RemoteDoorTest(unittest.TestCase):
         self.assertEqual(os.path.basename(local_controls[0]),
                          os.path.basename(remote_controls[0]))
         self.assertEqual(control_file, os.path.basename(remote_controls[0]))
-        with open(control_file) as handle:
+        with open(control_file, encoding="utf-8") as handle:
             control_lines = handle.readlines()
             self.assertIn("import remote_door\n", control_lines)
             self.assertIn("result = remote_door.share_local_object(r'html', "
@@ -188,7 +191,7 @@ class RemoteDoorTest(unittest.TestCase):
 
         control_file = os.path.join(remote_door.REMOTE_CONTROL_DIR,
                                     "tmpxxxxxxxx.control")
-        with open(control_file, "wt") as handle:
+        with open(control_file, "wt", encoding="utf-8") as handle:
             handle.write("print('Remote objects shared over the network')")
 
         middleware = remote_door.share_remote_objects(self.session, control_file,

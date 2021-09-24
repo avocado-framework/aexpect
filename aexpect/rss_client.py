@@ -35,7 +35,6 @@ import argparse
 
 import six
 
-
 # Globals
 CHUNKSIZE = 65536
 
@@ -66,11 +65,12 @@ class FileTransferError(Exception):
     def __str__(self):
         errmsg = self.msg
         if self.error and self.filename:
-            errmsg += "    (error: %s,    filename: %s)" % (self.error, self.filename)
+            errmsg += (f"    (error: {self.error},"
+                       f"    filename: {self.filename})")
         elif self.error:
-            errmsg += "    (%s)" % self.error
+            errmsg += f"    ({self.error})"
         elif self.filename:
-            errmsg += "    (filename: %s)" % self.filename
+            errmsg += f"    (filename: {self.filename})"
         return errmsg
 
 
@@ -97,9 +97,9 @@ class FileTransferServerError(FileTransferError):
         super().__init__(None, errmsg)
 
     def __str__(self):
-        errmsg = "Server said: %r" % self.error
+        errmsg = f"Server said: {self.error!r}"
         if self.filename:
-            errmsg += "    (filename: %s)" % self.filename
+            errmsg += f"    (filename: {self.filename})"
         return errmsg
 
 
@@ -107,7 +107,7 @@ class FileTransferNotFoundError(FileTransferError):
     """Error related to file transfer missing files."""
 
 
-class FileTransferClient(object):
+class FileTransferClient:
 
     """
     Connect to a RSS (remote shell server) and transfer files.
@@ -134,7 +134,8 @@ class FileTransferClient(object):
             self._socket.connect(addrinfo[0][4])
         except socket.error as error:
             raise FileTransferConnectError("Cannot connect to server at "
-                                           "%s:%s" % (address, port), error) from error
+                                           f"{address}:{port}",
+                                           error) from error
         try:
             if self._receive_msg(timeout) != RSS_MAGIC:
                 raise FileTransferConnectError("Received wrong magic number")
@@ -166,7 +167,8 @@ class FileTransferClient(object):
             raise FileTransferTimeoutError("Timeout expired while sending "
                                            "data to server") from error
         except socket.error as error:
-            raise FileTransferSocketError("Could not send data to server", error) from error
+            raise FileTransferSocketError("Could not send data to server",
+                                          error) from error
 
     def _receive(self, size, timeout=60):
         strs = []
@@ -200,8 +202,8 @@ class FileTransferClient(object):
                 transferred = self.transferred / 1048576.
                 speed = (self.transferred - self._last_transferred) / delta
                 speed /= 1048576.
-                self._log_func("%s %.3f MB (%.3f MB/sec)" %
-                               (data, transferred, speed))
+                self._log_func(f"{data} {transferred:.3f} MB ({speed:%.3f}"
+                               " MB/sec)")
                 self._last_time = time.time()
                 self._last_transferred = self.transferred
 
@@ -221,7 +223,7 @@ class FileTransferClient(object):
 
     def _send_file_chunks(self, filename, timeout=60):
         if self._log_func:
-            self._log_func("Sending file %s" % filename)
+            self._log_func(f"Sending file {filename}")
         with open(filename, "rb") as file_handle:
             try:
                 end_time = time.time() + timeout
@@ -236,7 +238,7 @@ class FileTransferClient(object):
 
     def _receive_file_chunks(self, filename, timeout=60):
         if self._log_func:
-            self._log_func("Receiving file %s" % filename)
+            self._log_func(f"Receiving file {filename}")
         with open(filename, "wb") as file_handle:
             try:
                 end_time = time.time() + timeout
@@ -358,10 +360,9 @@ class FileUploadClient(FileTransferClient):
             else:
                 # If nothing was transferred, raise an exception
                 if not matches:
-                    raise FileTransferNotFoundError("Pattern %s does not "
-                                                    "match any files or "
-                                                    "directories" %
-                                                    src_pattern)
+                    raise FileTransferNotFoundError(f"Pattern {src_pattern} "
+                                                    "does not match any files "
+                                                    "or directories")
                 # Look for RSS_OK or RSS_ERROR
                 msg = self._receive_msg(end_time - time.time())
                 if msg == RSS_OK:
@@ -380,7 +381,8 @@ class FileUploadClient(FileTransferClient):
 class FileDownloadClient(FileTransferClient):
 
     """
-    Connect to a RSS (remote shell server) and download files or directory trees.
+    Connect to a RSS (remote shell server) and download files or directory
+    trees.
     """
 
     def __init__(self, address, port, log_func=None, timeout=20):
@@ -471,11 +473,9 @@ class FileDownloadClient(FileTransferClient):
                 elif msg == RSS_DONE:
                     # Transfer complete
                     if not file_count and not dir_count:
-                        raise FileTransferNotFoundError("Pattern %s does not "
-                                                        "match any files or "
-                                                        "directories that "
-                                                        "could be downloaded" %
-                                                        src_pattern)
+                        raise FileTransferNotFoundError(
+                            f"Pattern {src_pattern} does not match any files "
+                            "or directories that could be downloaded")
                     break
                 elif msg == RSS_ERROR:
                     # Receive error message and abort
@@ -543,9 +543,11 @@ def main():
 
     logger = None
     if args.verbose:
+
         def log_print(message):
             """Print logger."""
             print(message)
+
         logger = log_print
 
     if args.download:
