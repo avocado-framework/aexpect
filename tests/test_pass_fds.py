@@ -19,7 +19,6 @@ import unittest
 
 from aexpect import client
 
-
 LIST_FD_CMD = ('''python -c "import os; os.system('ls -l /proc/%d/fd' % '''
                '''os.getpid())"''')
 
@@ -31,7 +30,7 @@ class PassfdsTest(unittest.TestCase):
         """
         Tests fd passing for `client.Spawn`
         """
-        with open(os.devnull, "r") as devnull:
+        with open(os.devnull, "r", encoding="utf-8") as devnull:
             fd_null = devnull.fileno()
 
             child = client.Spawn(LIST_FD_CMD)

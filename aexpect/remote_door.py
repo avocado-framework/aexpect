@@ -83,7 +83,6 @@ try:
 except ImportError:
     pass
 
-
 #############################################
 #   REMOTE UTILITIES / GENERATED CONTROLS   #
 #############################################
@@ -103,15 +102,17 @@ REMOTE_PYTHON_PATH = "/tmp/utils"
 
 
 def _string_call(function, *args, **kwargs):
+
     def arg_to_str(arg):
         if isinstance(arg, str):
-            return "r'%s'" % arg
-        return "%s" % arg
+            return f"r'{arg}'"
+        return f"{arg}"
+
     args = tuple(arg_to_str(arg) for arg in args)
-    kwargs = tuple("%s=%s" % (key, arg_to_str(value))
+    kwargs = tuple(f"{key}={arg_to_str(value)}"
                    for key, value in sorted(kwargs.items()))
     arguments = ", ".join(args + kwargs)
-    return "result = %s(%s)\n" % (function, arguments)
+    return f"result = {function}({arguments})\n"
 
 
 def _string_generated_control(client, control_body):
@@ -119,7 +120,7 @@ def _string_generated_control(client, control_body):
     control_header += "logging.basicConfig(level=logging.DEBUG, format='%(module)-16.16s '\n"  # pylint: disable=C0301
     control_header += "                    'L%(lineno)-.4d %(levelname)-5.5s| %(message)s')\n"  # pylint: disable=C0301
     control_header += "import sys\n"
-    control_header += "sys.path.append('%s')\n" % REMOTE_PYTHON_PATH
+    control_header += f"sys.path.append('{REMOTE_PYTHON_PATH}')\n"
 
     # the string call will make sure this variable always exists
     control_footer = "print('RESULT = ' + str(result))\n"
@@ -162,7 +163,7 @@ def run_remote_util(session, utility, function, *args, detach=False, **kwargs):
     This supports return arguments of the decorated function but needs its own
     deserialization since all arguments are returned as strings.
     """
-    control_body = "import %s\n" % utility
+    control_body = f"import {utility}\n"
     control_body += _string_call(utility + "." + function, *args, **kwargs)
     control_path = _string_generated_control(session.client, control_body)
     logging.debug("Accessing %s remote utility using the wrapper control %s",
@@ -186,6 +187,7 @@ def run_remotely(function):
     This supports return arguments of the decorated function but needs its own
     deserialization since all arguments are returned as strings.
     """
+
     def wrapper(session, *args, **kwargs):
         # drop first argument and first line with the decorator since function already runs remotely
         fn_source = inspect.getsourcelines(function)[0][1:]
@@ -203,7 +205,6 @@ def run_remotely(function):
         return re.search("RESULT = (.*)", full_output).group(1)
 
     return wrapper
-
 
 ##################################
 #   STATIC (TEMPLATE) CONTROLS   #
@@ -224,7 +225,8 @@ def _copy_control(session, control_path, is_utility=False):
         # ..todo:: use `remote_dir` here
         remote_control_path = "%TEMP%\\" + os.path.basename(control_path)
     else:
-        raise NotImplementedError("run_subcontrol not implemented for client %s" % session.client)
+        raise NotImplementedError("run_subcontrol not implemented for client "
+                                  f"{session.client}")
     remote.copy_files_to(session.host, transfer_client,
                          session.username, session.password, transfer_port,
                          control_path, remote_control_path)
@@ -254,7 +256,8 @@ def run_subcontrol(session, control_path, timeout=600, detach=False):
         python_binary = session.cmd("where python", timeout=timeout,
                                     print_func=logging.info).strip()
     else:
-        raise NotImplementedError("run_subcontrol not implemented for client %s" % session.client)
+        raise NotImplementedError("run_subcontrol not implemented for client "
+                                  f"{session.client}")
     cmd = python_binary + " " + remote_control_path
     if detach:
         session.set_output_func(logging.info)
@@ -291,7 +294,7 @@ def prep_subcontrol(src_file, src_dir=None):
     new_fd, new_path = tempfile.mkstemp(suffix=".control", dir=dump_dir)
     logging.debug("Using %s for modified control path %s", new_path, src_file)
 
-    with open(src_path, "rt") as src_f:
+    with open(src_path, "rt", encoding="utf-8") as src_f:
         with os.fdopen(new_fd, "wt") as new_f:
             new_f.write(src_f.read())
 
@@ -307,15 +310,17 @@ def set_subcontrol(function):
     :returns: same function with control file handling
     :rtype: function
     """
+
     def wrapper(*args, **kwargs):
         control_path = args[0]
         control = prep_subcontrol(control_path)
-        with open(control, "rt") as handle:
+        with open(control, "rt", encoding="utf-8") as handle:
             subcontrol = handle.read()
         modcontrol = function(subcontrol, *args[1:], **kwargs)
-        with open(control, "wt") as handle:
+        with open(control, "wt", encoding="utf-8") as handle:
             handle.write(modcontrol)
         return control
+
     return wrapper
 
 
@@ -333,8 +338,8 @@ def set_subcontrol_parameter(subcontrol, parameter, value):
     .. warning:: The `subcontrol` parameter is control path externally but
         control content internally after decoration.
     """
-    return re.sub("%s[ \t\v]*=[ \t\v]*.*" % parameter.upper(),
-                  "%s = %s" % (parameter.upper(), repr(value)),
+    return re.sub(f"{parameter.upper()}[ \t\v]*=[ \t\v]*.*",
+                  f"{parameter.upper()} = {value!r}",
                   subcontrol, count=1)
 
 
@@ -353,8 +358,8 @@ def set_subcontrol_parameter_list(subcontrol, list_name, value):
     .. warning:: The `subcontrol` parameter is control path externally but
         control content internally after decoration.
     """
-    return re.sub(r"%s[ \t\v]*=[ \t\v]*\[.*\]" % list_name.upper(),
-                  "%s = %s" % (list_name.upper(), repr(value)),
+    return re.sub(fr"{list_name.upper()}[ \t\v]*=[ \t\v]*\[.*\]",
+                  f"{list_name.upper()} = {value!r}",
                   subcontrol, count=1)
 
 
@@ -373,8 +378,8 @@ def set_subcontrol_parameter_dict(subcontrol, dict_name, value):
     .. warning:: The `subcontrol` parameter is control path externally but
         control content internally after decoration.
     """
-    return re.sub(r"%s[ \t\v]*=[ \t\v]*\{.*\}" % dict_name.upper(),
-                  "%s = %s" % (dict_name.upper(), repr(value)),
+    return re.sub(fr"{dict_name.upper()}[ \t\v]*=[ \t\v]*\{{.*\}}",
+                  f"{dict_name.upper()} = {value!r}",
                   subcontrol, count=1)
 
 
@@ -433,15 +438,15 @@ def set_subcontrol_parameter_object(subcontrol, value):
         loop.start()
 
     logging.debug("Sending the params object to the host via uri %s", uri)
-    subcontrol = re.sub("URI[ \t\v]*=[ \t\v]*\".*\"", "URI = \"%s\"" % uri,
+    subcontrol = re.sub("URI[ \t\v]*=[ \t\v]*\".*\"", f"URI = \"{uri}\"",
                         subcontrol, count=1)
 
     return subcontrol
 
-
 ######################
 #   REMOTE OBJECTS   #
 ######################
+
 
 class DaemonLoop(threading.Thread):
     """Loop thread for sharing remote objects."""
@@ -455,7 +460,7 @@ class DaemonLoop(threading.Thread):
         """
         super().__init__()
         self.pyro_daemon = pyro_daemon
-        self.daemon = True     # make this a Daemon Thread
+        self.daemon = True  # make this a Daemon Thread
 
     def run(self):
         """Run the Pyro4 daemon thread."""
@@ -498,7 +503,7 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
     work because the remote door takes care to reach back the local one.
     """
     try:
-        remote_object = Pyro4.Proxy("PYRONAME:" + object_name + "@" + host + ":" + str(port))
+        remote_object = Pyro4.Proxy(f"PYRONAME:{object_name}@{host}:{port}")
         remote_object._pyroBind()
     except Pyro4.errors.PyroError as error:
         if not session:
@@ -515,11 +520,11 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
                 break
             time.sleep(1)
         else:
-            raise OSError("Local object sharing failed:\n%s" % output) from error
+            raise OSError(f"Local object sharing failed:\n{output}") from error
         logging.debug("Local object sharing output:\n%s", output)
         logging.getLogger("Pyro4").setLevel(10)
 
-        remote_object = Pyro4.Proxy("PYRONAME:" + object_name + "@" + host + ":" + str(port))
+        remote_object = Pyro4.Proxy(f"PYRONAME:{object_name}@{host}:{port}")
         remote_object._pyroBind()
     return remote_object
 
@@ -561,7 +566,8 @@ def get_remote_objects(session=None, host="localhost", port=0):
             time.sleep(1)
             control_log = session.cmd("cat " + REMOTE_CONTROL_LOG)
         else:
-            raise OSError("Local objects sharing failed:\n%s" % control_log) from error
+            raise OSError("Local objects sharing failed:\n"
+                          f"{control_log}") from error
         logging.debug("Local objects sharing output:\n%s", control_log)
 
         remote_objects = flame.connect(host + ":" + str(port))
@@ -597,7 +603,7 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
         pyrod_running = False
     # address already in use OS error
     except OSError:
-        pyro_daemon = Pyro4.Proxy("PYRO:" + Pyro4.constants.DAEMON_NAME + "@" + host)
+        pyro_daemon = Pyro4.Proxy(f"PYRO:{Pyro4.constants.DAEMON_NAME}@{host}")
         pyro_daemon.ping()
         logging.debug("Pyro4 daemon already started, available objects: %s",
                       pyro_daemon.registered())
@@ -621,6 +627,7 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
 
     def proxymethod(fun):
         """Decorator to autoproxy all callables."""
+
         def wrapper(*args, **kwargs):
             rarg = fun(*args, **kwargs)
 
@@ -635,17 +642,22 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
                     return {proxify_type(k): proxify_type(v) for (k, v) in rarg.items()}
                 pyro_daemon.register(rarg)
                 return rarg
+
             import types
             if isinstance(rarg, types.GeneratorType):
+
                 def generator_wrapper():
                     for nxt in rarg:
                         yield proxify_type(nxt)
+
                 return generator_wrapper()
             return proxify_type(rarg)
+
         return wrapper
 
     class ModuleObject:  # pylint: disable=R0903
         """Module wrapped for transferability."""
+
     for fname, fobj in inspect.getmembers(module, inspect.isfunction):
         if not whitelist or (object_name, fname) in whitelist:
             setattr(ModuleObject, fname, staticmethod(proxymethod(fobj)))
@@ -735,7 +747,7 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
 
     # setup remote objects server
     logging.info("Starting nameserver for the remote objects")
-    cmd = "python -m Pyro4.naming -n %s -p %s" % (host, port)
+    cmd = f"python -m Pyro4.naming -n {host} -p {port}"
     session.cmd("START " + cmd if os_type == "windows" else cmd + " &")
 
     logging.info("Starting the server daemon for the remote objects")
@@ -761,7 +773,7 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     middleware_session.set_status_test_command(session.status_test_command)
     middleware_session.set_output_func(logging.info)
     middleware_session.set_output_params(())
-    middleware_session.sendline("python %s" % remote_path)
+    middleware_session.sendline(f"python {remote_path}")
 
     # HACK: not the best way to do this but the stderr and stdout are mixed and we
     # cannot get the exit status so we rely on the mixed stdout/stderr output
@@ -796,6 +808,7 @@ def import_remote_exceptions(exceptions=None, modules=None):
         security problems at the moment made us prefer the serpent serializer paying
         for it with some extra setup steps and this method.
     """
+
     def list_module_exceptions(modstr):
         module = importlib.import_module(modstr)
         exceptions = []

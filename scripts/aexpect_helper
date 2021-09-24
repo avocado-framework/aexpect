@@ -37,9 +37,9 @@ def main():     # too-many-* pylint:disable=R0914,R0912,R0915
     a_id = sys.stdin.readline().strip()
     echo = sys.stdin.readline().strip() == "True"
     readers = sys.stdin.readline().strip().split(",")
-    command = sys.stdin.readline().strip() + " && echo %s > /dev/null" % a_id
+    command = sys.stdin.readline().strip() + f" && echo {a_id} > /dev/null"
 
-    base_dir = os.path.join(BASE_DIR, 'aexpect_%s' % a_id)
+    base_dir = os.path.join(BASE_DIR, f"aexpect_{a_id}")
 
     # Define filenames to be used for communication
     (shell_pid_filename,
@@ -82,13 +82,12 @@ def main():     # too-many-* pylint:disable=R0914,R0912,R0915
                 # (1 + len(command) * 4 / 8290304) * 8196
                 # 2MB => 8196kb, 4MB => 16392, ...
                 new_stack = (1 + len(command) / 2072576) * 8196
-                command = "ulimit -s %s\nulimit -n 819200\n%s" % (new_stack,
-                                                                  command)
+                command = f"ulimit -s {new_stack}\nulimit -n 819200\n{command}"
             tmp_file = tempfile.mktemp(suffix='.sh',
                                        prefix='aexpect-', dir=base_dir)
-            with open(tmp_file, "w") as fd_cmd:
+            with open(tmp_file, "w", encoding="utf-8") as fd_cmd:
                 fd_cmd.write(command)
-            os.execv("/bin/bash", ["/bin/bash", "-c", "source %s" % tmp_file])
+            os.execv("/bin/bash", ["/bin/bash", "-c", f"source {tmp_file}"])
             os.remove(tmp_file)
         else:
             os.execv("/bin/bash", ["/bin/bash", "-c", command])
@@ -119,11 +118,11 @@ def main():     # too-many-* pylint:disable=R0914,R0912,R0915
 
             # Write shell PID to file
             server_log.info('Writing shell PID file %s', shell_pid_filename)
-            with open(shell_pid_filename, "w") as file_obj:
+            with open(shell_pid_filename, "w", encoding="utf-8") as file_obj:
                 file_obj.write(str(shell_pid))
 
             # Print something to stdout so the client can start working
-            print("Server %s ready" % a_id)    # py3k pylint: disable=C0325
+            print(f"Server {a_id} ready")    # py3k pylint: disable=C0325
             sys.stdout.flush()
 
             # Initialize buffers
@@ -181,7 +180,7 @@ def main():     # too-many-* pylint:disable=R0914,R0912,R0915
 
             server_log.info('Out of the main read loop. Writing status to %s',
                             status_filename)
-            with open(status_filename, "w") as file_obj:
+            with open(status_filename, "w", encoding="utf-8") as file_obj:
                 file_obj.write(str(status))
 
             # Wait for the client to finish initializing

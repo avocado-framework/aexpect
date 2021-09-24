@@ -16,7 +16,7 @@ Naive module that keeps tacks of some opened files and somehow manages them.
 import os
 
 # This variable is used from Avocado-vt
-_open_log_files = {}    # pylint: disable=C0103
+_open_log_files = {}  # pylint: disable=C0103
 
 
 def close_log_file(filename):

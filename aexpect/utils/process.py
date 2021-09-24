@@ -35,7 +35,7 @@ class CmdError(Exception):
     def __str__(self):
         if self.result is not None:
             if self.result.interrupted:
-                return "Command %s interrupted by user (Ctrl+C)" % self.command
+                return f"Command {self.command} interrupted by user (Ctrl+C)"
             if self.result.exit_status is None:
                 msg = "Command '%s' failed and is not responding to signals"
                 msg %= self.command
@@ -70,7 +70,7 @@ def kill_process_tree(pid, sig=signal.SIGKILL):
     """
     if not safe_kill(pid, signal.SIGSTOP):
         return
-    children = getoutput("ps --ppid=%d -o pid=" % pid).split()
+    children = getoutput(f"ps --ppid={int(pid)} -o pid=").split()
     for child in children:
         kill_process_tree(int(child), sig)
     safe_kill(pid, sig)
@@ -83,7 +83,7 @@ def get_children_pids(ppid):
     param ppid: parent PID
     return: list of PIDs of all children/threads of ppid
     """
-    return getoutput("ps -L --ppid=%d -o lwp" % ppid).split('\n')[1:]
+    return getoutput(f"ps -L --ppid={int(ppid)} -o lwp").split('\n')[1:]
 
 
 def process_in_ptree_is_defunct(ppid):
@@ -101,7 +101,7 @@ def process_in_ptree_is_defunct(ppid):
     except CmdError:  # Process doesn't exist
         return True
     for pid in pids:
-        cmd = "ps --no-headers -o cmd %d" % int(pid)
+        cmd = f"ps --no-headers -o cmd {int(pid)}"
         proc_name = getoutput(cmd)
         if '<defunct>' in proc_name:
             defunct = True

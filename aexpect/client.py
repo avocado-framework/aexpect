@@ -52,7 +52,6 @@ from aexpect.utils import process as utils_process
 from aexpect.utils import path as utils_path
 from aexpect.utils import wait as utils_wait
 
-
 _THREAD_KILL_REQUESTED = threading.Event()
 
 
@@ -70,7 +69,7 @@ def kill_tail_threads():
     _THREAD_KILL_REQUESTED.clear()
 
 
-class Spawn(object):
+class Spawn:
 
     """
     This class is used for spawning and controlling a child process.
@@ -136,7 +135,7 @@ class Spawn(object):
         else:
             self.encoding = encoding
         self.reader_fds = {}
-        base_dir = os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id)
+        base_dir = os.path.join(BASE_DIR, f"aexpect_{self.a_id}")
 
         # Define filenames for communication with server
         utils_path.init_dir(base_dir)
@@ -179,7 +178,7 @@ class Spawn(object):
         # Start the server (which runs the command)
         if command:
             helper_cmd = utils_path.find_command('aexpect_helper')
-            self._aexpect_helper = subprocess.Popen([helper_cmd],   # pylint: disable=R1732
+            self._aexpect_helper = subprocess.Popen([helper_cmd],  # pylint: disable=R1732
                                                     shell=True,
                                                     stdin=subprocess.PIPE,
                                                     stdout=subprocess.PIPE,
@@ -187,14 +186,14 @@ class Spawn(object):
                                                     pass_fds=pass_fds)
             sub = self._aexpect_helper
             # Send parameters to the server
-            sub.stdin.write(("%s\n" % self.a_id).encode(self.encoding))
-            sub.stdin.write(("%s\n" % echo).encode(self.encoding))
-            readers = "%s\n" % ",".join(self.readers)
-            sub.stdin.write(readers.encode(self.encoding))
-            sub.stdin.write(("%s\n" % command).encode(self.encoding))
+            sub.stdin.write(f"{self.a_id}\n".encode(self.encoding))
+            sub.stdin.write(f"{echo}\n".encode(self.encoding))
+            readers = ",".join(self.readers)
+            sub.stdin.write(f"{readers}\n".encode(self.encoding))
+            sub.stdin.write(f"{command}\n".encode(self.encoding))
             sub.stdin.flush()
             # Wait for the server to complete its initialization
-            while ("Server %s ready" % self.a_id not in
+            while (f"Server {self.a_id} ready" not in
                    sub.stdout.readline().decode(self.encoding, "ignore")):
                 pass
 
@@ -291,7 +290,8 @@ class Spawn(object):
         command.
         """
         try:
-            with open(self.shell_pid_filename, 'r') as pid_file:
+            with open(self.shell_pid_filename, 'r',
+                      encoding='utf-8') as pid_file:
                 try:
                     return int(pid_file.read())
                 except ValueError:
@@ -306,7 +306,8 @@ class Spawn(object):
         """
         wait_for_lock(self.lock_server_running_filename)
         try:
-            with open(self.status_filename, 'r') as status_file:
+            with open(self.status_filename, 'r',
+                      encoding='utf-8') as status_file:
                 try:
                     return int(status_file.read())
                 except ValueError:
@@ -370,7 +371,7 @@ class Spawn(object):
             self.reader_fds = {}
             # Remove all used files
             if 'AEXPECT_DEBUG' not in os.environ:
-                shutil.rmtree(os.path.join(BASE_DIR, 'aexpect_%s' % self.a_id))
+                shutil.rmtree(os.path.join(BASE_DIR, f'aexpect_{self.a_id}'))
             self.closed = True
         if self._aexpect_helper:
             try:
@@ -439,7 +440,7 @@ class Spawn(object):
         """
         try:
             helper_control_pipe = os.open(self.ctrlpipe_filename, os.O_RDWR)
-            data = "%10d%s" % (len(control_str), control_str)
+            data = f"{len(control_str):10d}{control_str}"
             os.write(helper_control_pipe, data.encode(self.encoding))
             os.close(helper_control_pipe)
         except OSError:
@@ -512,8 +513,7 @@ class Tail(Spawn):
         super().__init__(command, a_id, auto_close, echo, linesep,
                          pass_fds, encoding)
         if thread_name is None:
-            self.thread_name = "tail_thread_%s_%s" % (self.a_id,
-                                                      str(command)[:10])
+            self.thread_name = f"tail_thread_{self.a_id}_{str(command)[:10]}"
         else:
             self.thread_name = thread_name
 
@@ -603,6 +603,7 @@ class Tail(Spawn):
             genio.close_log_file(self.log_file)
 
     def _tail(self):  # speed optimization pylint: disable=too-many-branches
+
         def _print_line(text):
             # Pre-pend prefix and remove trailing whitespace
             text = self.output_prefix + text.rstrip()
@@ -636,7 +637,7 @@ class Tail(Spawn):
                     if not new_data:
                         break
                     new_data = new_data.decode(self.encoding, "ignore")
-                    if not new_data:    # all chars were ignored, skip round
+                    if not new_data:  # all chars were ignored, skip round
                         continue
                     bfr += new_data
                     # Send the output to output_func line by line
@@ -660,7 +661,7 @@ class Tail(Spawn):
             status = self.get_status()
             if status is None:
                 return
-            _print_line("(Process terminated with status %s)" % status)
+            _print_line(f"(Process terminated with status {status})")
             try:
                 params = self.termination_params + (status,)
                 self.termination_func(*params)
@@ -915,6 +916,7 @@ class Expect(Tail):
                 terminates while waiting for output
         :raise ExpectError: Raised if an unknown error occurs
         """
+
         def _get_last_word(cont):
             if cont:
                 return cont.split()[-1]
@@ -946,8 +948,9 @@ class Expect(Tail):
                 terminates while waiting for output
         :raise ExpectError: Raised if an unknown error occurs
         """
+
         def _get_last_nonempty_line(cont):
-            nonempty_lines = [l for l in cont.splitlines() if l.strip()]
+            nonempty_lines = [_ for _ in cont.splitlines() if _.strip()]
             if nonempty_lines:
                 return nonempty_lines[-1]
             return ""
@@ -1214,7 +1217,7 @@ class ShellSession(Expect):
                 out += self.read_up_to_prompt(0.5)
                 success = True
                 break
-            except ExpectTimeoutError as error:
+            except ExpectTimeoutError:
                 self.sendline()
             except ExpectProcessTerminatedError as error:
                 output = self.remove_command_echo(error.output, cmd)
@@ -1264,8 +1267,8 @@ class ShellSession(Expect):
             raise ShellStatusError(cmd, out) from error
 
         # Get the first line consisting of digits only
-        digit_lines = [l for l in status.splitlines()
-                       if self.__RE_STATUS.match(l.strip())]
+        digit_lines = [_ for _ in status.splitlines()
+                       if self.__RE_STATUS.match(_.strip())]
         if digit_lines:
             return int(digit_lines[0].strip()), out
         raise ShellStatusError(cmd, out)

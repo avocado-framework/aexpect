@@ -21,7 +21,7 @@ BASE_DIR = os.environ.get('TMPDIR', '/tmp')
 def get_lock_fd(filename):
     """Lock a file"""
     if not os.path.exists(filename):
-        with open(filename, "w"):
+        with open(filename, "w", encoding="utf-8"):
             pass
     lock_fd = os.open(filename, os.O_RDWR)
     fcntl.lockf(lock_fd, fcntl.LOCK_EX)
@@ -94,4 +94,4 @@ def get_filenames(base_dir):
 
 def get_reader_filename(base_dir, reader):
     """Return path to pipe of the the associated reader"""
-    return os.path.join(base_dir, "outpipe-%s" % reader)
+    return os.path.join(base_dir, f"outpipe-{reader}")

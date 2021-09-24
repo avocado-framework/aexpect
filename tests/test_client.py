@@ -32,7 +32,7 @@ class ClientTest(unittest.TestCase):
                        for _ in range(10)])
         python = client.Spawn(sys.executable)
         self.assertTrue(python.is_alive())
-        python.sendline("print('%s')" % key)
+        python.sendline(f"print('{key}')")
         python.sendline("quit()")
         self.assertEqual(python.get_status(), 0)
         self.assertIn(key, python.get_output())
@@ -78,18 +78,17 @@ class CommandsTests(unittest.TestCase):
                 # make sure we try this at least twice as the second
                 # command will be processed after the helper realizes
                 # it's dead.
-                out = getattr(session, cmd)('kill %s' % session.get_pid())
+                out = getattr(session, cmd)(f"kill {session.get_pid()}")
                 out += getattr(session, cmd)('true')
                 self.fail("Killed session did not produce 'ShellError' using "
-                          "command %s (%s)\n%s" % (cmd, self.cmds, out))
+                          f"command {cmd} ({self.cmds})\n{out}")
             except client.ShellError as details:
                 if cmd in ("cmd_output", "cmd_output_safe"):
                     if not isinstance(details,
                                       client.ShellProcessTerminatedError):
-                        self.fail("Incorrect exception '%s' (%s) was raised "
-                                  "using command %s (%s)\n%s"
-                                  % (details, type(details), cmd, self.cmds,
-                                     out))
+                        self.fail(f"Incorrect exception '{details}' "
+                                  f"({type(details)}) was raised using command"
+                                  f" {cmd} ({self.cmds})\n{out}")
 
     def test_cmd_timeout(self):
         """Check that 0s timeout timeouts"""
@@ -100,18 +99,18 @@ class CommandsTests(unittest.TestCase):
                 continue
             session = client.ShellSession("sh")
             try:
-                execute = ("%s -c 'import time; time.sleep(10)'"
-                           % sys.executable)
+                execute = (f"{sys.executable} -c "
+                           "'import time; time.sleep(10)'")
                 out = getattr(session, cmd)(execute, timeout=0)
                 self.fail("Killed session did not produce 'ShellError' using "
-                          "command %s (%s)\n%s" % (cmd, self.cmds, out))
+                          f"command {cmd} ({self.cmds})\n{out}")
             except client.ShellError as details:
                 if cmd in ("cmd_output", "cmd_output_safe"):
                     if not isinstance(details,
                                       client.ShellTimeoutError):
-                        self.fail("Incorrect exception '%s' (%s) was raised "
-                                  "using command %s (%s)"
-                                  % (details, type(details), cmd, self.cmds))
+                        self.fail(f"Incorrect exception '{details}' "
+                                  f"({type(details)}) was raised "
+                                  f"using command {cmd} ({self.cmds})")
 
 
 if __name__ == '__main__':
