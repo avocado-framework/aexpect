@@ -344,7 +344,8 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
                  interface=None, identity_file=None,
                  status_test_command="echo $?", verbose=False, bind_ip=None,
                  preferred_authenticaton='password',
-                 user_known_hosts_file='/dev/null'):
+                 user_known_hosts_file='/dev/null',
+                 extra_cmdline=''):
     """
     Log into a remote host (guest) using SSH/Telnet/Netcat.
 
@@ -372,20 +373,25 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
                     client(specify interface ip)
     :param preferred_authenticaton: Given value of PreferredAuthentications in ssh
     :param user_known_hosts_file: Given value of UserKnownHostsFile in ssh
+    :param extra_cmdline: Additional params for the session, like -X for SSH.
     :raise LoginError: If using ipv6 linklocal but not assign a interface that
                        the neighbour attache
     :raise LoginBadClientError: If an unknown client is requested
     :raise: Whatever handle_prompts() raises
     :return: A RemoteSession object.
     """
-    verbose = "-vv" if verbose else ""
+    extra_params = []
+    if verbose:
+        extra_params.append("-vv")
+    if extra_cmdline:
+        extra_params.append(extra_cmdline)
     if host and host.lower().startswith("fe80"):
         if not interface:
             raise RemoteError("When using ipv6 linklocal an interface must "
                               "be assigned")
         host = f"{host}%{interface}"
     if client == "ssh":
-        cmd = (f"ssh {verbose} -o UserKnownHostsFile={user_known_hosts_file} "
+        cmd = (f"ssh {' '.join(extra_params)} -o UserKnownHostsFile={user_known_hosts_file} "
                f"-o StrictHostKeyChecking=no -p {port}")
         if bind_ip:
             cmd += f" -b {bind_ip}"
