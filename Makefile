@@ -10,7 +10,7 @@ COMMIT_DATE=$(shell git log --pretty='format:%cd' --date='format:%Y%m%d' -n 1)
 MOCK_CONFIG=default
 
 all:
-	@echo "make check - Runs tree static check, unittests and functional tests"
+	@echo "make check - Runs tree static check, unittests and functional tests. Some tests are only executed when AEXPECT_TIME_SENSITIVE=yes is set."
 	@echo "make clean - Get rid of scratch and byte files"
 	@echo "make source - Create source package"
 	@echo "make install - Install on local system"

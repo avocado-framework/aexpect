@@ -14,6 +14,7 @@
 
 # selftests pylint: disable=C0111,C0111
 
+import os
 import random
 import string
 import sys
@@ -111,6 +112,21 @@ class CommandsTests(unittest.TestCase):
                         self.fail(f"Incorrect exception '{details}' "
                                   f"({type(details)}) was raised "
                                   f"using command {cmd} ({self.cmds})")
+
+    @unittest.skipUnless(os.environ.get('AEXPECT_TIME_SENSITIVE'),
+                         "AEXPECT_TIME_SENSITIVE env variable not set")
+    def test_cmd_output_with_inner_timeout(self):
+        """
+        cmd_output_safe uses 0.5s inner timeout, make sure all lines are
+        present in the output.
+        """
+        session = client.ShellSession("sh")
+        out = session.cmd_output_safe("echo FIRST LINE; sleep 2; "
+                                      "echo SECOND LINE; sleep 2; "
+                                      "echo THIRD LINE")
+        self.assertIn("FIRST LINE", out)
+        self.assertIn("SECOND LINE", out)
+        self.assertIn("THIRD LINE", out)
 
 
 if __name__ == '__main__':
