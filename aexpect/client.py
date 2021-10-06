@@ -1217,13 +1217,15 @@ class ShellSession(Expect):
                 out += self.read_up_to_prompt(0.5)
                 success = True
                 break
-            except ExpectTimeoutError:
+            except ExpectTimeoutError as error:
+                out = f"{out}{error.output}"
                 self.sendline()
             except ExpectProcessTerminatedError as error:
-                output = self.remove_command_echo(error.output, cmd)
-                raise ShellProcessTerminatedError(cmd, error.status, output) from error
+                output = self.remove_command_echo(f"{out}{error.output}", cmd)
+                raise ShellProcessTerminatedError(cmd, error.status,
+                                                  output) from error
             except ExpectError as error:
-                output = self.remove_command_echo(error.output, cmd)
+                output = self.remove_command_echo(f"{out}{error.output}", cmd)
                 raise ShellError(cmd, output) from error
 
         if not success:
