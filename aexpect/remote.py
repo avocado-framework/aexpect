@@ -55,6 +55,8 @@ from aexpect.exceptions import ExpectTimeoutError
 from aexpect.exceptions import ExpectProcessTerminatedError
 from aexpect import rss_client
 
+LOG = logging.getLogger(__name__)
+
 #: prompt to be used for shell sessions on linux machines (default)
 PROMPT_LINUX = r"^\[.*\][\#\$]\s*$"
 #: prompt to be used for shell sessions on windows machines
@@ -265,13 +267,13 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
             output += text
             if match == 0:  # "Are you sure you want to continue connecting"
                 if debug:
-                    logging.debug("Got 'Are you sure...', sending 'yes'")
+                    LOG.debug("Got 'Are you sure...', sending 'yes'")
                 session.sendline("yes")
             elif match in [1, 2, 3, 10]:  # "password:"
                 if password_prompt_count == 0:
                     if debug:
-                        logging.debug("Got password prompt, sending '%s'",
-                                      password)
+                        LOG.debug("Got password prompt, sending '%s'",
+                                  password)
                     session.sendline(password)
                     password_prompt_count += 1
                 else:
@@ -280,8 +282,8 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
             elif match in [4, 9]:  # "login:"
                 if login_prompt_count == 0 and password_prompt_count == 0:
                     if debug:
-                        logging.debug("Got username prompt; sending '%s'",
-                                      username)
+                        LOG.debug("Got username prompt; sending '%s'",
+                                  username)
                     session.sendline(username)
                     login_prompt_count += 1
                 else:
@@ -300,26 +302,26 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
                 raise LoginError("Disconnected to vm on remote host", text)
             elif match == 7:  # "Please wait"
                 if debug:
-                    logging.debug("Got 'Please wait'")
+                    LOG.debug("Got 'Please wait'")
                 timeout = 30
             elif match == 8:  # "Warning added RSA"
                 if debug:
-                    logging.debug("Got 'Warning added RSA to known host list")
+                    LOG.debug("Got 'Warning added RSA to known host list")
             elif match == 12:  # prompt
                 if debug:
-                    logging.debug("Got shell prompt -- logged in")
+                    LOG.debug("Got shell prompt -- logged in")
                 break
             elif match == 13:  # console prompt
-                logging.debug("Got console prompt, send return to show login")
+                LOG.debug("Got console prompt, send return to show login")
                 session.sendline()
             elif match == 14:  # VMware vCenter command prompt
                 # Some old vsphere version (e.x. 6.0.0) needs to enable first.
                 cmd = 'shell.set --enabled True'
-                logging.debug(
+                LOG.debug(
                     "Got VMware VCenter prompt, "
                     "send '%s' to enable shell first", cmd)
                 session.sendline(cmd)
-                logging.debug(
+                LOG.debug(
                     "Got VMware VCenter prompt, "
                     "send 'shell' to launch bash")
                 session.sendline('shell')
@@ -408,7 +410,7 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
         raise LoginBadClientError(client)
 
     if verbose:
-        logging.debug("Login command: '%s'", cmd)
+        LOG.debug("Login command: '%s'", cmd)
     session = RemoteSession(cmd, linesep=linesep, prompt=prompt,
                             status_test_command=status_test_command,
                             client=client, host=host, port=port,
@@ -445,8 +447,8 @@ def wait_for_login(client, host, port, username, password, prompt,
     :raise: Whatever remote_login() raises
     :return: A RemoteSession object.
     """
-    logging.debug("Attempting to log into %s:%s using %s (timeout %ds)",
-                  host, port, client, timeout)
+    LOG.debug("Attempting to log into %s:%s using %s (timeout %ds)",
+              host, port, client, timeout)
     end_time = time.time() + timeout
     verbose = False
     while time.time() < end_time:
@@ -457,7 +459,7 @@ def wait_for_login(client, host, port, username, password, prompt,
                                 preferred_authenticaton=preferred_authenticaton,
                                 user_known_hosts_file=user_known_hosts_file)
         except LoginError as error:
-            logging.debug(error)
+            LOG.debug(error)
             verbose = True
         time.sleep(2)
     # Timeout expired; try one more time but don't catch exceptions
@@ -503,20 +505,20 @@ def _remote_scp(
                 [r"[Aa]re you sure", r"[Pp]assword:\s*$", r"lost connection"],
                 timeout=timeout, internal_timeout=0.5)
             if match == 0:  # "Are you sure you want to continue connecting"
-                logging.debug("Got 'Are you sure...', sending 'yes'")
+                LOG.debug("Got 'Are you sure...', sending 'yes'")
                 session.sendline("yes")
             elif match == 1:  # "password:"
                 if password_prompt_count == 0:
-                    logging.debug("Got password prompt, sending '%s'",
-                                  password_list[password_prompt_count])
+                    LOG.debug("Got password prompt, sending '%s'",
+                              password_list[password_prompt_count])
                     session.sendline(password_list[password_prompt_count])
                     password_prompt_count += 1
                     timeout = transfer_timeout
                     if scp_type == 1:
                         authentication_done = True
                 elif password_prompt_count == 1 and scp_type == 2:
-                    logging.debug("Got password prompt, sending '%s'",
-                                  password_list[password_prompt_count])
+                    LOG.debug("Got password prompt, sending '%s'",
+                              password_list[password_prompt_count])
                     session.sendline(password_list[password_prompt_count])
                     password_prompt_count += 1
                     timeout = transfer_timeout
@@ -532,7 +534,7 @@ def _remote_scp(
             raise SCPAuthenticationTimeoutError(error.output) from error
         except ExpectProcessTerminatedError as error:
             if error.status == 0:
-                logging.debug("SCP process terminated with status 0")
+                LOG.debug("SCP process terminated with status 0")
                 break
             raise SCPTransferFailedError(error.status, error.output) from error
 
@@ -554,8 +556,8 @@ def remote_scp(command, password_list, log_filename=None, log_function=None,
             or the password prompt)
     :raise: Whatever _remote_scp() raises
     """
-    logging.debug("Trying to SCP with command '%s', timeout %ss",
-                  command, transfer_timeout)
+    LOG.debug("Trying to SCP with command '%s', timeout %ss",
+              command, transfer_timeout)
     if log_filename:
         output_func = log_function
         output_params = (log_filename,)
@@ -754,7 +756,7 @@ def nc_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
     except Exception:  # pylint: disable=W0703
         pass
 
-    logging.info("Transfer data using netcat from %s to %s", src, dst)
+    LOG.info("Transfer data using netcat from %s to %s", src, dst)
     cmd = f"nc -w {timeout}"
     if d_protocol == "udp":
         cmd += " -u"
@@ -773,7 +775,7 @@ def nc_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
         raise NetcatTransferFailedError(status, err)
 
     if check_sum:
-        logging.info("md5sum cmd = md5sum %s", s_path)
+        LOG.info("md5sum cmd = md5sum %s", s_path)
         output = s_session.cmd(f"md5sum {s_path}")
         src_md5 = output.split()[0]
         dst_md5 = d_session.cmd(f"md5sum {d_path}").split()[0]
@@ -977,7 +979,7 @@ def throughput_transfer(func):
             msg += f"estimated throughput: {throughput:.2f} MB/s"
         else:
             msg += f"elapsed time: {elapsed_time}"
-        logging.info(msg)
+        LOG.info(msg)
         return ret
 
     return transfer
@@ -1000,7 +1002,7 @@ def copy_files_to(address, client, username, password, port, local_path,
     :param limit: Speed limit of file transfer.
     :param log_filename: If specified, log all output to this file (SCP only)
     :param log_function: If specified, log all output using this function
-    :param verbose: If True, log some stats using logging.debug (RSS only)
+    :param verbose: If True, log some stats using LOG.debug (RSS only)
     :param timeout: The time duration (in seconds) to wait for the transfer to
             complete.
     :param interface: The interface the neighbours attach to (only use when
@@ -1016,7 +1018,7 @@ def copy_files_to(address, client, username, password, port, local_path,
     elif client == "rss":
         log_func = None
         if verbose:
-            log_func = logging.debug
+            log_func = LOG.debug
         if interface:
             address = f"{address}%{interface}"
         fdclient = rss_client.FileUploadClient(address, port, log_func)
@@ -1043,7 +1045,7 @@ def copy_files_from(address, client, username, password, port, remote_path,
     :param limit: Speed limit of file transfer.
     :param log_filename: If specified, log all output to this file (SCP only)
     :param log_function: If specified, log all output using this function
-    :param verbose: If True, log some stats using ``logging.debug`` (RSS only)
+    :param verbose: If True, log some stats using ``LOG.debug`` (RSS only)
     :param timeout: The time duration (in seconds) to wait for the transfer to
                     complete.
     :param interface: The interface the neighbours attach to (only
@@ -1059,7 +1061,7 @@ def copy_files_from(address, client, username, password, port, remote_path,
     elif client == "rss":
         log_func = None
         if verbose:
-            log_func = logging.debug
+            log_func = LOG.debug
         if interface:
             address = f"{address}%{interface}"
         fdclient = rss_client.FileDownloadClient(address, port, log_func)
