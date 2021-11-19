@@ -83,6 +83,9 @@ try:
 except ImportError:
     pass
 
+LOG = logging.getLogger(__name__)
+
+
 #############################################
 #   REMOTE UTILITIES / GENERATED CONTROLS   #
 #############################################
@@ -133,7 +136,7 @@ def _string_generated_control(client, control_body):
 
     dump_dir = os.path.abspath(DUMP_CONTROL_DIR)
     new_fd, new_path = tempfile.mkstemp(suffix=".control", dir=dump_dir)
-    logging.debug("Using %s for generated control file", new_path)
+    LOG.debug("Using %s for generated control file", new_path)
     with os.fdopen(new_fd, "wt") as new_f:
         new_f.write(control_str)
     return new_path
@@ -166,8 +169,8 @@ def run_remote_util(session, utility, function, *args, detach=False, **kwargs):
     control_body = f"import {utility}\n"
     control_body += _string_call(utility + "." + function, *args, **kwargs)
     control_path = _string_generated_control(session.client, control_body)
-    logging.debug("Accessing %s remote utility using the wrapper control %s",
-                  utility, control_path)
+    LOG.debug("Accessing %s remote utility using the wrapper control %s",
+              utility, control_path)
     full_output = run_subcontrol(session, control_path, detach=detach)
     return "None" if detach else re.search("RESULT = (.*)", full_output).group(1)
 
@@ -199,8 +202,8 @@ def run_remotely(function):
         control_body = "\n" + "".join(fn_source).replace("_session, ", "")
         control_body += "\n" + _string_call(function.__name__, *args, **kwargs)
         control_path = _string_generated_control(session.client, control_body)
-        logging.debug("Running remotely a function using the wrapper control %s",
-                      control_path)
+        LOG.debug("Running remotely a function using the wrapper control %s",
+                  control_path)
         full_output = run_subcontrol(session, control_path)
         return re.search("RESULT = (.*)", full_output).group(1)
 
@@ -254,17 +257,17 @@ def run_subcontrol(session, control_path, timeout=600, detach=False):
     # ..todo:: combine with REMOTE_PYTHON_BINARY
     elif session.client == "nc":
         python_binary = session.cmd("where python", timeout=timeout,
-                                    print_func=logging.info).strip()
+                                    print_func=LOG.info).strip()
     else:
         raise NotImplementedError("run_subcontrol not implemented for client "
                                   f"{session.client}")
     cmd = python_binary + " " + remote_control_path
     if detach:
-        session.set_output_func(logging.info)
+        session.set_output_func(LOG.info)
         session.set_output_params(())
         session.sendline(cmd)
         return ""
-    return session.cmd(cmd, timeout=timeout, print_func=logging.info)
+    return session.cmd(cmd, timeout=timeout, print_func=LOG.info)
 
 
 def prep_subcontrol(src_file, src_dir=None):
@@ -288,11 +291,11 @@ def prep_subcontrol(src_file, src_dir=None):
         src_path = src_file
     else:
         src_path = os.path.join(os.path.abspath(src_dir), src_file)
-    logging.debug("Using %s for original control path %s", src_path, src_file)
+    LOG.debug("Using %s for original control path %s", src_path, src_file)
 
     dump_dir = os.path.abspath(DUMP_CONTROL_DIR)
     new_fd, new_path = tempfile.mkstemp(suffix=".control", dir=dump_dir)
-    logging.debug("Using %s for modified control path %s", new_path, src_file)
+    LOG.debug("Using %s for modified control path %s", new_path, src_file)
 
     with open(src_path, "rt", encoding="utf-8") as src_f:
         with os.fdopen(new_fd, "wt") as new_f:
@@ -409,12 +412,12 @@ def set_subcontrol_parameter_object(subcontrol, value):
     if host_ip is None:
         raise ValueError("No IP of the host machine was found")
 
-    logging.info("Sharing the test parameters over the network")
+    LOG.info("Sharing the test parameters over the network")
     Pyro4.config.AUTOPROXY = False
     Pyro4.config.REQUIRE_EXPOSE = False
     try:
         pyro_daemon = Pyro4.Daemon(host=host_ip, port=1437)
-        logging.debug("Pyro4 daemon started successfully")
+        LOG.debug("Pyro4 daemon started successfully")
         uri = pyro_daemon.register(params)
         pyrod_running = False
     # address already in use OS error
@@ -423,8 +426,8 @@ def set_subcontrol_parameter_object(subcontrol, value):
                                   "@" + host_ip + ":1437")
         pyro_daemon.ping()
         registered = pyro_daemon.registered()
-        logging.debug("Pyro4 daemon already started, available objects: %s",
-                      registered)
+        LOG.debug("Pyro4 daemon already started, available objects: %s",
+                  registered)
         assert len(registered) == 2, "The Pyro4 deamon should contain only two"\
                                      " initially registered objects"
         assert registered[0] == "Pyro.Daemon", "The Pyro4 deamon must be first"\
@@ -433,11 +436,11 @@ def set_subcontrol_parameter_object(subcontrol, value):
         pyrod_running = True
 
     if not pyrod_running:
-        logging.info("Starting the parameters provider for the remote host")
+        LOG.info("Starting the parameters provider for the remote host")
         loop = DaemonLoop(pyro_daemon)
         loop.start()
 
-    logging.debug("Sending the params object to the host via uri %s", uri)
+    LOG.debug("Sending the params object to the host via uri %s", uri)
     subcontrol = re.sub("URI[ \t\v]*=[ \t\v]*\".*\"", f"URI = \"{uri}\"",
                         subcontrol, count=1)
 
@@ -521,7 +524,7 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
             time.sleep(1)
         else:
             raise OSError(f"Local object sharing failed:\n{output}") from error
-        logging.debug("Local object sharing output:\n%s", output)
+        LOG.debug("Local object sharing output:\n%s", output)
         logging.getLogger("Pyro4").setLevel(10)
 
         remote_object = Pyro4.Proxy(f"PYRONAME:{object_name}@{host}:{port}")
@@ -568,7 +571,7 @@ def get_remote_objects(session=None, host="localhost", port=0):
         else:
             raise OSError("Local objects sharing failed:\n"
                           f"{control_log}") from error
-        logging.debug("Local objects sharing output:\n%s", control_log)
+        LOG.debug("Local objects sharing output:\n%s", control_log)
 
         remote_objects = flame.connect(host + ":" + str(port))
         remote_objects._pyroBind()
@@ -599,27 +602,27 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
     # pyro daemon
     try:
         pyro_daemon = Pyro4.Daemon(host=host)
-        logging.debug("Pyro4 daemon started successfully")
+        LOG.debug("Pyro4 daemon started successfully")
         pyrod_running = False
     # address already in use OS error
     except OSError:
         pyro_daemon = Pyro4.Proxy(f"PYRO:{Pyro4.constants.DAEMON_NAME}@{host}")
         pyro_daemon.ping()
-        logging.debug("Pyro4 daemon already started, available objects: %s",
-                      pyro_daemon.registered())
+        LOG.debug("Pyro4 daemon already started, available objects: %s",
+                  pyro_daemon.registered())
         pyrod_running = True
 
     # name server
     try:
         ns_server = Pyro4.locateNS(host=host, port=port)
-        logging.debug("Pyro4 name server already started")
+        LOG.debug("Pyro4 name server already started")
         nsd_running = True
     # network unreachable and failed to locate the nameserver error
     except (OSError, Pyro4.errors.NamingError):
         from Pyro4 import naming
         ns_uri, ns_daemon, _bc_server = naming.startNS(host=host, port=port)
         ns_server = Pyro4.Proxy(ns_uri)
-        logging.debug("Pyro4 name server started successfully with URI %s", ns_uri)
+        LOG.debug("Pyro4 name server started successfully with URI %s", ns_uri)
         nsd_running = False
 
     # main retrieval of the local object
@@ -677,7 +680,7 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
     # we should register to the name server after entering its loop
     ns_server.register(object_name, uri)
 
-    logging.info("Local object '%s' sharing - ready", object_name)
+    LOG.info("Local object '%s' sharing - ready", object_name)
     loop.join()
 
 
@@ -699,7 +702,7 @@ def share_local_objects(wait=False, host="localhost", port=0):
 
     # pyro daemon
     pyro_daemon = Pyro4.Daemon(host=host, port=port)
-    logging.debug("Pyro4 daemon started successfully")
+    LOG.debug("Pyro4 daemon started successfully")
 
     # main retrieval of the local objects
     from Pyro4.utils import flame
@@ -742,15 +745,15 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
 
     .. note:: Created and works specifically for Windows and Linux.
     """
-    logging.info("Sharing the remote objects over the network")
+    LOG.info("Sharing the remote objects over the network")
     extra_params = {} if extra_params is None else extra_params
 
     # setup remote objects server
-    logging.info("Starting nameserver for the remote objects")
+    LOG.info("Starting nameserver for the remote objects")
     cmd = f"python -m Pyro4.naming -n {host} -p {port}"
     session.cmd("START " + cmd if os_type == "windows" else cmd + " &")
 
-    logging.info("Starting the server daemon for the remote objects")
+    LOG.info("Starting the server daemon for the remote objects")
     # ..todo:: later on we can dynamize this further depending on usage of this alternative function
     transfer_client = "rss" if os_type == "windows" else "scp"
     transfer_port = 10023 if os_type == "windows" else 22
@@ -771,7 +774,7 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
                                                session.username, session.password,
                                                session.prompt, session.linesep)
     middleware_session.set_status_test_command(session.status_test_command)
-    middleware_session.set_output_func(logging.info)
+    middleware_session.set_output_func(LOG.info)
     middleware_session.set_output_params(())
     middleware_session.sendline(f"python {remote_path}")
 
@@ -780,7 +783,7 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     output, attempts = "", 30
     while "Remote objects shared over the network" not in output:
         output = middleware_session.get_output()
-        logging.debug(output)
+        LOG.debug(output)
         if attempts <= 0 or "Traceback (most recent call last):" in output:
             raise RuntimeError("The remote objects server failed to start")
         attempts -= 1
@@ -823,15 +826,15 @@ def import_remote_exceptions(exceptions=None, modules=None):
     modules = [] if not modules else modules
     for module in modules:
         exceptions += list_module_exceptions(module)
-    logging.debug("Registering the following exceptions for deserialization: %s",
-                  ", ".join(exceptions))
+    LOG.debug("Registering the following exceptions for deserialization: %s",
+              ", ".join(exceptions))
 
     class RemoteCustomException(Exception):
         """Standard class to instantiate during remote expection deserialization."""
         __customclass__ = None
 
     def recreate_exception(class_name, class_dict):
-        logging.debug("Remote exception %s data: %s", class_name, class_dict)
+        LOG.debug("Remote exception %s data: %s", class_name, class_dict)
         exceptiontype = RemoteCustomException
         exception = exceptiontype(*class_dict["args"])
         # in the case of non-custom exceptions the class is properly restored
