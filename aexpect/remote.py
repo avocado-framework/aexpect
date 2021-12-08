@@ -371,6 +371,8 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
     :param status_test_command: Command to be used for getting the last
             exit status of commands run inside the shell (used by
             cmd_status_output() and friends).
+    :param verbose: If True, log some stats using LOG.debug (RSS only), only
+            valid when client is ssh or nc.
     :param bind_ip: ssh through specific interface on
                     client(specify interface ip)
     :param preferred_authenticaton: Given value of PreferredAuthentications in ssh
@@ -405,7 +407,7 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
     elif client == "telnet":
         cmd = f"telnet -l {username} {host} {port}"
     elif client == "nc":
-        cmd = f"nc {verbose} {host} {port}"
+        cmd = f"nc {' '.join(extra_params)} {host} {port}"
     else:
         raise LoginBadClientError(client)
 
