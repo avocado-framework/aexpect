@@ -3,7 +3,7 @@ PYTHON_DEVELOP_ARGS=$(shell if ($(PYTHON) setup.py develop --help 2>/dev/null | 
 DESTDIR=/
 BUILDIR=$(CURDIR)/debian/aexpect
 PROJECT=aexpect
-VERSION="1.6.2"
+VERSION="1.6.4"
 COMMIT=$(shell git log --pretty=format:'%H' -n 1)
 SHORT_COMMIT=$(shell git log --pretty=format:'%h' -n 1)
 COMMIT_DATE=$(shell git log --pretty='format:%cd' --date='format:%Y%m%d' -n 1)

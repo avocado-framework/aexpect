@@ -8,10 +8,10 @@
 %global gittar		aexpect-%{version}.tar.gz
 %else
 %if ! 0%{?commit:1}
-%global commit		d216b6d0151e46efe1d08891c20cb01dfbd311e3
+%global commit		3c1d7eeec3ea607d1ac51dbf538e9e98b4731afe
 %endif
 %if ! 0%{?commit_date:1}
-%global commit_date	20211123
+%global commit_date	20211208
 %endif
 %global shortcommit	%(c=%{commit};echo ${c:0:7})
 %global gitrel		.%{commit_date}git%{shortcommit}
@@ -22,7 +22,7 @@
 %global with_tests 0
 
 Name: python-aexpect
-Version: 1.6.3
+Version: 1.6.4
 Release: 1%{?gitrel}%{?dist}
 Summary: Aexpect is a python library to control interactive applications
 
@@ -80,6 +80,9 @@ selftests/checkall
 %{_bindir}/aexpect_helper*
 
 %changelog
+* Wed Dec  8 2021 Cleber Rosa <crosa@redhat.com> - 1.6.4-1
+- New release
+
 * Tue Nov 23 2021 Cleber Rosa <cleber@redhat.com> - 1.6.3-1
 - New release
 
