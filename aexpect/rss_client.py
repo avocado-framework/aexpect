@@ -202,7 +202,7 @@ class FileTransferClient:
                 transferred = self.transferred / 1048576.
                 speed = (self.transferred - self._last_transferred) / delta
                 speed /= 1048576.
-                self._log_func(f"{data} {transferred:.3f} MB ({speed:%.3f}"
+                self._log_func(f"{data} {transferred:.3f} MB ({speed:.3f}"
                                " MB/sec)")
                 self._last_time = time.time()
                 self._last_transferred = self.transferred
