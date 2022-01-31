@@ -277,6 +277,25 @@ class Spawn:
             except OSError:
                 pass
 
+    def _close_aexpect_helper(self):
+        """
+        Makes sure the subprocess holding the aexpect_helper is terminated
+        and that the file descriptors related to it are closed. Then releases
+        the popen instance.
+        """
+        if self._aexpect_helper:
+            try:
+                self._aexpect_helper.wait(10)
+            except subprocess.TimeoutExpired:
+                self._aexpect_helper.kill()
+            finally:
+                if self._aexpect_helper.stdout:
+                    self._aexpect_helper.stdout.close()
+                if self._aexpect_helper.stdin:
+                    self._aexpect_helper.stdin.close()
+                self._aexpect_helper.wait(10)
+            self._aexpect_helper = None
+
     def get_id(self):
         """
         Return the instance's a_id attribute, which may be used to access the
@@ -374,13 +393,8 @@ class Spawn:
             # Remove all used files
             if 'AEXPECT_DEBUG' not in os.environ:
                 shutil.rmtree(os.path.join(BASE_DIR, f'aexpect_{self.a_id}'))
+            self._close_aexpect_helper()
             self.closed = True
-        if self._aexpect_helper:
-            try:
-                self._aexpect_helper.wait(10)
-            except subprocess.TimeoutExpired:
-                self._aexpect_helper.kill()
-                self._aexpect_helper.wait(10)
 
     def set_linesep(self, linesep):
         """

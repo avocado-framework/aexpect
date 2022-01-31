@@ -128,6 +128,30 @@ class CommandsTests(unittest.TestCase):
         self.assertIn("SECOND LINE", out)
         self.assertIn("THIRD LINE", out)
 
+    def test_fd_leak(self):
+        """
+        Check file descriptors are not being leaked
+        """
+        def get_proc_fds():
+            """
+            Returns a set containing the fd names opened under the process
+
+            :returns: set
+            """
+            # Ommitting the last one since it is the one opened to
+            # get the result from running the listdir method
+            process_fds = os.listdir(f"/proc/{os.getpid()}/fd")[:-1]
+            return set(process_fds)
+
+        fds_before = get_proc_fds()
+        session = client.ShellSession("sh")
+        session.close()
+        fds_after = get_proc_fds()
+        self.assertEqual(fds_after, fds_before,
+                         msg="fd leak: Closing the session didn't close "
+                             "the file descriptors")
+        session = None
+
 
 if __name__ == '__main__':
     unittest.main()
