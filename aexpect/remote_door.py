@@ -613,17 +613,16 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
         pyrod_running = True
 
     # name server
+    ns_daemon = None
     try:
         ns_server = Pyro4.locateNS(host=host, port=port)
         LOG.debug("Pyro4 name server already started")
-        nsd_running = True
     # network unreachable and failed to locate the nameserver error
     except (OSError, Pyro4.errors.NamingError):
         from Pyro4 import naming
         ns_uri, ns_daemon, _bc_server = naming.startNS(host=host, port=port)
         ns_server = Pyro4.Proxy(ns_uri)
         LOG.debug("Pyro4 name server started successfully with URI %s", ns_uri)
-        nsd_running = False
 
     # main retrieval of the local object
     module = importlib.import_module(object_name)
@@ -674,7 +673,8 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
     if not pyrod_running:
         loop = DaemonLoop(pyro_daemon)
         loop.start()
-    if not nsd_running:
+    # if name service daemon is running
+    if ns_daemon is not None:
         loop = DaemonLoop(ns_daemon)
         loop.start()
     # we should register to the name server after entering its loop
