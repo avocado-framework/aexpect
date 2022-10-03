@@ -90,6 +90,7 @@ LOG = logging.getLogger(__name__)
 #   REMOTE UTILITIES / GENERATED CONTROLS   #
 #############################################
 
+
 #: default location for template control files
 SRC_CONTROL_DIR = "."
 #: default location for dumped control files
@@ -208,6 +209,7 @@ def run_remotely(function):
         return re.search("RESULT = (.*)", full_output).group(1)
 
     return wrapper
+
 
 ##################################
 #   STATIC (TEMPLATE) CONTROLS   #
@@ -341,9 +343,10 @@ def set_subcontrol_parameter(subcontrol, parameter, value):
     .. warning:: The `subcontrol` parameter is control path externally but
         control content internally after decoration.
     """
-    return re.sub(f"{parameter.upper()}[ \t\v]*=[ \t\v]*.*",
-                  f"{parameter.upper()} = {value!r}",
-                  subcontrol, count=1)
+    line = re.search(fr"{parameter.upper()}[ \t\v]*=[ \t\v]*.*", subcontrol)
+    line = "" if line is None else line.group()
+    # re.sub does undesirable post-processing of the replaced string
+    return subcontrol.replace(line, f"{parameter.upper()} = {value!r}")
 
 
 @set_subcontrol
@@ -361,9 +364,10 @@ def set_subcontrol_parameter_list(subcontrol, list_name, value):
     .. warning:: The `subcontrol` parameter is control path externally but
         control content internally after decoration.
     """
-    return re.sub(fr"{list_name.upper()}[ \t\v]*=[ \t\v]*\[.*\]",
-                  f"{list_name.upper()} = {value!r}",
-                  subcontrol, count=1)
+    line = re.search(fr"{list_name.upper()}[ \t\v]*=[ \t\v]*\[.*\]", subcontrol)
+    line = "" if line is None else line.group()
+    # re.sub does undesirable post-processing of the replaced string
+    return subcontrol.replace(line, f"{list_name.upper()} = {value!r}")
 
 
 @set_subcontrol
@@ -381,9 +385,10 @@ def set_subcontrol_parameter_dict(subcontrol, dict_name, value):
     .. warning:: The `subcontrol` parameter is control path externally but
         control content internally after decoration.
     """
-    return re.sub(fr"{dict_name.upper()}[ \t\v]*=[ \t\v]*\{{.*\}}",
-                  f"{dict_name.upper()} = {value!r}",
-                  subcontrol, count=1)
+    line = re.search(fr"{dict_name.upper()}[ \t\v]*=[ \t\v]*\{{.*\}}", subcontrol)
+    line = "" if line is None else line.group()
+    # re.sub does undesirable post-processing of the replaced string
+    return subcontrol.replace(line, f"{dict_name.upper()} = {value!r}")
 
 
 @set_subcontrol
@@ -441,10 +446,12 @@ def set_subcontrol_parameter_object(subcontrol, value):
         loop.start()
 
     LOG.debug("Sending the params object to the host via uri %s", uri)
+    # post-processing of the replaced string is allowed for an URI
     subcontrol = re.sub("URI[ \t\v]*=[ \t\v]*\".*\"", f"URI = \"{uri}\"",
                         subcontrol, count=1)
 
     return subcontrol
+
 
 ######################
 #   REMOTE OBJECTS   #
