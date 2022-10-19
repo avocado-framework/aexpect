@@ -33,8 +33,6 @@ import os
 import glob
 import argparse
 
-import six
-
 # Globals
 CHUNKSIZE = 65536
 
@@ -260,17 +258,17 @@ class FileTransferClient:
 
     def _handle_transfer_error(self):
         # Save original exception
-        error = sys.exc_info()
+        (_type, error, traceback) = sys.exc_info()
         try:
             # See if we can get an error message
             msg = self._receive_msg()
-        except FileTransferError:
+        except FileTransferError as file_transfer_error:
             # No error message -- re-raise original exception
-            six.reraise(*error)
+            raise error.with_traceback(traceback) from file_transfer_error
         if msg == RSS_ERROR:
             errmsg = self._receive_packet().decode()
             raise FileTransferServerError(errmsg)
-        six.reraise(*error)
+        raise error.with_traceback(traceback)
 
 
 class FileUploadClient(FileTransferClient):

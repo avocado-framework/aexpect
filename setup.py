@@ -27,5 +27,4 @@ if __name__ == '__main__':
           packages=['aexpect',
                     'aexpect.utils'],
           scripts=['scripts/aexpect_helper'],
-          test_suite='tests',
-          install_requires=['six'])
+          test_suite='tests')
