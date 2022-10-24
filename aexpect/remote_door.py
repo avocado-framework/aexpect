@@ -343,10 +343,12 @@ def set_subcontrol_parameter(subcontrol, parameter, value):
     .. warning:: The `subcontrol` parameter is control path externally but
         control content internally after decoration.
     """
-    line = re.search(fr"{parameter.upper()}[ \t\v]*=[ \t\v]*.*", subcontrol)
-    line = "" if line is None else line.group()
+    match = re.search(fr"{parameter.upper()}[ \t\v]*=[ \t\v]*.*", subcontrol)
+    if match is None:
+        return subcontrol
     # re.sub does undesirable post-processing of the replaced string
-    return subcontrol.replace(line, f"{parameter.upper()} = {value!r}")
+    return subcontrol.replace(match.group(),
+                              f"{parameter.upper()} = {value!r}")
 
 
 @set_subcontrol
@@ -364,10 +366,12 @@ def set_subcontrol_parameter_list(subcontrol, list_name, value):
     .. warning:: The `subcontrol` parameter is control path externally but
         control content internally after decoration.
     """
-    line = re.search(fr"{list_name.upper()}[ \t\v]*=[ \t\v]*\[.*\]", subcontrol)
-    line = "" if line is None else line.group()
+    match = re.search(fr"{list_name.upper()}[ \t\v]*=[ \t\v]*\[.*\]",
+                      subcontrol)
+    if match is None:
+        return subcontrol
     # re.sub does undesirable post-processing of the replaced string
-    return subcontrol.replace(line, f"{list_name.upper()} = {value!r}")
+    return subcontrol.replace(match.group(), f"{list_name.upper()} = {value!r}")
 
 
 @set_subcontrol
@@ -385,10 +389,12 @@ def set_subcontrol_parameter_dict(subcontrol, dict_name, value):
     .. warning:: The `subcontrol` parameter is control path externally but
         control content internally after decoration.
     """
-    line = re.search(fr"{dict_name.upper()}[ \t\v]*=[ \t\v]*\{{.*\}}", subcontrol)
-    line = "" if line is None else line.group()
+    match = re.search(fr"{dict_name.upper()}[ \t\v]*=[ \t\v]*\{{.*\}}", subcontrol)
+    if match is None:
+        return subcontrol
     # re.sub does undesirable post-processing of the replaced string
-    return subcontrol.replace(line, f"{dict_name.upper()} = {value!r}")
+    return subcontrol.replace(match.group(),
+                              f"{dict_name.upper()} = {value!r}")
 
 
 @set_subcontrol
