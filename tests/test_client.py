@@ -150,6 +150,7 @@ class CommandsTests(unittest.TestCase):
         self.assertEqual(fds_after, fds_before,
                          msg="fd leak: Closing the session didn't close "
                              "the file descriptors")
+        # noinspection PyUnusedLocal
         session = None
 
 

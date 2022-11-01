@@ -1030,6 +1030,7 @@ def throughput_transfer(func):
     return transfer
 
 
+# noinspection PyUnusedLocal
 @throughput_transfer
 def copy_files_to(address, client, username, password, port, local_path,
                   remote_path, limit="", log_filename=None, log_function=None,
@@ -1074,6 +1075,7 @@ def copy_files_to(address, client, username, password, port, local_path,
         raise TransferBadClientError(client)
 
 
+# noinspection PyUnusedLocal
 @throughput_transfer
 def copy_files_from(address, client, username, password, port, remote_path,
                     local_path, limit="", log_filename=None, log_function=None,

@@ -70,6 +70,7 @@ import time
 # related to connectivity and perform further development on this utility.
 # os.environ["PYRO_LOGLEVEL"] = "DEBUG"
 try:
+    # noinspection PyPackageRequirements,PyUnresolvedReferences
     import Pyro4
 except ImportError:
     logging.warning("Remote object backend (Pyro4) not found, some functionality"
@@ -79,6 +80,7 @@ except ImportError:
 # remote door can run code remotely without the requirement for the aexpect
 # module, alas, offering just limited functionality
 try:
+    # noinspection PyUnresolvedReferences
     from aexpect import remote
 except ImportError:
     pass
@@ -518,8 +520,10 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
     This method does not rely on any static (template) controls in order to
     work because the remote door takes care to reach back the local one.
     """
+    # noinspection PyUnresolvedReferences
     try:
         remote_object = Pyro4.Proxy(f"PYRONAME:{object_name}@{host}:{port}")
+        # noinspection PyProtectedMember
         remote_object._pyroBind()
     except Pyro4.errors.PyroError as error:
         if not session:
@@ -541,6 +545,7 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
         logging.getLogger("Pyro4").setLevel(10)
 
         remote_object = Pyro4.Proxy(f"PYRONAME:{object_name}@{host}:{port}")
+        # noinspection PyProtectedMember
         remote_object._pyroBind()
     return remote_object
 
@@ -562,10 +567,13 @@ def get_remote_objects(session=None, host="localhost", port=0):
     """
     Pyro4.config.SERIALIZER = "pickle"
     Pyro4.config.PICKLE_PROTOCOL_VERSION = 3
+    # noinspection PyPackageRequirements
     from Pyro4.utils import flame
 
+    # noinspection PyUnresolvedReferences
     try:
         remote_objects = flame.connect(host + ":" + str(port))
+        # noinspection PyProtectedMember
         remote_objects._pyroBind()
     except Pyro4.errors.PyroError as error:
         if not session:
@@ -587,6 +595,7 @@ def get_remote_objects(session=None, host="localhost", port=0):
         LOG.debug("Local objects sharing output:\n%s", control_log)
 
         remote_objects = flame.connect(host + ":" + str(port))
+        # noinspection PyProtectedMember
         remote_objects._pyroBind()
     return remote_objects
 
@@ -627,11 +636,13 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
 
     # name server
     ns_daemon = None
+    # noinspection PyUnresolvedReferences
     try:
         ns_server = Pyro4.locateNS(host=host, port=port)
         LOG.debug("Pyro4 name server already started")
     # network unreachable and failed to locate the nameserver error
     except (OSError, Pyro4.errors.NamingError):
+        # noinspection PyPackageRequirements
         from Pyro4 import naming
         ns_uri, ns_daemon, _bc_server = naming.startNS(host=host, port=port)
         ns_server = Pyro4.Proxy(ns_uri)
@@ -718,6 +729,7 @@ def share_local_objects(wait=False, host="localhost", port=0):
     LOG.debug("Pyro4 daemon started successfully")
 
     # main retrieval of the local objects
+    # noinspection PyPackageRequirements
     from Pyro4.utils import flame
     _uri = flame.start(pyro_daemon)  # lgtm [py/unused-local-variable]
 
@@ -860,4 +872,5 @@ def import_remote_exceptions(exceptions=None, modules=None):
         return exception
 
     for exception in exceptions:
+        # noinspection PyUnresolvedReferences
         Pyro4.util.SerializerBase.register_dict_to_class(exception, recreate_exception)
