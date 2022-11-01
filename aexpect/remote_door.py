@@ -657,17 +657,17 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
         def wrapper(*args, **kwargs):
             rarg = fun(*args, **kwargs)
 
-            def proxify_type(rarg):
-                if rarg is None or type(rarg) in (bool, int, float, str):  # pylint: disable=C0123
-                    return rarg
-                if isinstance(rarg, tuple):
-                    return tuple(proxify_type(e) for e in rarg)
-                if isinstance(rarg, list):
-                    return [proxify_type(e) for e in rarg]
-                if isinstance(rarg, dict):
-                    return {proxify_type(k): proxify_type(v) for (k, v) in rarg.items()}
-                pyro_daemon.register(rarg)
-                return rarg
+            def proxify_type(_rarg):
+                if _rarg is None or type(_rarg) in (bool, int, float, str):  # pylint: disable=C0123
+                    return _rarg
+                if isinstance(_rarg, tuple):
+                    return tuple(proxify_type(e) for e in _rarg)
+                if isinstance(_rarg, list):
+                    return [proxify_type(e) for e in _rarg]
+                if isinstance(_rarg, dict):
+                    return {proxify_type(k): proxify_type(v) for (k, v) in _rarg.items()}
+                pyro_daemon.register(_rarg)
+                return _rarg
 
             import types
             if isinstance(rarg, types.GeneratorType):
@@ -838,14 +838,14 @@ def import_remote_exceptions(exceptions=None, modules=None):
     """
 
     def list_module_exceptions(modstr):
-        module = importlib.import_module(modstr)
-        exceptions = []
-        for name in module.__dict__:
-            if not inspect.isclass(module.__dict__[name]):
+        imported_module = importlib.import_module(modstr)
+        module_exceptions = []
+        for name in imported_module.__dict__:
+            if not inspect.isclass(imported_module.__dict__[name]):
                 continue
-            if issubclass(module.__dict__[name], Exception) or name.endswith('Error'):
-                exceptions.append(modstr + "." + name)
-        return exceptions
+            if issubclass(imported_module.__dict__[name], Exception) or name.endswith('Error'):
+                module_exceptions.append(modstr + "." + name)
+        return module_exceptions
 
     exceptions = [] if not exceptions else exceptions
     modules = [] if not modules else modules
@@ -861,15 +861,15 @@ def import_remote_exceptions(exceptions=None, modules=None):
     def recreate_exception(class_name, class_dict):
         LOG.debug("Remote exception %s data: %s", class_name, class_dict)
         exceptiontype = RemoteCustomException
-        exception = exceptiontype(*class_dict["args"])
+        recreated_exception = exceptiontype(*class_dict["args"])
         # in the case of non-custom exceptions the class is properly restored
-        exception.__customclass__ = class_dict.get("__class__", "")
+        recreated_exception.__customclass__ = class_dict.get("__class__", "")
 
         if "attributes" in class_dict.keys():
             # restore custom attributes on the exception object
             for attr, value in class_dict["attributes"].items():
-                setattr(exception, attr, value)
-        return exception
+                setattr(recreated_exception, attr, value)
+        return recreated_exception
 
     for exception in exceptions:
         # noinspection PyUnresolvedReferences
