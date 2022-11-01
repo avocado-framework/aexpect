@@ -346,7 +346,7 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
                  log_filename=None, log_function=None, timeout=10,
                  interface=None, identity_file=None,
                  status_test_command="echo $?", verbose=False, bind_ip=None,
-                 preferred_authenticaton='password',
+                 preferred_authentication='password',
                  user_known_hosts_file='/dev/null',
                  extra_cmdline=''):
     """
@@ -376,7 +376,7 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
             valid when client is ssh or nc.
     :param bind_ip: ssh through specific interface on
                     client(specify interface ip)
-    :param preferred_authenticaton: Given value of PreferredAuthentications in ssh
+    :param preferred_authentication: Given value of PreferredAuthentications in ssh
     :param user_known_hosts_file: Given value of UserKnownHostsFile in ssh
     :param extra_cmdline: Additional params for the session, like -X for SSH.
     :raise LoginError: If using ipv6 linklocal but not assign an interface that
@@ -403,7 +403,7 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
         if identity_file:
             cmd += f" -i {identity_file}"
         else:
-            cmd += f" -o PreferredAuthentications={preferred_authenticaton}"
+            cmd += f" -o PreferredAuthentications={preferred_authentication}"
         cmd += f" {username}@{host}"
     elif client == "telnet":
         cmd = f"telnet -l {username} {host} {port}"
@@ -433,7 +433,7 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
 def wait_for_login(client, host, port, username, password, prompt,
                    linesep="\n", log_filename=None, log_function=None,
                    timeout=240, internal_timeout=10, interface=None,
-                   preferred_authenticaton='password',
+                   preferred_authentication='password',
                    user_known_hosts_file='/dev/null'):
     """
     Make multiple attempts to log into a guest until one succeeds or timeouts.
@@ -453,7 +453,7 @@ def wait_for_login(client, host, port, username, password, prompt,
     :param internal_timeout: The maximum time duration (in seconds) to wait for
                              each step of the login procedure (e.g. the
                              "Are you sure" prompt or the password prompt)
-    :param preferred_authenticaton: Given value of PreferredAuthentications in ssh
+    :param preferred_authentication: Given value of PreferredAuthentications in ssh
     :param user_known_hosts_file: Given value of UserKnownHostsFile in ssh
     :interface: The interface the neighbours attach to
                 (only use when using ipv6 linklocal address.)
@@ -470,7 +470,7 @@ def wait_for_login(client, host, port, username, password, prompt,
             return remote_login(client, host, port, username, password, prompt,
                                 linesep, log_filename, log_function,
                                 internal_timeout, interface, verbose=verbose,
-                                preferred_authenticaton=preferred_authenticaton,
+                                preferred_authentication=preferred_authentication,
                                 user_known_hosts_file=user_known_hosts_file)
         except LoginError as error:
             LOG.debug(error)
@@ -480,7 +480,7 @@ def wait_for_login(client, host, port, username, password, prompt,
     return remote_login(client, host, port, username, password, prompt,
                         linesep, log_filename, log_function,
                         internal_timeout, interface,
-                        preferred_authenticaton=preferred_authenticaton,
+                        preferred_authentication=preferred_authentication,
                         user_known_hosts_file=user_known_hosts_file)
 
 
