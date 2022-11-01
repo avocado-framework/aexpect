@@ -622,8 +622,7 @@ def scp_to_remote(host, port, username, password, local_path, remote_path,
                 fr"-o PreferredAuthentications=password {limit} "
                 fr"-P {port} {quote_path(local_path)} {username}@\[{host}\]:"
                 fr"{pipes.quote(remote_path)}")
-    password_list = []
-    password_list.append(password)
+    password_list = [password]
     return remote_scp(command, password_list,
                       log_filename, log_function, timeout)
 
@@ -666,8 +665,7 @@ def scp_from_remote(host, port, username, password, remote_path, local_path,
                 fr"-o PreferredAuthentications=password {limit} "
                 fr"-P {port} {username}@\[{host}\]:{quote_path(remote_path)} "
                 fr"{pipes.quote(local_path)}")
-    password_list = []
-    password_list.append(password)
+    password_list = [password]
     remote_scp(command, password_list,
                log_filename, log_function, timeout)
 
@@ -720,9 +718,7 @@ def scp_between_remotes(src, dst, port, s_passwd, d_passwd, s_name, d_name,
                 fr"-o PreferredAuthentications=password {limit} -P {port}"
                 fr" {s_name}@\[{src}\]:{quote_path(s_path)} {d_name}@\[{dst}\]"
                 fr":{pipes.quote(d_path)}")
-    password_list = []
-    password_list.append(s_passwd)
-    password_list.append(d_passwd)
+    password_list = [s_passwd, d_passwd]
     return remote_scp(command, password_list,
                       log_filename, log_function, timeout)
 
@@ -787,7 +783,7 @@ def nc_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
     cmd = f"nc -w {timeout}"
     if d_protocol == "udp":
         cmd += " -u"
-    receive_cmd = (f"echo {check_string} | {cmd} -l {d_port} > {d_path}")
+    receive_cmd = f"echo {check_string} | {cmd} -l {d_port} > {d_path}"
     d_session.sendline(receive_cmd)
     send_cmd = f"{cmd} {dst} {d_port} < {s_path}"
     status, output = s_session.cmd_status_output(

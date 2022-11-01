@@ -884,7 +884,8 @@ class Expect(Tail):
         end_time = time.time() + timeout
         while True:
             try:
-                poll_timeout_ms = max(0, (end_time - time.time()) * 1000)
+                max_ms = int((end_time - time.time()) * 1000)
+                poll_timeout_ms = max(0, max_ms)
                 poll_status = poller.poll(poll_timeout_ms)
             except select.error:
                 break

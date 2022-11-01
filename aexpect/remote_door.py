@@ -831,7 +831,7 @@ def import_remote_exceptions(exceptions=None, modules=None):
         for name in module.__dict__:
             if not inspect.isclass(module.__dict__[name]):
                 continue
-            if (issubclass(module.__dict__[name], Exception) or name.endswith('Error')):
+            if issubclass(module.__dict__[name], Exception) or name.endswith('Error'):
                 exceptions.append(modstr + "." + name)
         return exceptions
 
