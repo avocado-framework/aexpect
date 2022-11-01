@@ -1,18 +1,41 @@
-import commands
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#
+# See LICENSE for more details.
+
+"""Process handling helpers"""
+
+import subprocess
 import signal
 import os
 
 
+def getoutput(cmd):
+    """Executes command and returns stdout+stderr without tailing \n\r"""
+    with subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE) as proc:
+        return proc.communicate()[0].decode().rstrip("\n\r")
+
+
 class CmdError(Exception):
 
+    """Error describing failed command execution"""
+
     def __init__(self, command=None, result=None):
+        super().__init__()
         self.command = command
         self.result = result
 
     def __str__(self):
         if self.result is not None:
             if self.result.interrupted:
-                return "Command %s interrupted by user (Ctrl+C)" % self.command
+                return f"Command {self.command} interrupted by user (Ctrl+C)"
             if self.result.exit_status is None:
                 msg = "Command '%s' failed and is not responding to signals"
                 msg %= self.command
@@ -20,8 +43,7 @@ class CmdError(Exception):
                 msg = "Command '%s' failed (rc=%d)"
                 msg %= (self.command, self.result.exit_status)
             return msg
-        else:
-            return "CmdError"
+        return "CmdError"
 
 
 def safe_kill(pid, sig):
@@ -48,7 +70,7 @@ def kill_process_tree(pid, sig=signal.SIGKILL):
     """
     if not safe_kill(pid, signal.SIGSTOP):
         return
-    children = commands.getoutput("ps --ppid=%d -o pid=" % pid).split()
+    children = getoutput(f"ps --ppid={int(pid)} -o pid=").split()
     for child in children:
         kill_process_tree(int(child), sig)
     safe_kill(pid, sig)
@@ -61,7 +83,7 @@ def get_children_pids(ppid):
     param ppid: parent PID
     return: list of PIDs of all children/threads of ppid
     """
-    return commands.getoutput("ps -L --ppid=%d -o lwp" % ppid).split('\n')[1:]
+    return getoutput(f"ps -L --ppid={int(ppid)} -o lwp").split('\n')[1:]
 
 
 def process_in_ptree_is_defunct(ppid):
@@ -79,8 +101,8 @@ def process_in_ptree_is_defunct(ppid):
     except CmdError:  # Process doesn't exist
         return True
     for pid in pids:
-        cmd = "ps --no-headers -o cmd %d" % int(pid)
-        proc_name = commands.getoutput(cmd)
+        cmd = f"ps --no-headers -o cmd {int(pid)}"
+        proc_name = getoutput(cmd)
         if '<defunct>' in proc_name:
             defunct = True
             break

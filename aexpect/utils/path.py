@@ -1,3 +1,16 @@
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#
+# See LICENSE for more details.
+
+"""Utils simplifying dir handling"""
+
 import os
 
 
@@ -11,13 +24,13 @@ class CmdNotFoundError(Exception):
     """
 
     def __init__(self, cmd, paths):
-        super(CmdNotFoundError, self)
+        super().__init__()
         self.cmd = cmd
         self.paths = paths
 
     def __str__(self):
-        return ("Command '%s' could not be found in any of the PATH dirs: %s" %
-                (self.cmd, self.paths))
+        return (f"Command '{self.cmd}' could not be found in any of the PATH "
+                f"dirs: {self.paths}")
 
 
 def find_command(cmd, default=None):
@@ -30,13 +43,15 @@ def find_command(cmd, default=None):
     :raise: :class:`aexpect.utils.path.CmdNotFoundError` in case the
             command was not found and no default was given.
     """
-    common_bin_paths = ["/usr/libexec", "/usr/local/sbin", "/usr/local/bin",
-                        "/usr/sbin", "/usr/bin", "/sbin", "/bin"]
     try:
         path_paths = os.environ['PATH'].split(":")
     except IndexError:
         path_paths = []
-    path_paths = list(set(common_bin_paths + path_paths))
+
+    for common_path in ["/usr/libexec", "/usr/local/sbin", "/usr/local/bin",
+                        "/usr/sbin", "/usr/bin", "/sbin", "/bin"]:
+        if common_path not in path_paths:
+            path_paths.append(common_path)
 
     for dir_path in path_paths:
         cmd_path = os.path.join(dir_path, cmd)
@@ -45,8 +60,7 @@ def find_command(cmd, default=None):
 
     if default is not None:
         return default
-    else:
-        raise CmdNotFoundError(cmd, path_paths)
+    raise CmdNotFoundError(cmd, path_paths)
 
 
 def init_dir(*args):
@@ -58,7 +72,7 @@ def init_dir(*args):
     :return: directory.
     :rtype: str
     """
-    directory = os.path.join(*args)
+    directory = os.path.join(*args)  # pylint: disable=E1120
     if not os.path.isdir(directory):
         os.makedirs(directory)
     return directory

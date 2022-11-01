@@ -1,23 +1,38 @@
-PYTHON=`which python`
+PYTHON=$(shell which python 2>/dev/null || which python3 2>/dev/null)
+PYTHON_DEVELOP_ARGS=$(shell if ($(PYTHON) setup.py develop --help 2>/dev/null | grep -q '\-\-user'); then echo "--user"; else echo ""; fi)
 DESTDIR=/
 BUILDIR=$(CURDIR)/debian/aexpect
-PROJECT=avocado
-VERSION="1.0.0"
+PROJECT=aexpect
+VERSION="1.6.4"
+COMMIT=$(shell git log --pretty=format:'%H' -n 1)
+SHORT_COMMIT=$(shell git log --pretty=format:'%h' -n 1)
+COMMIT_DATE=$(shell git log --pretty='format:%cd' --date='format:%Y%m%d' -n 1)
+MOCK_CONFIG=default
 
 all:
+	@echo "make check - Runs tree static check, unittests and functional tests. Some tests are only executed when AEXPECT_TIME_SENSITIVE=yes is set."
+	@echo "make clean - Get rid of scratch and byte files"
 	@echo "make source - Create source package"
 	@echo "make install - Install on local system"
 	@echo "make build-deb-src - Generate a source debian package"
 	@echo "make build-deb-bin - Generate a binary debian package"
 	@echo "make build-deb-all - Generate both source and binary debian packages"
-	@echo "make build-rpm-src - Generate a source RPM package (.srpm)"
-	@echo "make build-rpm-all - Generate both source and binary RPMs"
-	@echo "make man - Generate the avocado man page"
-	@echo "make check - Runs tree static check, unittests and functional tests"
-	@echo "make clean - Get rid of scratch and byte files"
+	@echo "RPM related targets:"
+	@echo "make srpm: Generate a source RPM package (.srpm)"
+	@echo "make rpm: Generate binary RPMs"
+	@echo
+	@echo "Release related targets:"
+	@echo "source-release:     Create source package for the latest tagged release"
+	@echo "srpm-release:       Generate a source RPM package (.srpm) for the latest tagged release"
+	@echo "rpm-release:        Generate binary RPMs for the latest tagged release"
 
-source:
-	$(PYTHON) setup.py sdist $(COMPILE) --dist-dir=SOURCES --prune
+source: clean
+	if test ! -d SOURCES; then mkdir SOURCES; fi
+	git archive --prefix="aexpect-$(COMMIT)/" -o "SOURCES/aexpect-$(SHORT_COMMIT).tar.gz" HEAD
+
+source-release: clean
+	if test ! -d SOURCES; then mkdir SOURCES; fi
+	git archive --prefix="aexpect-$(VERSION)/" -o "SOURCES/aexpect-$(VERSION).tar.gz" $(VERSION)
 
 install:
 	$(PYTHON) setup.py install --root $(DESTDIR) $(COMPILE)
@@ -26,7 +41,7 @@ prepare-source:
 	# build the source package in the parent directory
 	# then rename it to project_version.orig.tar.gz
 	dch -D "utopic" -M -v "$(VERSION)" "Automated (make builddeb) build."
-	$(PYTHON) setup.py sdist $(COMPILE) --dist-dir=../ --prune
+	$(PYTHON) setup.py sdist $(COMPILE) --dist-dir=../
 	rename -f 's/$(PROJECT)-(.*)\.tar\.gz/$(PROJECT)_$$1\.orig\.tar\.gz/' ../*
 
 build-deb-src: prepare-source
@@ -41,22 +56,45 @@ build-deb-all: prepare-source
 	# build both source and binary packages
 	dpkg-buildpackage -i -I -rfakeroot
 
-build-rpm-src: source
-	rpmbuild --define '_topdir %{getenv:PWD}' \
-		 -bs aexpect.spec
+srpm: source
+	if test ! -d BUILD/SRPM; then mkdir -p BUILD/SRPM; fi
+	mock -r $(MOCK_CONFIG) --resultdir BUILD/SRPM -D "rel_build 0" -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --buildsrpm --spec python-aexpect.spec --sources SOURCES
 
-build-rpm-all: source
-	rpmbuild --define '_topdir %{getenv:PWD}' \
-		 -ba aexpect.spec
+rpm: srpm
+	if test ! -d BUILD/RPM; then mkdir -p BUILD/RPM; fi
+	mock -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 0" -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --rebuild BUILD/SRPM/python-aexpect-$(VERSION)-*.src.rpm
 
-check:
-	selftests/checkall
+srpm-release: source-release
+	if test ! -d BUILD/SRPM; then mkdir -p BUILD/SRPM; fi
+	mock -r $(MOCK_CONFIG) --resultdir BUILD/SRPM -D "rel_build 1" --buildsrpm --spec python-aexpect.spec --sources SOURCES
+
+rpm-release: srpm-release
+	if test ! -d BUILD/RPM; then mkdir -p BUILD/RPM; fi
+	mock -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 1" --rebuild BUILD/SRPM/python-aexpect-$(VERSION)-*.src.rpm
+
+check: clean
+	inspekt checkall --disable-lint R0205
+	$(PYTHON) setup.py develop $(PYTHON_DEVELOP_ARGS)
+	$(PYTHON) setup.py test
 
 clean:
 	$(PYTHON) setup.py clean
 	$(MAKE) -f $(CURDIR)/debian/rules clean || true
 	rm -rf build/ MANIFEST BUILD BUILDROOT SPECS RPMS SRPMS SOURCES
 	find . -name '*.pyc' -delete
+
+pypi: clean
+	if test ! -d PYPI_UPLOAD; then mkdir PYPI_UPLOAD; fi
+	$(PYTHON) setup.py bdist_wheel -d PYPI_UPLOAD
+	$(PYTHON) setup.py sdist -d PYPI_UPLOAD
+	@echo
+	@echo "Please use the files on PYPI_UPLOAD dir to upload a new version to PyPI"
+	@echo "The URL to do that may be a bit tricky to find, so here it is:"
+	@echo " https://pypi.python.org/pypi?%3Aaction=submit_form"
+	@echo
+	@echo "Alternatively, you can also run a command like: "
+	@echo " twine upload -u <PYPI_USERNAME> PYPI_UPLOAD/*.{tar.gz,whl}"
+	@echo
 
 .PHONY: source install clean
 

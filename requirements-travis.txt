@@ -1,1 +1,2 @@
-inspektor==0.1.16
+pycodestyle==2.4.0
+inspektor==0.5.3
