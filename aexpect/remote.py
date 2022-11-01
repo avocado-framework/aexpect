@@ -59,7 +59,7 @@ LOG = logging.getLogger(__name__)
 
 #: prompt to be used for shell sessions on linux machines (default)
 PROMPT_LINUX = r"^\[.*\][\#\$]\s*$"
-#: prompt to be used for shell sessions on windows machines
+#: prompt to be used for shell sessions on Windows machines
 PROMPT_WINDOWS = r"^\w:\\.*>\s*$"
 
 
@@ -68,7 +68,7 @@ class RemoteError(Exception):
 
 
 class LoginError(RemoteError):
-    """Base class for any remote error related to login and session creation."""
+    """Base class for any remote error related to logins and session creation."""
 
     def __init__(self, msg, output=''):
         super().__init__()
@@ -237,6 +237,7 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
     :param timeout: The maximal time duration (in seconds) to wait for each
             step of the login procedure (i.e. the "Are you sure" prompt, the
             password prompt, the shell prompt, etc)
+    :param debug: Whether to add extra debugging output
     :raise LoginTimeoutError: If timeout expires
     :raise LoginAuthenticationError: If authentication fails
     :raise LoginProcessTerminatedError: If the client terminates during login
@@ -328,7 +329,7 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
         except ExpectTimeoutError as error:
             # sometimes, linux kernel print some message to console
             # the message maybe impact match login pattern, so send
-            # a empty line to avoid unexpect login timeout
+            # an empty line to avoid unexpected login timeout
             if not last_chance:
                 time.sleep(0.5)
                 session.sendline()
@@ -378,8 +379,8 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
     :param preferred_authenticaton: Given value of PreferredAuthentications in ssh
     :param user_known_hosts_file: Given value of UserKnownHostsFile in ssh
     :param extra_cmdline: Additional params for the session, like -X for SSH.
-    :raise LoginError: If using ipv6 linklocal but not assign a interface that
-                       the neighbour attache
+    :raise LoginError: If using ipv6 linklocal but not assign an interface that
+                       the neighbour attached
     :raise LoginBadClientError: If an unknown client is requested
     :raise: Whatever handle_prompts() raises
     :return: A RemoteSession object.
@@ -437,6 +438,17 @@ def wait_for_login(client, host, port, username, password, prompt,
     """
     Make multiple attempts to log into a guest until one succeeds or timeouts.
 
+    :param client: aexpect client
+    :param host: Hostname or IP of host
+    :param port: Hostname port
+    :param username: Username for host
+    :param password: Password for host
+    :param prompt: Hostname prompt string
+    :param linesep: Line separator
+    :param log_filename: Filename for logging
+    :param log_function: Function that will perform logging
+    :param interface: The interface the neighbours attach to (only use when
+                      using ipv6 linklocal address).
     :param timeout: Total time duration to wait for a successful login
     :param internal_timeout: The maximum time duration (in seconds) to wait for
                              each step of the login procedure (e.g. the
@@ -578,6 +590,7 @@ def scp_to_remote(host, port, username, password, local_path, remote_path,
     Copy files to a remote host (guest) through scp.
 
     :param host: Hostname or IP address
+    :param port: Port
     :param username: Username (if required)
     :param password: Password (if required)
     :param local_path: Path on the local machine where we are copying from
@@ -622,6 +635,7 @@ def scp_from_remote(host, port, username, password, remote_path, local_path,
     Copy files from a remote host (guest).
 
     :param host: Hostname or IP address
+    :param port: Port
     :param username: Username (if required)
     :param password: Password (if required)
     :param local_path: Path on the local machine where we are copying from
@@ -665,18 +679,22 @@ def scp_between_remotes(src, dst, port, s_passwd, d_passwd, s_name, d_name,
     """
     Copy files from a remote host (guest) to another remote host (guest).
 
-    :param src/dst: Hostname or IP address of src and dst
-    :param s_name/d_name: Username (if required)
-    :param s_passwd/d_passwd: Password (if required)
-    :param s_path/d_path: Path on the remote machine where we are copying
-                          from/to
+    :param src: Hostname or IP address of source
+    :param dst: Hostname or IP address of destination
+    :param port: Port
+    :param s_name: Source username (if required)
+    :param d_name: Destination username (if required)
+    :param s_passwd: Source password (if required)
+    :param d_passwd: Destination password (if required)
+    :param s_path: Path on the source remote machine
+    :param d_path: Path on the destination remote machine
     :param limit: Speed limit of file transfer.
     :param log_filename: If specified, log all output to this file
     :param log_function: If specified, log all output using this function
     :param timeout: The time duration (in seconds) to wait for the transfer
                     to complete.
-    :param src_inter: The interface on local that the src neighbour attache
-    :param dst_inter: The interface on the src that the dst neighbour attache
+    :param src_inter: The interface on local that the src neighbour attached
+    :param dst_inter: The interface on the src that the dst neighbour attached
     :param directory: True to copy recursively if the directory to scp
 
     :return: True on success and False on failure.
@@ -709,6 +727,7 @@ def scp_between_remotes(src, dst, port, s_passwd, d_passwd, s_name, d_name,
                       log_filename, log_function, timeout)
 
 
+# noinspection PyBroadException
 def nc_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
                             s_name, d_name, s_path, d_path,
                             c_type="ssh", c_prompt="\n",
@@ -720,10 +739,15 @@ def nc_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
 
     This method only supports linux guest OS.
 
-    :param src/dst: Hostname or IP address of src and dst
-    :param s_name/d_name: Username (if required)
-    :param s_passwd/d_passwd: Password (if required)
-    :param s_path/d_path: Path on the remote machine where we are copying
+    :param src: Hostname or IP address of source
+    :param dst: Hostname or IP address of destination
+    :param s_port: Hostname port
+    :param s_name: Source username (if required)
+    :param d_name: Destination username (if required)
+    :param s_passwd: Source password (if required)
+    :param d_passwd: Destination password (if required)
+    :param s_path: Path on the source remote machine
+    :param d_path: Path on the destination remote machine
     :param c_type: Login method to remote host(guest).
     :param c_prompt: command line prompt of remote host(guest)
     :param d_port:  the port data transfer
@@ -732,7 +756,8 @@ def nc_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
                     seconds, then the connection is silently closed.
     :param s_session: A shell session object for source or None.
     :param d_session: A shell session object for dst or None.
-    :param timeout: timeout for file transfer.
+    :param check_sum: Whether to run checksum for the operation.
+    :param file_transfer_timeout: Timeout for file transfer.
 
     :return: True on success and False on failure.
     """
@@ -796,10 +821,15 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
     """
     Copy files from guest to guest using udp.
 
-    :param src/dst: Hostname or IP address of src and dst
-    :param s_name/d_name: Username (if required)
-    :param s_passwd/d_passwd: Password (if required)
-    :param s_path/d_path: Path on the remote machine where we are copying
+    :param src: Hostname or IP address of source
+    :param dst: Hostname or IP address of destination
+    :param s_port: Hostname port
+    :param s_name: Source username (if required)
+    :param d_name: Destination username (if required)
+    :param s_passwd: Source password (if required)
+    :param d_passwd: Destination password (if required)
+    :param s_path: Path on the source remote machine
+    :param d_path: Path on the destination remote machine
     :param c_type: Login method to remote host(guest).
     :param c_prompt: command line prompt of remote host(guest)
     :param d_port:  the port data transfer
@@ -906,6 +936,11 @@ def login_from_session(session, log_filename=None, log_function=None,
     configuration as a previous session.
 
     :param session: an SSH session whose configuration will be reused
+    :param log_filename: Log filename
+    :param log_function: Function for logging
+    :param timeout: Timeout for login
+    :param internal_timeout: Internal timeout for the login loop
+    :param interface: Interface to be used
     :type session: RemoteSession object
     :returns: connection session
     :rtype: RemoteSession object
@@ -930,6 +965,12 @@ def scp_to_session(session, local_path, remote_path,
     :type session: RemoteSession object
     :param str local_path: local filepath to copy from
     :param str remote_path: remote filepath to copy to
+    :param limit: Limit
+    :param log_filename: Filename for the log
+    :param log_function: Function to perform logging
+    :param timeout: Timeout for the scp operation
+    :param interface: Interface used for the transfer
+    :param directory: Whether the path is a directory
 
     The rest of the arguments are identical to scp_to_remote().
     """
@@ -951,6 +992,12 @@ def scp_from_session(session, remote_path, local_path,
     :type session: RemoteSession object
     :param str remote_path: remote filepath to copy from
     :param str local_path: local filepath to copy to
+    :param limit: Limit
+    :param log_filename: Filename for the log
+    :param log_function: Function to perform logging
+    :param timeout: Timeout for the scp operation
+    :param interface: Interface used for the transfer
+    :param directory: Whether the path is a directory
 
     The rest of the arguments are identical to scp_from_remote().
     """
@@ -964,7 +1011,7 @@ def scp_from_session(session, remote_path, local_path,
 def throughput_transfer(func):
     """
     wrapper function for copy_files_to/copy_files_from function, will
-    print throughput if filesize is not none, else will print elapsed time
+    print throughput if file size is not none, else will print elapsed time
     """
 
     def transfer(*args, **kwargs):
@@ -976,7 +1023,7 @@ def throughput_transfer(func):
         start_time = time.time()
         ret = func(*args, **kwargs)
         elapsed_time = time.time() - start_time
-        if kwargs.get("fileszie", None) is not None:
+        if kwargs.get("filesize", None) is not None:
             throughput = kwargs["filesize"] / elapsed_time
             msg += f"estimated throughput: {throughput:.2f} MB/s"
         else:
@@ -997,7 +1044,8 @@ def copy_files_to(address, client, username, password, port, local_path,
 
     :param client: Type of transfer client
     :param username: Username (if required)
-    :param password: Password (if requried)
+    :param password: Password (if required)
+    :param port: Hostname port
     :param local_path: Path on the local machine where we are copying from
     :param remote_path: Path on the remote machine where we are copying to
     :param address: Address of remote host(guest)
@@ -1040,7 +1088,8 @@ def copy_files_from(address, client, username, password, port, remote_path,
 
     :param client: Type of transfer client
     :param username: Username (if required)
-    :param password: Password (if requried)
+    :param password: Password (if required)
+    :param port: Host port
     :param remote_path: Path on the remote machine where we are copying from
     :param local_path: Path on the local machine where we are copying to
     :param address: Address of remote host(guest)

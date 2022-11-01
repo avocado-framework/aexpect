@@ -93,5 +93,5 @@ def get_filenames(base_dir):
 
 
 def get_reader_filename(base_dir, reader):
-    """Return path to pipe of the the associated reader"""
+    """Return path to pipe of the associated reader"""
     return os.path.join(base_dir, f"outpipe-{reader}")

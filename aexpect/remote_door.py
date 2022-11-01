@@ -44,7 +44,7 @@ We use the following three options to communicate code among remote hosts:
 
 Note that this utility is meant to be a testing utility and should not be
 enabled in production machines for security reasons. It does contain a more
-secure approaches based on non-pickle serialization but it does open a door
+secure approaches based on non-pickle serialization, but it does open a door
 of possibilities on a remote system if not fully understood and used with care.
 
 INTERFACE
@@ -67,7 +67,7 @@ import tempfile
 import time
 
 # NOTE: enable this before importing the Pyro backend in order to debug issues
-# related to connectivity and perform further development on the this utility.
+# related to connectivity and perform further development on this utility.
 # os.environ["PYRO_LOGLEVEL"] = "DEBUG"
 try:
     import Pyro4
@@ -439,9 +439,9 @@ def set_subcontrol_parameter_object(subcontrol, value):
         registered = pyro_daemon.registered()
         LOG.debug("Pyro4 daemon already started, available objects: %s",
                   registered)
-        assert len(registered) == 2, "The Pyro4 deamon should contain only two"\
+        assert len(registered) == 2, "The Pyro4 daemon should contain only two"\
                                      " initially registered objects"
-        assert registered[0] == "Pyro.Daemon", "The Pyro4 deamon must be first"\
+        assert registered[0] == "Pyro.Daemon", "The Pyro4 daemon must be first"\
                                                " registered object"
         uri = "PYRO:" + registered[1] + "@" + host_ip + ":1437"
         pyrod_running = True
@@ -452,7 +452,7 @@ def set_subcontrol_parameter_object(subcontrol, value):
         loop.start()
 
     LOG.debug("Sending the params object to the host via uri %s", uri)
-    # post-processing of the replaced string is allowed for an URI
+    # post-processing of the replaced string is allowed for a URI
     subcontrol = re.sub("URI[ \t\v]*=[ \t\v]*\".*\"", f"URI = \"{uri}\"",
                         subcontrol, count=1)
 
@@ -469,7 +469,7 @@ class DaemonLoop(threading.Thread):
 
     def __init__(self, pyro_daemon):
         """
-        Contruct the Pyro daemon thread.
+        Construct the Pyro daemon thread.
 
         :param pyro_daemon: daemon for the remote python objects
         :type pyro_daemon: Pyro4.Daemon object
@@ -740,7 +740,7 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     :param int port: port of the remote sharing server
     :param str os_type: OS type of the session, either "linux" or "windows"
     :param extra_params: extra parameters to pass to the remote object sharing
-                         control file (sismilarly to subcontrol setting above),
+                         control file (similarly to subcontrol setting above),
                          with keys usually prepended with "ro_" prefix
     :type extra_params: {str, str}
     :returns: newly created middleware session for the remote object server
@@ -750,11 +750,11 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     In comparison to :py:func:`share_local_object`, this function fires up a
     name server from a second spawned session (not remote util call) and uses
     static (template) control as a remote object server which has to be
-    preprogrammed but thus also customized (e.g. sharing multiple objects).
+    pre-programmed but thus also customized (e.g. sharing multiple objects).
 
     In comparison to :py:func:`share_local_objects`, this function is not
     an internal implementation sharing everything on the other side but only
-    what is dicated by the remote object server module and thus its creator.
+    what is dictated by the remote object server module and thus its creator.
 
     .. note:: Created and works specifically for Windows and Linux.
     """
@@ -777,7 +777,7 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     remote_path = os.path.join(REMOTE_CONTROL_DIR,
                                os.path.basename(control_path))
     # NOTE: since we are creating the path in Linux but use it in Windows,
-    # we replace some of the backslashes
+    # we replace some backslashes
     if os_type == "windows":
         remote_path = remote_path.replace("/", "\\")
     remote.copy_files_to(session.host, transfer_client,
@@ -791,8 +791,8 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     middleware_session.set_output_params(())
     middleware_session.sendline(f"python {remote_path}")
 
-    # HACK: not the best way to do this but the stderr and stdout are mixed and we
-    # cannot get the exit status so we rely on the mixed stdout/stderr output
+    # HACK: not the best way to do this, but if the stderr and stdout are mixed, and we
+    # cannot get the exit status, we will rely on the mixed stdout/stderr output
     output, attempts = "", 30
     while "Remote objects shared over the network" not in output:
         output = middleware_session.get_output()
@@ -843,7 +843,7 @@ def import_remote_exceptions(exceptions=None, modules=None):
               ", ".join(exceptions))
 
     class RemoteCustomException(Exception):
-        """Standard class to instantiate during remote expection deserialization."""
+        """Standard class to instantiate during remote expectation deserialization."""
         __customclass__ = None
 
     def recreate_exception(class_name, class_dict):

@@ -129,7 +129,7 @@ selftests/checkall
 - Changed URL to aexpect repo
 - Changed build to use a git archived based source
 - Added released version builds
-- Remove compatiblity with older package name
+- Remove compatibility with older package name
 - Reordered tags
 - Added conditional for check target
 - Only require python-setuptools on RHEL

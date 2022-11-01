@@ -21,8 +21,7 @@ _open_log_files = {}  # pylint: disable=C0103
 
 def close_log_file(filename):
     """
-    This closes all files that use the same "filename" (not just path, but
-    really just "basename(filename)".
+    This closes all files that use the same base name "filename".
     """
 
     remove = []

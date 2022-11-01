@@ -108,7 +108,7 @@ class FileTransferNotFoundError(FileTransferError):
 class FileTransferClient:
 
     """
-    Connect to a RSS (remote shell server) and transfer files.
+    Connect to an RSS (remote shell server) and transfer files.
     """
 
     def __init__(self, address, port, log_func=None, timeout=20):
@@ -139,7 +139,7 @@ class FileTransferClient:
                 raise FileTransferConnectError("Received wrong magic number")
         except FileTransferTimeoutError:
             raise FileTransferConnectError("Timeout expired while waiting to "
-                                           "receive magic number") from error
+                                           "receive magic number")
         self._send(struct.pack("=i", CHUNKSIZE))
         self._log_func = log_func
         self._last_time = time.time()
@@ -274,7 +274,7 @@ class FileTransferClient:
 class FileUploadClient(FileTransferClient):
 
     """
-    Connect to a RSS (remote shell server) and upload files or directory trees.
+    Connect to an RSS (remote shell server) and upload files or directory trees.
     """
 
     def __init__(self, address, port, log_func=None, timeout=20):
@@ -379,7 +379,7 @@ class FileUploadClient(FileTransferClient):
 class FileDownloadClient(FileTransferClient):
 
     """
-    Connect to a RSS (remote shell server) and download files or directory
+    Connect to an RSS (remote shell server) and download files or directory
     trees.
     """
 

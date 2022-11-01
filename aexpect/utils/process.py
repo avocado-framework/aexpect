@@ -50,6 +50,7 @@ def safe_kill(pid, sig):
     """
     Attempt to send a signal to a given process that may or may not exist.
 
+    :param pid: Process ID.
     :param sig: Signal number.
     """
     try:

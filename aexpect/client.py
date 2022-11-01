@@ -431,7 +431,7 @@ class Spawn:
         Ctrl-D. For example, to send a Ctrl-G (ASCII 7)::
         session.sendcontrol('g')
         :param char: single character you want to send (ctrl+$char)
-        :raise KeyError: When unable to map char to ctrl+comand
+        :raise KeyError: When unable to map char to ctrl+command
         """
         char = char.lower()
         val = ord(char)
@@ -1009,7 +1009,7 @@ class Expect(Tail):
 class ShellSession(Expect):
 
     """
-    This class runs a child process in the background.  It it suited for
+    This class runs a child process in the background. It is suited for
     processes that provide an interactive shell, such as SSH and Telnet.
 
     It provides all services of Expect and Tail.  In addition, it
@@ -1115,7 +1115,7 @@ class ShellSession(Expect):
         Send a newline to the child process (e.g. SSH or Telnet) and read some
         output using read_nonblocking().
         If all is OK, some output should be available (e.g. the shell prompt).
-        In that case return True.  Otherwise return False.
+        In that case return True. Otherwise, return False.
 
         :param timeout: Time duration to wait before the process is considered
                 unresponsive.
@@ -1264,7 +1264,7 @@ class ShellSession(Expect):
                 (should take a string parameter)
         :param safe: Whether using safe mode when execute cmd.
                 In serial sessions, frequently the kernel might print debug or
-                error messages that make read_up_to_prompt to timeout. Let'status
+                error messages that make read_up_to_prompt to timeout. Let status
                 try to be a little more robust and send a carriage return, to
                 see if we can get to the prompt when safe=True.
 
@@ -1321,7 +1321,7 @@ class ShellSession(Expect):
     def cmd(self, cmd, timeout=60, internal_timeout=None, print_func=None,
             ok_status=None, ignore_all_errors=False):
         """
-        Send a command and return its output. If the command'status exit status is
+        Send a command and return its output. If the command's exit status is
         nonzero, raise an exception.
 
         :param cmd: Command to send (must not contain newline characters)
@@ -1332,7 +1332,7 @@ class ShellSession(Expect):
                 (should take a string parameter)
         :param ok_status: do not raise ShellCmdError in case that exit status
                 is one of ok_status. (default is [0,])
-        :param ignore_all_errors: toggles whether or not an exception should be
+        :param ignore_all_errors: toggles whether an exception should be
                 raised  on any error.
 
         :return: The output of cmd
@@ -1385,7 +1385,7 @@ class ShellSession(Expect):
 class RemoteSession(ShellSession):
 
     """
-    This class includes helpers specifically with regards to remote sessions.
+    This class includes helpers specifically regarding remote sessions.
 
     It provides all services of the shell session and extends it with remote
     connection attributes like client, host, port, username, and password.

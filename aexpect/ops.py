@@ -17,7 +17,7 @@
 A list of frequent operations performed through remote sessions.
 
 Most commands passed to a session are routine invocations of common userland
-tools. Nevertheless some of them require a certain effort to set up because
+tools. Nevertheless, some of them require a certain effort to set up because
 they are squeezed through the eye of the needle, the shell session.
 
 The functionality in this module assumes a remote host with the ordinary userland
@@ -38,13 +38,13 @@ Allows for testing existence, permissions and other properties of files.
 file ops:
 Simple file operations executed through sessions. Most functions boil down to
 executing simple commands like ls, tar, md5sum, etc. If these operations return
-non-0, a :py:class:`RuntimeError` is raised, containing the commands's error
+non-0, a :py:class:`RuntimeError` is raised, containing the command's error
 message. All functions :py:func:`shlex.quote` their args for better security.
 
 utilities:
 More complex linux utilities for tarball extraction, file hashing, etc.
 
-..warning:: This module runs commands on raw shell sessions and although we usually
+..warning:: This module runs commands on raw shell sessions, and although we usually
     quote the main arguments, we do not perform complex checks for escapes. It is
     meant only for some convenience in simple enough use cases and using it might
     result in data loss or worse.
@@ -92,7 +92,7 @@ def get_atime(session, path, human_readable=False):
     :param session: session to run the command on
     :type session: ShellSession
     :param str path: path to the filesystem entry to stat
-    :param bool human_readable: whether to use human readable format or seconds
+    :param bool human_readable: whether to use human-readable format or seconds
                                 since Epoch
     :returns: standard output of stat(1) querying the access time of ``path``
     :rtype: str
@@ -107,7 +107,7 @@ def get_mtime(session, path, human_readable=False):
     :param session: session to run the command on
     :type session: ShellSession
     :param str path: path to the filesystem entry to stat
-    :param bool human_readable: whether to use human readable format or seconds
+    :param bool human_readable: whether to use human-readable format or seconds
                                 since Epoch
     :returns: standard output of stat(1) querying the last modification time
               of ``path``
@@ -123,7 +123,7 @@ def get_ctime(session, path, human_readable=False):
     :param session: session to run the command on
     :type session: ShellSession
     :param str path: path to the filesystem entry to stat
-    :param bool human_readable: whether to use human readable format or seconds
+    :param bool human_readable: whether to use human-readable format or seconds
                                 since Epoch
     :returns: standard output of stat(1) querying the last change time of
               ``path``
@@ -357,8 +357,8 @@ def cat(session, filename, quote_path=True, flags=""):
     :rtype: str
     :raises: :py:class:`RuntimeError` if cat command fails
 
-    Should only be used for very short files without tabs or other fancy
-    contents. Otherwise better download file or use some other method.
+    Should only be used for very small files without tabs or other fancy
+    contents. Otherwise, it is better to download the file or use some other method.
     """
     cmd = f'cat {flags} {quote(filename)}' if quote_path else f'cat {flags} {filename}'
     status, output = session.cmd_status_output(cmd)
