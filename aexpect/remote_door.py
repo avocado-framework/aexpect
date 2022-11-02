@@ -44,7 +44,7 @@ We use the following three options to communicate code among remote hosts:
 
 Note that this utility is meant to be a testing utility and should not be
 enabled in production machines for security reasons. It does contain a more
-secure approaches based on non-pickle serialization but it does open a door
+secure approaches based on non-pickle serialization, but it does open a door
 of possibilities on a remote system if not fully understood and used with care.
 
 INTERFACE
@@ -67,9 +67,10 @@ import tempfile
 import time
 
 # NOTE: enable this before importing the Pyro backend in order to debug issues
-# related to connectivity and perform further development on the this utility.
+# related to connectivity and perform further development on this utility.
 # os.environ["PYRO_LOGLEVEL"] = "DEBUG"
 try:
+    # noinspection PyPackageRequirements,PyUnresolvedReferences
     import Pyro4
 except ImportError:
     logging.warning("Remote object backend (Pyro4) not found, some functionality"
@@ -79,6 +80,7 @@ except ImportError:
 # remote door can run code remotely without the requirement for the aexpect
 # module, alas, offering just limited functionality
 try:
+    # noinspection PyUnresolvedReferences
     from aexpect import remote
 except ImportError:
     pass
@@ -439,9 +441,9 @@ def set_subcontrol_parameter_object(subcontrol, value):
         registered = pyro_daemon.registered()
         LOG.debug("Pyro4 daemon already started, available objects: %s",
                   registered)
-        assert len(registered) == 2, "The Pyro4 deamon should contain only two"\
+        assert len(registered) == 2, "The Pyro4 daemon should contain only two"\
                                      " initially registered objects"
-        assert registered[0] == "Pyro.Daemon", "The Pyro4 deamon must be first"\
+        assert registered[0] == "Pyro.Daemon", "The Pyro4 daemon must be first"\
                                                " registered object"
         uri = "PYRO:" + registered[1] + "@" + host_ip + ":1437"
         pyrod_running = True
@@ -452,7 +454,7 @@ def set_subcontrol_parameter_object(subcontrol, value):
         loop.start()
 
     LOG.debug("Sending the params object to the host via uri %s", uri)
-    # post-processing of the replaced string is allowed for an URI
+    # post-processing of the replaced string is allowed for a URI
     subcontrol = re.sub("URI[ \t\v]*=[ \t\v]*\".*\"", f"URI = \"{uri}\"",
                         subcontrol, count=1)
 
@@ -469,7 +471,7 @@ class DaemonLoop(threading.Thread):
 
     def __init__(self, pyro_daemon):
         """
-        Contruct the Pyro daemon thread.
+        Construct the Pyro daemon thread.
 
         :param pyro_daemon: daemon for the remote python objects
         :type pyro_daemon: Pyro4.Daemon object
@@ -518,8 +520,10 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
     This method does not rely on any static (template) controls in order to
     work because the remote door takes care to reach back the local one.
     """
+    # noinspection PyUnresolvedReferences
     try:
         remote_object = Pyro4.Proxy(f"PYRONAME:{object_name}@{host}:{port}")
+        # noinspection PyProtectedMember
         remote_object._pyroBind()
     except Pyro4.errors.PyroError as error:
         if not session:
@@ -541,6 +545,7 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
         logging.getLogger("Pyro4").setLevel(10)
 
         remote_object = Pyro4.Proxy(f"PYRONAME:{object_name}@{host}:{port}")
+        # noinspection PyProtectedMember
         remote_object._pyroBind()
     return remote_object
 
@@ -562,10 +567,13 @@ def get_remote_objects(session=None, host="localhost", port=0):
     """
     Pyro4.config.SERIALIZER = "pickle"
     Pyro4.config.PICKLE_PROTOCOL_VERSION = 3
+    # noinspection PyPackageRequirements
     from Pyro4.utils import flame
 
+    # noinspection PyUnresolvedReferences
     try:
         remote_objects = flame.connect(host + ":" + str(port))
+        # noinspection PyProtectedMember
         remote_objects._pyroBind()
     except Pyro4.errors.PyroError as error:
         if not session:
@@ -587,6 +595,7 @@ def get_remote_objects(session=None, host="localhost", port=0):
         LOG.debug("Local objects sharing output:\n%s", control_log)
 
         remote_objects = flame.connect(host + ":" + str(port))
+        # noinspection PyProtectedMember
         remote_objects._pyroBind()
     return remote_objects
 
@@ -627,11 +636,13 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
 
     # name server
     ns_daemon = None
+    # noinspection PyUnresolvedReferences
     try:
         ns_server = Pyro4.locateNS(host=host, port=port)
         LOG.debug("Pyro4 name server already started")
     # network unreachable and failed to locate the nameserver error
     except (OSError, Pyro4.errors.NamingError):
+        # noinspection PyPackageRequirements
         from Pyro4 import naming
         ns_uri, ns_daemon, _bc_server = naming.startNS(host=host, port=port)
         ns_server = Pyro4.Proxy(ns_uri)
@@ -646,17 +657,17 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
         def wrapper(*args, **kwargs):
             rarg = fun(*args, **kwargs)
 
-            def proxify_type(rarg):
-                if rarg is None or type(rarg) in (bool, int, float, str):  # pylint: disable=C0123
-                    return rarg
-                if isinstance(rarg, tuple):
-                    return tuple(proxify_type(e) for e in rarg)
-                if isinstance(rarg, list):
-                    return [proxify_type(e) for e in rarg]
-                if isinstance(rarg, dict):
-                    return {proxify_type(k): proxify_type(v) for (k, v) in rarg.items()}
-                pyro_daemon.register(rarg)
-                return rarg
+            def proxify_type(_rarg):
+                if _rarg is None or type(_rarg) in (bool, int, float, str):  # pylint: disable=C0123
+                    return _rarg
+                if isinstance(_rarg, tuple):
+                    return tuple(proxify_type(e) for e in _rarg)
+                if isinstance(_rarg, list):
+                    return [proxify_type(e) for e in _rarg]
+                if isinstance(_rarg, dict):
+                    return {proxify_type(k): proxify_type(v) for (k, v) in _rarg.items()}
+                pyro_daemon.register(_rarg)
+                return _rarg
 
             import types
             if isinstance(rarg, types.GeneratorType):
@@ -718,6 +729,7 @@ def share_local_objects(wait=False, host="localhost", port=0):
     LOG.debug("Pyro4 daemon started successfully")
 
     # main retrieval of the local objects
+    # noinspection PyPackageRequirements
     from Pyro4.utils import flame
     _uri = flame.start(pyro_daemon)  # lgtm [py/unused-local-variable]
 
@@ -740,7 +752,7 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     :param int port: port of the remote sharing server
     :param str os_type: OS type of the session, either "linux" or "windows"
     :param extra_params: extra parameters to pass to the remote object sharing
-                         control file (sismilarly to subcontrol setting above),
+                         control file (similarly to subcontrol setting above),
                          with keys usually prepended with "ro_" prefix
     :type extra_params: {str, str}
     :returns: newly created middleware session for the remote object server
@@ -750,11 +762,11 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     In comparison to :py:func:`share_local_object`, this function fires up a
     name server from a second spawned session (not remote util call) and uses
     static (template) control as a remote object server which has to be
-    preprogrammed but thus also customized (e.g. sharing multiple objects).
+    pre-programmed but thus also customized (e.g. sharing multiple objects).
 
     In comparison to :py:func:`share_local_objects`, this function is not
     an internal implementation sharing everything on the other side but only
-    what is dicated by the remote object server module and thus its creator.
+    what is dictated by the remote object server module and thus its creator.
 
     .. note:: Created and works specifically for Windows and Linux.
     """
@@ -777,7 +789,7 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     remote_path = os.path.join(REMOTE_CONTROL_DIR,
                                os.path.basename(control_path))
     # NOTE: since we are creating the path in Linux but use it in Windows,
-    # we replace some of the backslashes
+    # we replace some backslashes
     if os_type == "windows":
         remote_path = remote_path.replace("/", "\\")
     remote.copy_files_to(session.host, transfer_client,
@@ -791,8 +803,8 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     middleware_session.set_output_params(())
     middleware_session.sendline(f"python {remote_path}")
 
-    # HACK: not the best way to do this but the stderr and stdout are mixed and we
-    # cannot get the exit status so we rely on the mixed stdout/stderr output
+    # HACK: not the best way to do this, but if the stderr and stdout are mixed, and we
+    # cannot get the exit status, we will rely on the mixed stdout/stderr output
     output, attempts = "", 30
     while "Remote objects shared over the network" not in output:
         output = middleware_session.get_output()
@@ -826,14 +838,14 @@ def import_remote_exceptions(exceptions=None, modules=None):
     """
 
     def list_module_exceptions(modstr):
-        module = importlib.import_module(modstr)
-        exceptions = []
-        for name in module.__dict__:
-            if not inspect.isclass(module.__dict__[name]):
+        imported_module = importlib.import_module(modstr)
+        module_exceptions = []
+        for name in imported_module.__dict__:
+            if not inspect.isclass(imported_module.__dict__[name]):
                 continue
-            if (issubclass(module.__dict__[name], Exception) or name.endswith('Error')):
-                exceptions.append(modstr + "." + name)
-        return exceptions
+            if issubclass(imported_module.__dict__[name], Exception) or name.endswith('Error'):
+                module_exceptions.append(modstr + "." + name)
+        return module_exceptions
 
     exceptions = [] if not exceptions else exceptions
     modules = [] if not modules else modules
@@ -843,21 +855,22 @@ def import_remote_exceptions(exceptions=None, modules=None):
               ", ".join(exceptions))
 
     class RemoteCustomException(Exception):
-        """Standard class to instantiate during remote expection deserialization."""
+        """Standard class to instantiate during remote expectation deserialization."""
         __customclass__ = None
 
     def recreate_exception(class_name, class_dict):
         LOG.debug("Remote exception %s data: %s", class_name, class_dict)
         exceptiontype = RemoteCustomException
-        exception = exceptiontype(*class_dict["args"])
+        recreated_exception = exceptiontype(*class_dict["args"])
         # in the case of non-custom exceptions the class is properly restored
-        exception.__customclass__ = class_dict.get("__class__", "")
+        recreated_exception.__customclass__ = class_dict.get("__class__", "")
 
         if "attributes" in class_dict.keys():
             # restore custom attributes on the exception object
             for attr, value in class_dict["attributes"].items():
-                setattr(exception, attr, value)
-        return exception
+                setattr(recreated_exception, attr, value)
+        return recreated_exception
 
     for exception in exceptions:
+        # noinspection PyUnresolvedReferences
         Pyro4.util.SerializerBase.register_dict_to_class(exception, recreate_exception)

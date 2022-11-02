@@ -25,12 +25,14 @@ from aexpect import remote_door
 from aexpect.client import RemoteSession
 
 
+# noinspection PyUnusedLocal
 def _local_login(client, host, port, username, password, prompt,
                  linesep="\n", log_filename=None, log_function=None,
                  timeout=10, internal_timeout=10, interface=None):
     return RemoteSession("sh", prompt=prompt, client=client)
 
 
+# noinspection PyUnusedLocal
 def _local_copy(address, client, username, password, port, local_path,
                 remote_path, limit="", log_filename=None, log_function=None,
                 verbose=False, timeout=600, interface=None, filesize=None,

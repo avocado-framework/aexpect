@@ -9,7 +9,7 @@
 #
 # See LICENSE for more details.
 
-"""Module that helps string handlings"""
+"""Module that helps string handling"""
 
 import re
 

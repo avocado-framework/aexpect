@@ -68,7 +68,6 @@ def init_dir(*args):
     Wrapper around os.path.join that creates dirs based on the final path.
 
     :param args: List of dir arguments that will be os.path.joined.
-    :type directory: list
     :return: directory.
     :rtype: str
     """

@@ -73,7 +73,7 @@ rpm-release: srpm-release
 	mock -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 1" --rebuild BUILD/SRPM/python-aexpect-$(VERSION)-*.src.rpm
 
 check: clean
-	inspekt checkall --disable-lint R0205
+	inspekt checkall --disable-lint R0205,W4901,W0703 --exclude .venv*
 	$(PYTHON) setup.py develop $(PYTHON_DEVELOP_ARGS)
 	$(PYTHON) setup.py test
 

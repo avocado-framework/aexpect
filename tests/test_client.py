@@ -138,7 +138,7 @@ class CommandsTests(unittest.TestCase):
 
             :returns: set
             """
-            # Ommitting the last one since it is the one opened to
+            # Omitting the last one since it is the one opened to
             # get the result from running the listdir method
             process_fds = os.listdir(f"/proc/{os.getpid()}/fd")[:-1]
             return set(process_fds)
@@ -150,6 +150,7 @@ class CommandsTests(unittest.TestCase):
         self.assertEqual(fds_after, fds_before,
                          msg="fd leak: Closing the session didn't close "
                              "the file descriptors")
+        # noinspection PyUnusedLocal
         session = None
 
 
