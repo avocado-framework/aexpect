@@ -1185,7 +1185,8 @@ class ShellSession(Expect):
         """
         if safe:
             return self.cmd_output_safe(cmd, timeout)
-        LOG.debug("Sending command: %s", cmd)
+        session_tag = f"[{self.output_prefix}] " if self.output_prefix else ""
+        LOG.debug("%sSending command: %s", session_tag, cmd)
         self.read_nonblocking(0, timeout)
         self.sendline(cmd)
         try:
@@ -1223,7 +1224,8 @@ class ShellSession(Expect):
                 terminates while waiting for output
         :raise ShellError: Raised if an unknown error occurs
         """
-        LOG.debug("Sending command (safe): %s", cmd)
+        session_tag = f"[{self.output_prefix}] " if self.output_prefix else ""
+        LOG.debug("%sSending command (safe): %s", session_tag, cmd)
         self.read_nonblocking(0, timeout)
         self.sendline(cmd)
         out = ""
