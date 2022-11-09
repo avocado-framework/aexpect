@@ -424,13 +424,15 @@ def grep(session, expr, path, check=False, flags="-a"):
 ###############################################################################
 
 
-def hash_file(session, filename, method='md5'):
+def hash_file(session, filename, size="", method="md5"):
     """
     Calculate hash of given file from a session.
 
     :param session: session to run the command on
     :type session: ShellSession
     :param str filename: full path of file that should be hashed
+    :param str size: calculate hash from initial data chunk of some size,
+                     e.g. 1M, 1G, etc.
     :param str method: method for hashing
     :returns: hash of file, a hex number
     :rtype: str
@@ -438,9 +440,13 @@ def hash_file(session, filename, method='md5'):
              found) or resulting output does not have expected format
     """
     cmd = f"{method}sum"
+    if size:
+        cmd = f"head -c {size} {quote(filename)} | {cmd}"
+    else:
+        cmd += " " + quote(filename)
 
     # run cmd on shell
-    status, output = session.cmd_status_output(cmd + ' ' + quote(filename))
+    status, output = session.cmd_status_output(cmd)
     if output:
         output = output.strip()
     if status != 0 or not output:
