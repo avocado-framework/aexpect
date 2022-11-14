@@ -414,8 +414,8 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
 
     if verbose:
         LOG.debug("Login command: '%s'", cmd)
-    session = RemoteSession(cmd, linesep=linesep, prompt=prompt,
-                            status_test_command=status_test_command,
+    session = RemoteSession(cmd, linesep=linesep, output_prefix=host,
+                            prompt=prompt, status_test_command=status_test_command,
                             client=client, host=host, port=port,
                             username=username, password=password)
     try:
