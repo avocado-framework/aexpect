@@ -83,12 +83,12 @@ def main():     # too-many-* pylint:disable=R0914,R0912,R0915
                 # 2MB => 8196kb, 4MB => 16392, ...
                 new_stack = (1 + len(command) // 2072576) * 8196
                 command = f"ulimit -s {new_stack}\nulimit -n 819200\n{command}"
-            tmp_file = tempfile.mktemp(suffix='.sh',
-                                       prefix='aexpect-', dir=base_dir)
-            with open(tmp_file, "w", encoding="utf-8") as fd_cmd:
-                fd_cmd.write(command)
-            os.execv("/bin/bash", ["/bin/bash", "-c", f"source {tmp_file}"])
-            os.remove(tmp_file)
+            with tempfile.NamedTemporaryFile(suffix='.sh', prefix='aexpect-',
+                                             dir=base_dir) as tmp_file:
+                tmp_file.write(command.encode('utf-8'))
+                tmp_file.flush()
+                os.execv("/bin/bash", ["/bin/bash", "-c",
+                                       f"source {tmp_file.name}"])
         else:
             os.execv("/bin/bash", ["/bin/bash", "-c", command])
     else:
