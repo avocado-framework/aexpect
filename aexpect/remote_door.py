@@ -83,7 +83,8 @@ try:
     # noinspection PyUnresolvedReferences
     from aexpect import remote
 except ImportError:
-    pass
+    logging.warning("Failed to import 'aexpect.remote', some functionality "
+                    "might not be available")
 
 LOG = logging.getLogger(__name__)
 
