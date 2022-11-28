@@ -81,7 +81,7 @@ def main():     # too-many-* pylint:disable=R0914,R0912,R0915
                 # Stack size would probably not suffice (and no open files)
                 # (1 + len(command) * 4 / 8290304) * 8196
                 # 2MB => 8196kb, 4MB => 16392, ...
-                new_stack = (1 + len(command) / 2072576) * 8196
+                new_stack = (1 + len(command) // 2072576) * 8196
                 command = f"ulimit -s {new_stack}\nulimit -n 819200\n{command}"
             tmp_file = tempfile.mktemp(suffix='.sh',
                                        prefix='aexpect-', dir=base_dir)
