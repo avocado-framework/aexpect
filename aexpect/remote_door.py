@@ -732,7 +732,7 @@ def share_local_objects(wait=False, host="localhost", port=0):
     # main retrieval of the local objects
     # noinspection PyPackageRequirements
     from Pyro4.utils import flame
-    _uri = flame.start(pyro_daemon)  # lgtm [py/unused-local-variable]
+    flame.start(pyro_daemon)
 
     # request loop
     loop = DaemonLoop(pyro_daemon)

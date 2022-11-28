@@ -130,7 +130,6 @@ def main():     # too-many-* pylint:disable=R0914,R0912,R0915
 
             # Read from child and write to files/pipes
             server_log.info('Entering main read loop')
-            status = 1  # lgtm [py/multiple-definition]
             while True:
                 check_termination = False
                 # Make a list of reader pipes whose buffers are not empty

@@ -18,11 +18,12 @@ import os
 import glob
 import re
 import shutil
-import unittest
-from unittest import mock
+import unittest.mock
 
 from aexpect import remote_door
 from aexpect.client import RemoteSession
+
+mock = unittest.mock
 
 
 # noinspection PyUnusedLocal
