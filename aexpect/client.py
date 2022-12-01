@@ -622,17 +622,20 @@ class Tail(Spawn):
         if self.log_file is not None:
             genio.close_log_file(self.log_file)
 
-    def _tail(self):  # speed optimization pylint: disable=too-many-branches
+    def _tail(self):  # speed optimization pylint: disable=too-many-branches,too-many-statements
 
         def _print_line(text):
             # Pre-pend prefix and remove trailing whitespace
             text = self.output_prefix + text.rstrip()
             # Pass text to output_func
             try:
-                out_params = self.output_params + (text,)
-                self.output_func(*out_params)
+                if self.output_params:
+                    self.output_func(*self.output_params + (text,))
+                else:
+                    self.output_func(text)
             except TypeError:
-                LOG.warning("Failed to print_line '%s'", out_params)
+                LOG.warning("Failed to print_line '%s' '%s'",
+                            self.output_params, text)
 
         try:
             tail_pipe = self._get_fd("tail")
