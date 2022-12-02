@@ -200,12 +200,15 @@ class Spawn:
                 pass
 
         # Open the reading pipes
-        try:
-            assert is_file_locked(self.lock_server_running_filename)
-            for reader, filename in self.reader_filenames.items():
-                self.reader_fds[reader] = os.open(filename, os.O_RDONLY)
-        except (AssertionError, OSError):
-            pass
+        if is_file_locked(self.lock_server_running_filename):
+            try:
+                for reader, filename in self.reader_filenames.items():
+                    self.reader_fds[reader] = os.open(filename, os.O_RDONLY)
+            except OSError:
+                LOG.warning("Failed to open reader '%s'", filename)
+        else:
+            LOG.warning("Not opening readers, lock_server_running "
+                        "not locked")
 
         # Allow the server to continue
         unlock_fd(lock_client_starting)
@@ -275,6 +278,7 @@ class Spawn:
             try:
                 os.close(fd_reader)
             except OSError:
+                # It was probably already closed
                 pass
 
     def _close_aexpect_helper(self):
@@ -415,7 +419,7 @@ class Spawn:
             os.write(proc_input_pipe, cont.encode(self.encoding))
             os.close(proc_input_pipe)
         except OSError:
-            pass
+            LOG.warning("Failed to send '%s'", cont)
 
     def sendline(self, cont=""):
         """
@@ -460,7 +464,7 @@ class Spawn:
             os.write(helper_control_pipe, data.encode(self.encoding))
             os.close(helper_control_pipe)
         except OSError:
-            pass
+            LOG.warning("Failed to send_ctrl '%s'", control_str)
 
     def __enter__(self):
         return self
@@ -618,17 +622,20 @@ class Tail(Spawn):
         if self.log_file is not None:
             genio.close_log_file(self.log_file)
 
-    def _tail(self):  # speed optimization pylint: disable=too-many-branches
+    def _tail(self):  # speed optimization pylint: disable=too-many-branches,too-many-statements
 
         def _print_line(text):
             # Pre-pend prefix and remove trailing whitespace
             text = self.output_prefix + text.rstrip()
             # Pass text to output_func
             try:
-                out_params = self.output_params + (text,)
-                self.output_func(*out_params)
+                if self.output_params:
+                    self.output_func(*self.output_params + (text,))
+                else:
+                    self.output_func(text)
             except TypeError:
-                pass
+                LOG.warning("Failed to print_line '%s' '%s'",
+                            self.output_params, text)
 
         try:
             tail_pipe = self._get_fd("tail")
@@ -640,7 +647,7 @@ class Tail(Spawn):
                     try:
                         os.close(tail_pipe)
                     except OSError:
-                        pass
+                        LOG.warning("Failed to close tail pipe %s", tail_pipe)
                     return
                 try:
                     # See if there's any data to read from the pipe
@@ -678,11 +685,13 @@ class Tail(Spawn):
             if status is None:
                 return
             _print_line(f"(Process terminated with status {status})")
-            try:
-                params = self.termination_params + (status,)
-                self.termination_func(*params)
-            except TypeError:
-                pass
+            if self.termination_func is not None:
+                try:
+                    params = self.termination_params + (status,)
+                    self.termination_func(*params)
+                except TypeError:
+                    LOG.warning("Termination function execution failure '%s'",
+                                params)
         finally:
             self.tail_thread = None
 

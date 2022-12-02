@@ -36,13 +36,13 @@ class PassfdsTest(unittest.TestCase):
             child = client.Spawn(LIST_FD_CMD)
             self.assertFalse(bool(child.get_status()),
                              "child terminated abnormally")
-            self.assertFalse(os.devnull in child.get_output())
+            self.assertNotIn(os.devnull, child.get_output())
             child.close()
 
             child = client.Spawn(LIST_FD_CMD, pass_fds=[fd_null])
             self.assertFalse(bool(child.get_status()),
                              "child terminated abnormally")
-            self.assertTrue(os.devnull in child.get_output())
+            self.assertIn(os.devnull, child.get_output())
             child.close()
 
 
