@@ -14,7 +14,7 @@
 # Copyright: Intra2net AG and aexpect contributors
 
 """
-A list of frequent operations performed through remote sessions.
+A list of frequent operations performed through remote sessions to linux platforms.
 
 Most commands passed to a session are routine invocations of common userland
 tools. Nevertheless, some of them require a certain effort to set up because
