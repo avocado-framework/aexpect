@@ -32,5 +32,9 @@ from .client import run_tail
 from .client import run_bg
 from .client import run_fg
 
-from . import remote
-from . import rss_client
+try:
+    from aexpect_remote import remote
+    from aexpect_remote import rss_client
+    from aexpect_remote import remote_door
+except ImportError:
+    pass

@@ -53,7 +53,8 @@ from aexpect.client import Expect
 from aexpect.client import RemoteSession
 from aexpect.exceptions import ExpectTimeoutError
 from aexpect.exceptions import ExpectProcessTerminatedError
-from aexpect import rss_client
+
+from . import rss_client
 
 LOG = logging.getLogger(__name__)
 

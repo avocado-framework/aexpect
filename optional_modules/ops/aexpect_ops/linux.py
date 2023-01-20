@@ -55,7 +55,7 @@ from shlex import quote
 
 from aexpect.exceptions import ShellCmdError
 # Need this import for sphinx and other documentation to produce links later on
-# from .client import ShellSession
+# from aexpect.client import ShellSession
 
 LOG = logging.getLogger(__name__)
 

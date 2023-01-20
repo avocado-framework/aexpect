@@ -82,11 +82,29 @@ clean:
 	$(MAKE) -f $(CURDIR)/debian/rules clean || true
 	rm -rf build/ MANIFEST BUILD BUILDROOT SPECS RPMS SRPMS SOURCES
 	find . -name '*.pyc' -delete
+	for MODULE in $(shell find ./optional_modules -maxdepth 1 -mindepth 1 -type d); do\
+	    if test -f $$MODULE/setup.py; then\
+			echo Cleaning module $$MODULE;\
+			cd $$MODULE;\
+			$(PYTHON) setup.py clean;\
+			rm -rf build/ MANIFEST BUILD BUILDROOT SPECS RPMS SRPMS SOURCES;\
+			cd -;\
+	    fi;\
+	done
 
 pypi: clean
 	if test ! -d PYPI_UPLOAD; then mkdir PYPI_UPLOAD; fi
 	$(PYTHON) setup.py bdist_wheel -d PYPI_UPLOAD
 	$(PYTHON) setup.py sdist -d PYPI_UPLOAD
+	for MODULE in $(shell find ./optional_modules -maxdepth 1 -mindepth 1 -type d); do\
+	    if test -f $$MODULE/setup.py; then\
+			echo Deploying module $$MODULE;\
+			cd $$MODULE;\
+			$(PYTHON) setup.py bdist_wheel -d ../../PYPI_UPLOAD;\
+			$(PYTHON) setup.py sdist -d ../../PYPI_UPLOAD;\
+			cd -;\
+	    fi;\
+	done
 	@echo
 	@echo "Please use the files on PYPI_UPLOAD dir to upload a new version to PyPI"
 	@echo "The URL to do that may be a bit tricky to find, so here it is:"
@@ -95,6 +113,17 @@ pypi: clean
 	@echo "Alternatively, you can also run a command like: "
 	@echo " twine upload -u <PYPI_USERNAME> PYPI_UPLOAD/*.{tar.gz,whl}"
 	@echo
+
+develop:
+	$(PYTHON) setup.py develop --user
+	for MODULE in $(shell find ./optional_modules -maxdepth 1 -mindepth 1 -type d); do\
+	    if test -f $$MODULE/setup.py; then\
+			echo Deploying module $$MODULE;\
+			cd $$MODULE;\
+			$(PYTHON) setup.py develop --user;\
+			cd -;\
+	    fi;\
+	done
 
 .PHONY: source install clean
 
