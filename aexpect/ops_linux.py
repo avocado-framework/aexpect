@@ -237,6 +237,30 @@ def ls(session, path, quote_path=True, flags="-1UNq"):  # pylint: disable=C0103
     return output.splitlines()
 
 
+def glob(session, glob_pattern):
+    """
+    Find files matching given pattern through a session.
+
+    :param session: session to run the command on
+    :type session: ShellSession
+    :param str glob_pattern: pattern of filenames where `*`, `?` and such match
+                             any string or not-empty-string and so on.
+    :returns: file names matching pattern, including path (like glob.glob)
+    :rtype: [str]
+
+    The current remote implementation has the limitation that it would hide
+    any `find` exit status 1 that might not be related to the glob expansion.
+    Alternative implementations are either shell specific or use `echo` and
+    thus cannot handle spaces in paths well.
+    """
+    cmd = f'find {glob_pattern} -maxdepth 0'
+    status, output = session.cmd_status_output(cmd)
+    if status == 1:
+        return []
+    status, output = _process_status_output(cmd, status, output)
+    return output.splitlines()
+
+
 def move(session, source, target, quote_path=True, flags=""):
     """
     Move file or directory from source to target / rename source to target.
