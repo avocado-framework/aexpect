@@ -675,10 +675,11 @@ class Tail(Spawn):
                 else:
                     # No output is available right now; flush the bfr
                     if bfr:
-                        _print_line(bfr)
+                        if self.output_func:
+                            _print_line(bfr)
                         bfr = ""
             # The process terminated; print any remaining output
-            if bfr:
+            if bfr and self.output_func:
                 _print_line(bfr)
             # Get the exit status, print it and send it to termination_func
             status = self.get_status()
