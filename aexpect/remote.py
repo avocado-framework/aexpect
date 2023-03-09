@@ -411,22 +411,24 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
         cmd = f"nc {' '.join(extra_params)} {host} {port}"
     else:
         raise LoginBadClientError(client)
+    output_params = ()
+    if log_filename:
+        output_params = (log_filename,)
+        log_filename = os.path.basename(log_filename)
 
     if verbose:
         LOG.debug("Login command: '%s'", cmd)
-    session = RemoteSession(cmd, linesep=linesep, output_prefix=host,
+    session = RemoteSession(cmd, linesep=linesep, output_func=log_function,
+                            output_params=output_params, output_prefix=host,
                             prompt=prompt, status_test_command=status_test_command,
                             client=client, host=host, port=port,
                             username=username, password=password)
+    session.set_log_file(log_filename)
     try:
         handle_prompts(session, username, password, prompt, timeout)
     except Exception:
         session.close()
         raise
-    if log_filename:
-        session.set_output_func(log_function)
-        session.set_output_params((log_filename,))
-        session.set_log_file(os.path.basename(log_filename))
     return session
 
 
