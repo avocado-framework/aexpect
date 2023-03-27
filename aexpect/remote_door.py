@@ -224,7 +224,7 @@ def _copy_control(session, control_path, is_utility=False):
     # run on remote Linux hosts
     if session.client == "ssh":
         transfer_client = "scp"
-        transfer_port = 22
+        transfer_port = session.port
         remote_control_path = os.path.join(remote_dir, os.path.basename(control_path))
     # run on remote Windows hosts
     elif session.client == "nc":
