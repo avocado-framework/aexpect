@@ -840,7 +840,8 @@ class Expect(Tail):
                 return read, data
             if end_time and time.time() > end_time:
                 return read, data
-            await asyncio.sleep(1)
+            # TODO: sleeping for long here slows down the async command too much
+            #await asyncio.sleep(1)
 
     def read_nonblocking(self, internal_timeout=None, timeout=None):
         """
@@ -1001,6 +1002,7 @@ class Expect(Tail):
             match = match_func(filter_func(output), patterns)
             if match is not None:
                 return match, output
+            await asyncio.sleep(0.1)
 
         # Check if the child has terminated
         if utils_wait.wait_for(lambda: not self.is_alive(), 5, 0, 0.1):
