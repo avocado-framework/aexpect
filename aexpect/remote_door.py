@@ -272,7 +272,17 @@ def run_subcontrol(session, control_path, timeout=600, detach=False):
         session.set_output_params(())
         session.sendline(cmd)
         return ""
-    return session.cmd(cmd, timeout=timeout, print_func=LOG.info)
+    try:
+        out = session.cmd(cmd, timeout=timeout, print_func=LOG.info)
+    except Exception as error:
+        # we would typically catch ExpectError but as this is a remote door aexpect
+        # might not be installed on the remote side
+        if hasattr(error, "output"):
+            LOG.error(error)
+            # limit the usually lengthy outputs of all logging messages to last 100 chars
+            error.output = error.output[-100:]
+        raise error
+    return out
 
 
 def prep_subcontrol(src_file, src_dir=None):
