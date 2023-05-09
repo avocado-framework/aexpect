@@ -224,7 +224,7 @@ def _copy_control(session, control_path, is_utility=False):
     # run on remote Linux hosts
     if session.client == "ssh":
         transfer_client = "scp"
-        transfer_port = 22
+        transfer_port = session.port
         remote_control_path = os.path.join(remote_dir, os.path.basename(control_path))
     # run on remote Windows hosts
     elif session.client == "nc":
@@ -272,7 +272,17 @@ def run_subcontrol(session, control_path, timeout=600, detach=False):
         session.set_output_params(())
         session.sendline(cmd)
         return ""
-    return session.cmd(cmd, timeout=timeout, print_func=LOG.info)
+    try:
+        out = session.cmd(cmd, timeout=timeout, print_func=LOG.info)
+    except Exception as error:
+        # we would typically catch ExpectError but as this is a remote door aexpect
+        # might not be installed on the remote side
+        if hasattr(error, "output"):
+            LOG.error(error)
+            # limit the usually lengthy outputs of all logging messages to last 100 chars
+            error.output = error.output[-100:]
+        raise error
+    return out
 
 
 def prep_subcontrol(src_file, src_dir=None):
