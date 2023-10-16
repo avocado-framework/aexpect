@@ -47,7 +47,6 @@ from aexpect.shared import wait_for_lock
 
 from aexpect.utils import astring
 from aexpect.utils import data_factory
-from aexpect.utils import genio
 from aexpect.utils import process as utils_process
 from aexpect.utils import path as utils_path
 from aexpect.utils import wait as utils_wait
@@ -129,6 +128,7 @@ class Spawn:
         """
         self.a_id = a_id or data_factory.generate_random_string(8)
         self.log_file = None
+        self.log_file_fd = None
         self.closed = False
         if encoding is None:
             self.encoding = locale.getpreferredencoding()
@@ -610,17 +610,20 @@ class Tail(Spawn):
         """
         self.output_prefix = output_prefix
 
-    def set_log_file(self, filename):
+    def set_log_file(self, filepath, open_fd=False):
         """
         Set a log file name for this tail instance.
 
-        :param filename: Base name of the log.
+        :param filepath: complete file name and path of the log.
+        :param open_fd: whether to also open the log file
         """
-        self.log_file = filename
+        self.log_file = filepath
+        if open_fd:
+            self.log_file_fd = open(filepath, encoding="utf-8")  # pylint: disable=R1732
 
     def _close_log_file(self):
-        if self.log_file is not None:
-            genio.close_log_file(self.log_file)
+        if self.log_file_fd is not None:
+            self.log_file_fd.close()
 
     def _tail(self):  # speed optimization pylint: disable=too-many-branches,too-many-statements
 
