@@ -503,6 +503,7 @@ def find_unused_port(session, start_port=10024):
     :returns: unused port that was found
     :rtype: int
     """
+    # pylint: disable=C0301
     output = ps_cmd(session, f"""
         $port = {start_port}
         while($true) {{
@@ -521,6 +522,7 @@ def find_unused_port(session, start_port=10024):
 
         Write-Host "::unused=$port"
     """)
+    # pylint: enable=C0301
     port = re.search(r"::unused=(\d+)", output).group(1)
     return int(port)
 
