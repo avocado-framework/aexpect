@@ -421,7 +421,6 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
                             prompt=prompt, status_test_command=status_test_command,
                             client=client, host=host, port=port,
                             username=username, password=password)
-    session.set_log_file(log_filename)
     try:
         handle_prompts(session, username, password, prompt, timeout)
     except Exception:

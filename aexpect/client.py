@@ -127,8 +127,6 @@ class Spawn:
                 locale.getpreferredencoding())
         """
         self.a_id = a_id or data_factory.generate_random_string(8)
-        self.log_file = None
-        self.log_file_fd = None
         self.closed = False
         if encoding is None:
             self.encoding = locale.getpreferredencoding()
@@ -527,7 +525,6 @@ class Tail(Spawn):
         # Add a reader and a close hook
         self._add_reader("tail")
         self._add_close_hook(Tail._join_thread)
-        self._add_close_hook(Tail._close_log_file)
 
         # Init the superclass
         super().__init__(command, a_id, auto_close, echo, linesep,
@@ -609,21 +606,6 @@ class Tail(Spawn):
                 output_func (see set_output_callback()).
         """
         self.output_prefix = output_prefix
-
-    def set_log_file(self, filepath, open_fd=False):
-        """
-        Set a log file name for this tail instance.
-
-        :param filepath: complete file name and path of the log.
-        :param open_fd: whether to also open the log file
-        """
-        self.log_file = filepath
-        if open_fd:
-            self.log_file_fd = open(filepath, encoding="utf-8")  # pylint: disable=R1732
-
-    def _close_log_file(self):
-        if self.log_file_fd is not None:
-            self.log_file_fd.close()
 
     def _tail(self):  # speed optimization pylint: disable=too-many-branches,too-many-statements
 
