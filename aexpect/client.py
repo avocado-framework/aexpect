@@ -47,7 +47,6 @@ from aexpect.shared import wait_for_lock
 
 from aexpect.utils import astring
 from aexpect.utils import data_factory
-from aexpect.utils import genio
 from aexpect.utils import process as utils_process
 from aexpect.utils import path as utils_path
 from aexpect.utils import wait as utils_wait
@@ -128,7 +127,6 @@ class Spawn:
                 locale.getpreferredencoding())
         """
         self.a_id = a_id or data_factory.generate_random_string(8)
-        self.log_file = None
         self.closed = False
         if encoding is None:
             self.encoding = locale.getpreferredencoding()
@@ -527,7 +525,6 @@ class Tail(Spawn):
         # Add a reader and a close hook
         self._add_reader("tail")
         self._add_close_hook(Tail._join_thread)
-        self._add_close_hook(Tail._close_log_file)
 
         # Init the superclass
         super().__init__(command, a_id, auto_close, echo, linesep,
@@ -609,18 +606,6 @@ class Tail(Spawn):
                 output_func (see set_output_callback()).
         """
         self.output_prefix = output_prefix
-
-    def set_log_file(self, filename):
-        """
-        Set a log file name for this tail instance.
-
-        :param filename: Base name of the log.
-        """
-        self.log_file = filename
-
-    def _close_log_file(self):
-        if self.log_file is not None:
-            genio.close_log_file(self.log_file)
 
     def _tail(self):  # speed optimization pylint: disable=too-many-branches,too-many-statements
 

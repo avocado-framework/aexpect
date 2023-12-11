@@ -46,7 +46,6 @@ from __future__ import division
 import logging
 import time
 import re
-import os
 import pipes
 
 from aexpect.client import Expect
@@ -414,7 +413,6 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
     output_params = ()
     if log_filename:
         output_params = (log_filename,)
-        log_filename = os.path.basename(log_filename)
 
     if verbose:
         LOG.debug("Login command: '%s'", cmd)
@@ -423,7 +421,6 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
                             prompt=prompt, status_test_command=status_test_command,
                             client=client, host=host, port=port,
                             username=username, password=password)
-    session.set_log_file(log_filename)
     try:
         handle_prompts(session, username, password, prompt, timeout)
     except Exception:
