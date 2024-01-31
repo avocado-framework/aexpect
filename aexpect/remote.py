@@ -46,7 +46,7 @@ from __future__ import division
 import logging
 import time
 import re
-import pipes
+import shlex
 
 from aexpect.client import Expect
 from aexpect.client import RemoteSession
@@ -216,8 +216,8 @@ def quote_path(path):
     :return: Shell escaped version
     """
     if isinstance(path, list):
-        return ' '.join(map(pipes.quote, path))
-    return pipes.quote(path)
+        return ' '.join(map(shlex.quote, path))
+    return shlex.quote(path)
 
 
 def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
@@ -620,7 +620,7 @@ def scp_to_remote(host, port, username, password, local_path, remote_path,
                 r"-o StrictHostKeyChecking=no "
                 fr"-o PreferredAuthentications=password {limit} "
                 fr"-P {port} {quote_path(local_path)} {username}@\[{host}\]:"
-                fr"{pipes.quote(remote_path)}")
+                fr"{shlex.quote(remote_path)}")
     password_list = [password]
     return remote_scp(command, password_list,
                       log_filename, log_function, timeout)
@@ -663,7 +663,7 @@ def scp_from_remote(host, port, username, password, remote_path, local_path,
                 r"-o StrictHostKeyChecking=no "
                 fr"-o PreferredAuthentications=password {limit} "
                 fr"-P {port} {username}@\[{host}\]:{quote_path(remote_path)} "
-                fr"{pipes.quote(local_path)}")
+                fr"{shlex.quote(local_path)}")
     password_list = [password]
     remote_scp(command, password_list,
                log_filename, log_function, timeout)
@@ -716,7 +716,7 @@ def scp_between_remotes(src, dst, port, s_passwd, d_passwd, s_name, d_name,
                 r"-o StrictHostKeyChecking=no "
                 fr"-o PreferredAuthentications=password {limit} -P {port}"
                 fr" {s_name}@\[{src}\]:{quote_path(s_path)} {d_name}@\[{dst}\]"
-                fr":{pipes.quote(d_path)}")
+                fr":{shlex.quote(d_path)}")
     password_list = [s_passwd, d_passwd]
     return remote_scp(command, password_list,
                       log_filename, log_function, timeout)
