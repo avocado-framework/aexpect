@@ -17,22 +17,23 @@
 
 from setuptools import setup
 
-if __name__ == '__main__':
-    setup(name='aexpect',
-          version='1.7.0',
-          description='Aexpect',
-          author='Aexpect developers',
-          author_email='avocado-devel@redhat.com',
-          url='http://avocado-framework.github.io/',
-          license="GPLv2+",
-          classifiers=[
+if __name__ == "__main__":
+    setup(
+        name="aexpect",
+        version="1.7.0",
+        description="Aexpect",
+        author="Aexpect developers",
+        author_email="avocado-devel@redhat.com",
+        url="http://avocado-framework.github.io/",
+        license="GPLv2+",
+        classifiers=[
             "Development Status :: 6 - Mature",
             "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
             "Natural Language :: English",
             "Operating System :: POSIX",
             "Programming Language :: Python :: 3",
-              ],
-          packages=['aexpect',
-                    'aexpect.utils'],
-          scripts=['scripts/aexpect_helper'],
-          test_suite='tests')
+        ],
+        packages=["aexpect", "aexpect.utils"],
+        scripts=["scripts/aexpect_helper"],
+        test_suite="tests",
+    )

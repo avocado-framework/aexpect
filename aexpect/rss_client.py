@@ -25,13 +25,14 @@ Client for file transfer services offered by RSS (Remote Shell Server).
 # ..todo:: we could reduce the disabled issues after more significant refactoring
 
 from __future__ import division, print_function
+
+import argparse
+import glob
+import os
 import socket
 import struct
-import time
 import sys
-import os
-import glob
-import argparse
+import time
 
 # Globals
 CHUNKSIZE = 65536
@@ -63,8 +64,7 @@ class FileTransferError(Exception):
     def __str__(self):
         errmsg = self.msg
         if self.error and self.filename:
-            errmsg += (f"    (error: {self.error},"
-                       f"    filename: {self.filename})")
+            errmsg += f"    (error: {self.error}," f"    filename: {self.filename})"
         elif self.error:
             errmsg += f"    ({self.error})"
         elif self.filename:
@@ -122,24 +122,25 @@ class FileTransferClient:
         :param timeout: Time duration to wait for connection to succeed
         :raise FileTransferConnectError: Raised if the connection fails
         """
-        family = socket.AF_INET6 if ':' in address else socket.AF_INET
+        family = socket.AF_INET6 if ":" in address else socket.AF_INET
         self._socket = socket.socket(family, socket.SOCK_STREAM)
         self._socket.settimeout(timeout)
         try:
-            addrinfo = socket.getaddrinfo(address, port, family,
-                                          socket.SOCK_STREAM,
-                                          socket.IPPROTO_TCP)
+            addrinfo = socket.getaddrinfo(
+                address, port, family, socket.SOCK_STREAM, socket.IPPROTO_TCP
+            )
             self._socket.connect(addrinfo[0][4])
         except socket.error as error:
-            raise FileTransferConnectError("Cannot connect to server at "
-                                           f"{address}:{port}",
-                                           error) from error
+            raise FileTransferConnectError(
+                "Cannot connect to server at " f"{address}:{port}", error
+            ) from error
         try:
             if self._receive_msg(timeout) != RSS_MAGIC:
                 raise FileTransferConnectError("Received wrong magic number")
         except FileTransferTimeoutError as timeout_error:
-            raise FileTransferConnectError("Timeout expired while waiting to "
-                                           "receive magic number") from timeout_error
+            raise FileTransferConnectError(
+                "Timeout expired while waiting to receive magic number"
+            ) from timeout_error
         self._send(struct.pack("=i", CHUNKSIZE))
         self._log_func = log_func
         self._last_time = time.time()
@@ -162,11 +163,13 @@ class FileTransferClient:
             self._socket.settimeout(timeout)
             self._socket.sendall(data)
         except socket.timeout as error:
-            raise FileTransferTimeoutError("Timeout expired while sending "
-                                           "data to server") from error
+            raise FileTransferTimeoutError(
+                "Timeout expired while sending data to server"
+            ) from error
         except socket.error as error:
-            raise FileTransferSocketError("Could not send data to server",
-                                          error) from error
+            raise FileTransferSocketError(
+                "Could not send data to server", error
+            ) from error
 
     def _receive(self, size, timeout=60):
         strs = []
@@ -179,29 +182,32 @@ class FileTransferClient:
                 self._socket.settimeout(timeout)
                 data = self._socket.recv(size)
                 if not data:
-                    raise FileTransferProtocolError("Connection closed "
-                                                    "unexpectedly while "
-                                                    "receiving data from "
-                                                    "server")
+                    raise FileTransferProtocolError(
+                        "Connection closed "
+                        "unexpectedly while "
+                        "receiving data from "
+                        "server"
+                    )
                 strs.append(data)
                 size -= len(data)
         except socket.timeout as error:
-            raise FileTransferTimeoutError("Timeout expired while receiving "
-                                           "data from server") from error
+            raise FileTransferTimeoutError(
+                "Timeout expired while receiving data from server"
+            ) from error
         except socket.error as error:
-            raise FileTransferSocketError("Error receiving data from server",
-                                          error) from error
+            raise FileTransferSocketError(
+                "Error receiving data from server", error
+            ) from error
         return b"".join(strs)
 
     def _report_stats(self, data):
         if self._log_func:
             delta = time.time() - self._last_time
             if delta >= 1:
-                transferred = self.transferred / 1048576.
+                transferred = self.transferred / 1048576.0
                 speed = (self.transferred - self._last_transferred) / delta
-                speed /= 1048576.
-                self._log_func(f"{data} {transferred:.3f} MB ({speed:.3f}"
-                               " MB/sec)")
+                speed /= 1048576.0
+                self._log_func(f"{data} {transferred:.3f} MB ({speed:.3f}" " MB/sec)")
                 self._last_time = time.time()
                 self._last_transferred = self.transferred
 
@@ -358,9 +364,11 @@ class FileUploadClient(FileTransferClient):
             else:
                 # If nothing was transferred, raise an exception
                 if not matches:
-                    raise FileTransferNotFoundError(f"Pattern {src_pattern} "
-                                                    "does not match any files "
-                                                    "or directories")
+                    raise FileTransferNotFoundError(
+                        f"Pattern {src_pattern} "
+                        "does not match any files "
+                        "or directories"
+                    )
                 # Look for RSS_OK or RSS_ERROR
                 msg = self._receive_msg(int(end_time - time.time()))
                 if msg == RSS_OK:
@@ -473,7 +481,8 @@ class FileDownloadClient(FileTransferClient):
                     if not file_count and not dir_count:
                         raise FileTransferNotFoundError(
                             f"Pattern {src_pattern} does not match any files "
-                            "or directories that could be downloaded")
+                            "or directories that could be downloaded"
+                        )
                     break
                 elif msg == RSS_ERROR:
                     # Receive error message and abort
@@ -488,8 +497,9 @@ class FileDownloadClient(FileTransferClient):
             raise
 
 
-def upload(address, port, src_pattern, dst_path, log_func=None, timeout=60,
-           connect_timeout=20):
+def upload(
+    address, port, src_pattern, dst_path, log_func=None, timeout=60, connect_timeout=20
+):
     """
     Connect to server and upload files.
 
@@ -500,8 +510,9 @@ def upload(address, port, src_pattern, dst_path, log_func=None, timeout=60,
     client.close()
 
 
-def download(address, port, src_pattern, dst_path, log_func=None, timeout=60,
-             connect_timeout=20):
+def download(
+    address, port, src_pattern, dst_path, log_func=None, timeout=60, connect_timeout=20
+):
     """
     Connect to server and upload files.
 
@@ -520,18 +531,31 @@ def main():
     parser.add_argument("port")
     parser.add_argument("src_pattern")
     parser.add_argument("dst_path")
-    parser.add_argument("-d", "--download",
-                        action="store_true", dest="download",
-                        help="download files from server")
-    parser.add_argument("-u", "--upload",
-                        action="store_true", dest="upload",
-                        help="upload files to server")
-    parser.add_argument("-v", "--verbose",
-                        action="store_true", dest="verbose",
-                        help="be verbose")
-    parser.add_argument("-t", "--timeout",
-                        type=int, dest="timeout", default=3600,
-                        help="transfer timeout")
+    parser.add_argument(
+        "-d",
+        "--download",
+        action="store_true",
+        dest="download",
+        help="download files from server",
+    )
+    parser.add_argument(
+        "-u",
+        "--upload",
+        action="store_true",
+        dest="upload",
+        help="upload files to server",
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", dest="verbose", help="be verbose"
+    )
+    parser.add_argument(
+        "-t",
+        "--timeout",
+        type=int,
+        dest="timeout",
+        default=3600,
+        help="transfer timeout",
+    )
     args = parser.parse_args()
     if args.download == args.upload:
         parser.error("you must specify either -d or -u")

@@ -54,6 +54,7 @@ import logging
 from shlex import quote
 
 from aexpect.exceptions import ShellCmdError
+
 # Need this import for sphinx and other documentation to produce links later on
 # from .client import ShellSession
 
@@ -231,7 +232,7 @@ def ls(session, path, quote_path=True, flags="-1UNq"):  # pylint: disable=C0103
     Just like :py:func:`os.listdir`, does not include file names starting with
     dot (`'.'`)
     """
-    cmd = f'ls {flags} {quote(path)}' if quote_path else f'ls {flags} {path}'
+    cmd = f"ls {flags} {quote(path)}" if quote_path else f"ls {flags} {path}"
     status, output = session.cmd_status_output(cmd)
     status, output = _process_status_output(cmd, status, output)
     return output.splitlines()
@@ -253,7 +254,7 @@ def glob(session, glob_pattern):
     Alternative implementations are either shell specific or use `echo` and
     thus cannot handle spaces in paths well.
     """
-    cmd = f'find {glob_pattern} -maxdepth 0'
+    cmd = f"find {glob_pattern} -maxdepth 0"
     status, output = session.cmd_status_output(cmd)
     if status == 1:
         return []
@@ -276,8 +277,11 @@ def move(session, source, target, quote_path=True, flags=""):
     Calls `mv source target` through a session. See `man mv` for what source
     and target can be and what behavior to expect.
     """
-    cmd = f'mv {flags} {quote(source)} {quote(target)}' if quote_path \
-        else f'mv {flags} {source} {target}'
+    cmd = (
+        f"mv {flags} {quote(source)} {quote(target)}"
+        if quote_path
+        else f"mv {flags} {source} {target}"
+    )
     status, output = session.cmd_status_output(cmd)
     _process_status_output(cmd, status, output)
 
@@ -297,8 +301,11 @@ def copy(session, source, target, quote_path=True, flags=""):
     Calls `cp source target` through a session. See `man cp` for what source
     and target can be and what behavior to expect.
     """
-    cmd = f'cp {flags} {quote(source)} {quote(target)}' if quote_path \
-        else f'cp {flags} {source} {target}'
+    cmd = (
+        f"cp {flags} {quote(source)} {quote(target)}"
+        if quote_path
+        else f"cp {flags} {source} {target}"
+    )
     status, output = session.cmd_status_output(cmd)
     _process_status_output(cmd, status, output)
 
@@ -316,7 +323,7 @@ def remove(session, path, quote_path=True, flags="-fr"):
 
     Calls `rm -rf`.
     """
-    cmd = f'rm {flags} {quote(path)}' if quote_path else f'rm {flags} {path}'
+    cmd = f"rm {flags} {quote(path)}" if quote_path else f"rm {flags} {path}"
     status, output = session.cmd_status_output(cmd)
     _process_status_output(cmd, status, output)
 
@@ -335,7 +342,7 @@ def make_tempdir(session, template=None):
 
     Calls `mktemp -d`, refer to `man` for more info.
     """
-    cmd = f'mktemp -d {template}' if template is not None else 'mktemp -d'
+    cmd = f"mktemp -d {template}" if template is not None else "mktemp -d"
     status, output = session.cmd_status_output(cmd)
     _, output = _process_status_output(cmd, status, output)
     return output
@@ -355,7 +362,7 @@ def make_tempfile(session, template=None):
 
     Calls `mktemp`, refer to `man` for more info.
     """
-    cmd = f'mktemp {template}' if template is not None else 'mktemp'
+    cmd = f"mktemp {template}" if template is not None else "mktemp"
     status, output = session.cmd_status_output(cmd)
     _, output = _process_status_output(cmd, status, output)
     return output
@@ -377,7 +384,7 @@ def cat(session, filename, quote_path=True, flags=""):
     Should only be used for very small files without tabs or other fancy
     contents. Otherwise, it is better to download the file or use some other method.
     """
-    cmd = f'cat {flags} {quote(filename)}' if quote_path else f'cat {flags} {filename}'
+    cmd = f"cat {flags} {quote(filename)}" if quote_path else f"cat {flags} {filename}"
     status, output = session.cmd_status_output(cmd)
     _, output = _process_status_output(cmd, status, output)
     return output
@@ -463,15 +470,16 @@ def hash_file(session, filename, size="", method="md5"):
     if output:
         output = output.strip()
     if status != 0 or not output:
-        raise RuntimeError(f'Could not hash {filename} using {cmd}: {output}')
+        raise RuntimeError(f"Could not hash {filename} using {cmd}: {output}")
 
     # parse output
     hash_str = output.split(maxsplit=1)[0].lower()
 
     # check that all chars are hex
-    if hash_str.strip('0123456789abcdef'):
-        raise RuntimeError('Resulting hash string has unexpected characters: '
-                           + hash_str)
+    if hash_str.strip("0123456789abcdef"):
+        raise RuntimeError(
+            "Resulting hash string has unexpected characters: " + hash_str
+        )
     return hash_str
 
 
@@ -486,6 +494,6 @@ def extract_tarball(session, tarball, target_dir, flags="-ap"):
     :param str flags: extra flags passed to ``tar`` on the command line
     :raises: :py:class:`RuntimeError` if tar command returned non-null
     """
-    cmd = f'tar -C {quote(target_dir)} {flags} -xf {quote(tarball)}'
+    cmd = f"tar -C {quote(target_dir)} {flags} -xf {quote(tarball)}"
     status, output = session.cmd_status_output(cmd)
     _process_status_output(cmd, status, output)

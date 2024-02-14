@@ -1,0 +1,4 @@
+[submodule "avocado-static-checks"]
+	path = static-checks
+	url = ../avocado-static-checks
+	branch = main
