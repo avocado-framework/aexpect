@@ -14,8 +14,8 @@
 #
 # selftests pylint: disable=C0111,C0111,W0613,R0913
 
-import os
 import glob
+import os
 import re
 import shutil
 import unittest.mock
@@ -27,22 +27,46 @@ mock = unittest.mock
 
 
 # noinspection PyUnusedLocal
-def _local_login(client, host, port, username, password, prompt,
-                 linesep="\n", log_filename=None, log_function=None,
-                 timeout=10, internal_timeout=10, interface=None):
+def _local_login(
+    client,
+    host,
+    port,
+    username,
+    password,
+    prompt,
+    linesep="\n",
+    log_filename=None,
+    log_function=None,
+    timeout=10,
+    internal_timeout=10,
+    interface=None,
+):
     return RemoteSession("sh", prompt=prompt, client=client)
 
 
 # noinspection PyUnusedLocal
-def _local_copy(address, client, username, password, port, local_path,
-                remote_path, limit="", log_filename=None, log_function=None,
-                verbose=False, timeout=600, interface=None, filesize=None,
-                directory=True):
+def _local_copy(
+    address,
+    client,
+    username,
+    password,
+    port,
+    local_path,
+    remote_path,
+    limit="",
+    log_filename=None,
+    log_function=None,
+    verbose=False,
+    timeout=600,
+    interface=None,
+    filesize=None,
+    directory=True,
+):
     shutil.copy(local_path, remote_path)
 
 
-@mock.patch('aexpect.remote_door.remote.copy_files_to', _local_copy)
-@mock.patch('aexpect.remote_door.remote.wait_for_login', _local_login)
+@mock.patch("aexpect.remote_door.remote.copy_files_to", _local_copy)
+@mock.patch("aexpect.remote_door.remote.wait_for_login", _local_login)
 class RemoteDoorTest(unittest.TestCase):
     """Unit test class for the remote door."""
 
@@ -54,10 +78,13 @@ class RemoteDoorTest(unittest.TestCase):
     def tearDown(self):
         for control_file in glob.glob("tmp*.control"):
             os.unlink(control_file)
-        for control_file in glob.glob(os.path.join(remote_door.REMOTE_CONTROL_DIR,
-                                                   "tmp*.control")):
+        for control_file in glob.glob(
+            os.path.join(remote_door.REMOTE_CONTROL_DIR, "tmp*.control")
+        ):
             os.unlink(control_file)
-        deployed_remote_door = os.path.join(remote_door.REMOTE_PYTHON_PATH, "remote_door.py")
+        deployed_remote_door = os.path.join(
+            remote_door.REMOTE_PYTHON_PATH, "remote_door.py"
+        )
         if os.path.exists(deployed_remote_door):
             os.unlink(deployed_remote_door)
         os.rmdir(remote_door.REMOTE_PYTHON_PATH)
@@ -68,12 +95,14 @@ class RemoteDoorTest(unittest.TestCase):
         result = remote_door.run_remote_util(self.session, "math", "gcd", 2, 3)
         self.assertEqual(int(result), 1)
         local_controls = glob.glob("tmp*.control")
-        remote_controls = glob.glob(os.path.join(remote_door.REMOTE_CONTROL_DIR,
-                                                 "tmp*.control"))
+        remote_controls = glob.glob(
+            os.path.join(remote_door.REMOTE_CONTROL_DIR, "tmp*.control")
+        )
         self.assertEqual(len(local_controls), len(remote_controls))
         self.assertEqual(len(remote_controls), 1)
-        self.assertEqual(os.path.basename(local_controls[0]),
-                         os.path.basename(remote_controls[0]))
+        self.assertEqual(
+            os.path.basename(local_controls[0]), os.path.basename(remote_controls[0])
+        )
         with open(remote_controls[0], encoding="utf-8") as handle:
             control_lines = handle.readlines()
         self.assertIn("import math\n", control_lines)
@@ -81,43 +110,56 @@ class RemoteDoorTest(unittest.TestCase):
 
     def test_run_remote_util_arg_types(self):
         """Test that a remote utility runs properly with different argument types."""
-        result = remote_door.run_remote_util(self.session, "json", "dumps",
-                                             ["foo", {"bar": ["baz", None, 1.0, 2]}],
-                                             skipkeys=False, separators=None,
-                                             # must be boolean but we want to test string
-                                             allow_nan="string for yes")
+        result = remote_door.run_remote_util(
+            self.session,
+            "json",
+            "dumps",
+            ["foo", {"bar": ["baz", None, 1.0, 2]}],
+            skipkeys=False,
+            separators=None,
+            # must be boolean but we want to test string
+            allow_nan="string for yes",
+        )
         self.assertEqual(result, '["foo", {"bar": ["baz", null, 1.0, 2]}]')
         local_controls = glob.glob("tmp*.control")
-        remote_controls = glob.glob(os.path.join(remote_door.REMOTE_CONTROL_DIR,
-                                                 "tmp*.control"))
+        remote_controls = glob.glob(
+            os.path.join(remote_door.REMOTE_CONTROL_DIR, "tmp*.control")
+        )
         self.assertEqual(len(local_controls), len(remote_controls))
         self.assertEqual(len(remote_controls), 1)
-        self.assertEqual(os.path.basename(local_controls[0]),
-                         os.path.basename(remote_controls[0]))
+        self.assertEqual(
+            os.path.basename(local_controls[0]), os.path.basename(remote_controls[0])
+        )
         with open(remote_controls[0], encoding="utf-8") as handle:
             control_lines = handle.readlines()
         self.assertIn("import json\n", control_lines)
-        self.assertIn("result = json.dumps(['foo', {'bar': ['baz', None, 1.0, 2]}], "
-                      "allow_nan=r'string for yes', separators=None, skipkeys=False)\n",
-                      control_lines)
+        self.assertIn(
+            "result = json.dumps(['foo', {'bar': ['baz', None, 1.0, 2]}], "
+            "allow_nan=r'string for yes', separators=None, skipkeys=False)\n",
+            control_lines,
+        )
 
     def test_run_remote_util_object(self):
         """Test that a remote utility object runs properly."""
-        result = remote_door.run_remote_util(self.session, "collections",
-                                             "OrderedDict().get", "akey")
+        result = remote_door.run_remote_util(
+            self.session, "collections", "OrderedDict().get", "akey"
+        )
         self.assertEqual(result, "None")
 
         local_controls = glob.glob("tmp*.control")
-        remote_controls = glob.glob(os.path.join(remote_door.REMOTE_CONTROL_DIR,
-                                                 "tmp*.control"))
+        remote_controls = glob.glob(
+            os.path.join(remote_door.REMOTE_CONTROL_DIR, "tmp*.control")
+        )
         self.assertEqual(len(local_controls), len(remote_controls))
         self.assertEqual(len(remote_controls), 1)
-        self.assertEqual(os.path.basename(local_controls[0]),
-                         os.path.basename(remote_controls[0]))
+        self.assertEqual(
+            os.path.basename(local_controls[0]), os.path.basename(remote_controls[0])
+        )
         with open(remote_controls[0], encoding="utf-8") as handle:
             control_lines = handle.readlines()
-        self.assertIn("result = collections.OrderedDict().get(r'akey')\n",
-                      control_lines)
+        self.assertIn(
+            "result = collections.OrderedDict().get(r'akey')\n", control_lines
+        )
 
     def test_run_remote_decorator(self):
         """Test that a remote decorated function runs properly."""
@@ -137,12 +179,14 @@ class RemoteDoorTest(unittest.TestCase):
         self.assertEqual(int(result), 4)
 
         local_controls = glob.glob("tmp*.control")
-        remote_controls = glob.glob(os.path.join(remote_door.REMOTE_CONTROL_DIR,
-                                                 "tmp*.control"))
+        remote_controls = glob.glob(
+            os.path.join(remote_door.REMOTE_CONTROL_DIR, "tmp*.control")
+        )
         self.assertEqual(len(local_controls), len(remote_controls))
         self.assertEqual(len(remote_controls), 1)
-        self.assertEqual(os.path.basename(local_controls[0]),
-                         os.path.basename(remote_controls[0]))
+        self.assertEqual(
+            os.path.basename(local_controls[0]), os.path.basename(remote_controls[0])
+        )
         with open(remote_controls[0], encoding="utf-8") as handle:
             control_lines = handle.readlines()
         self.assertIn("def add_one(number):\n", control_lines)
@@ -150,11 +194,14 @@ class RemoteDoorTest(unittest.TestCase):
 
     def test_get_remote_object(self):
         """Test that a remote object can be retrieved properly."""
-        self.session = mock.MagicMock(name='session')
+        self.session = mock.MagicMock(name="session")
         self.session.client = "ssh"
         remote_door.Pyro4 = mock.MagicMock()
         disconnect = remote_door.Pyro4.errors.PyroError = Exception
-        remote_door.Pyro4.Proxy.side_effect = [disconnect("no such object"), mock.DEFAULT]
+        remote_door.Pyro4.Proxy.side_effect = [
+            disconnect("no such object"),
+            mock.DEFAULT,
+        ]
         self.session.get_output.return_value = "Local object sharing ready\n"
         self.session.get_output.return_value += "RESULT = None\n"
 
@@ -169,37 +216,42 @@ class RemoteDoorTest(unittest.TestCase):
         self.assertIsNotNone(match, "A control file has to be called on the peer side")
         control_file = match.group(1)
         local_controls = glob.glob("tmp*.control")
-        remote_controls = glob.glob(os.path.join(remote_door.REMOTE_CONTROL_DIR,
-                                                 "tmp*.control"))
+        remote_controls = glob.glob(
+            os.path.join(remote_door.REMOTE_CONTROL_DIR, "tmp*.control")
+        )
         self.assertEqual(len(local_controls), len(remote_controls))
         self.assertEqual(len(remote_controls), 1)
-        self.assertEqual(os.path.basename(local_controls[0]),
-                         os.path.basename(remote_controls[0]))
+        self.assertEqual(
+            os.path.basename(local_controls[0]), os.path.basename(remote_controls[0])
+        )
         self.assertEqual(control_file, os.path.basename(remote_controls[0]))
         with open(control_file, encoding="utf-8") as handle:
             control_lines = handle.readlines()
             self.assertIn("import remote_door\n", control_lines)
-            self.assertIn("result = remote_door.share_local_object(r'html', "
-                          "host=r'testhost', port=4242)\n",
-                          control_lines)
+            self.assertIn(
+                "result = remote_door.share_local_object(r'html', "
+                "host=r'testhost', port=4242)\n",
+                control_lines,
+            )
 
         # since the local run was face redo it here
         remote_door.share_local_object("html", None, "testhost", 4242)
 
     def test_share_remote_objects(self):
         """Test that a remote object can be shared properly and remotely."""
-        self.session = mock.MagicMock(name='session')
+        self.session = mock.MagicMock(name="session")
         self.session.client = "ssh"
         remote_door.Pyro4 = mock.MagicMock()
 
-        control_file = os.path.join(remote_door.REMOTE_CONTROL_DIR,
-                                    "tmpxxxxxxxx.control")
+        control_file = os.path.join(
+            remote_door.REMOTE_CONTROL_DIR, "tmpxxxxxxxx.control"
+        )
         with open(control_file, "wt", encoding="utf-8") as handle:
             handle.write("print('Remote objects shared over the network')")
 
-        middleware = remote_door.share_remote_objects(self.session, control_file,
-                                                      "testhost", 4242,
-                                                      os_type="linux")
+        middleware = remote_door.share_remote_objects(
+            self.session, control_file, "testhost", 4242, os_type="linux"
+        )
         # we just test dummy initialization for the remote object control server
         middleware.close()
 
@@ -213,9 +265,11 @@ class RemoteDoorTest(unittest.TestCase):
     def test_import_remote_exceptions(self):
         """Test that selected remote exceptions are properly imported and deserialized."""
         remote_door.Pyro4 = mock.MagicMock()
-        preselected_exceptions = ["aexpect.remote.RemoteError",
-                                  "aexpect.remote.LoginError",
-                                  "aexpect.remote.TransferError"]
+        preselected_exceptions = [
+            "aexpect.remote.RemoteError",
+            "aexpect.remote.LoginError",
+            "aexpect.remote.TransferError",
+        ]
         remote_door.import_remote_exceptions(preselected_exceptions)
         register_method = remote_door.Pyro4.util.SerializerBase.register_dict_to_class
         self.assertEqual(len(register_method.mock_calls), 3)

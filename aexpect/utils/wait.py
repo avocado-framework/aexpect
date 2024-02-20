@@ -11,8 +11,8 @@
 
 """Module that helps waiting for conditions"""
 
-import time
 import logging
+import time
 
 _LOG = logging.getLogger(__file__)
 

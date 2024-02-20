@@ -42,8 +42,7 @@ def strip_console_codes(output, custom_codes=None):
     while index < len(output):
         tmp_index = 0
         tmp_word = ""
-        while (len(re.findall("\x1b", tmp_word)) < 2 and
-               index + tmp_index < len(output)):
+        while len(re.findall("\x1b", tmp_word)) < 2 and index + tmp_index < len(output):
             tmp_word += output[index + tmp_index]
             tmp_index += 1
 
@@ -55,12 +54,14 @@ def strip_console_codes(output, custom_codes=None):
             special_code = re.findall(console_codes, tmp_word)[0]
         except IndexError as error:
             if index + tmp_index < len(output):
-                raise ValueError(f"{tmp_word} is not included in the known "
-                                 "console codes list "
-                                 f"{console_codes}") from error
+                raise ValueError(
+                    f"{tmp_word} is not included in the known "
+                    "console codes list "
+                    f"{console_codes}"
+                ) from error
             continue
         if special_code == tmp_word:
             continue
         old_word = tmp_word
-        return_str += tmp_word[len(special_code):]
+        return_str += tmp_word[len(special_code) :]
     return return_str

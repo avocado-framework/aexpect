@@ -33,12 +33,12 @@ network ops:
 Network configuration and downloads.
 """
 
+import logging
 import re
 import uuid
-import logging
-from textwrap import dedent
 from base64 import b64encode
 from enum import Enum, auto
+from textwrap import dedent
 
 # avocado imports
 from aexpect.exceptions import ShellError, ShellProcessTerminatedError
@@ -67,6 +67,7 @@ def ps_cmd(session, script, timeout=60):
 
     This function was slightly based on a similar function from `pywinrm`.
     """
+
     def nicely_log_str(header, string):
         LOG.info(header)
         LOG.info("-" * len(header))
@@ -78,12 +79,14 @@ def ps_cmd(session, script, timeout=60):
     # must use utf16 little endian on Windows
     encoded_cmd = b64encode(script.encode("utf_16_le")).decode("ascii")
     try:
-        output = session.cmd(f"powershell -NoLogo -NonInteractive -OutputFormat text "
-                             f"-ExecutionPolicy Bypass -EncodedCommand {encoded_cmd}",
-                             timeout=timeout)
+        output = session.cmd(
+            f"powershell -NoLogo -NonInteractive -OutputFormat text "
+            f"-ExecutionPolicy Bypass -EncodedCommand {encoded_cmd}",
+            timeout=timeout,
+        )
 
         # there was an error but the exit code was still zero
-        if output.startswith("#< CLIXML") and "<S S=\"Error\">" in output:
+        if output.startswith("#< CLIXML") and '<S S="Error">' in output:
             raise ShellError(script, output)
 
         # TODO: PowerShell sometimes ignores the -OutputFormat and outputs
@@ -113,7 +116,7 @@ def ps_file(session, filename, timeout=60):
     :returns: the output of the command
     :rtype: str
     """
-    cmd = f"powershell -ExecutionPolicy RemoteSigned -File \"{filename}\""
+    cmd = f'powershell -ExecutionPolicy RemoteSigned -File "{filename}"'
     LOG.info("Executing PowerShell file with `%s`", cmd)
     return session.cmd(cmd, timeout=timeout)
 
@@ -132,7 +135,7 @@ def _clean_error_message(message):
 
     output = []
     # the strings are between <S S="Error">...</S> tags
-    for msgstr in message.split("<S S=\"Error\">"):
+    for msgstr in message.split('<S S="Error">'):
         if not msgstr.endswith("</S>"):
             continue
         msgstr = re.sub(r"</S>$", "", msgstr).replace("_x000D__x000A_", "")
@@ -203,10 +206,16 @@ def query_registry(session, key_name, value_name):
     :returns: value of the corresponding sub key and value name or None if not found
     :rtype: str or None
     """
-    key_types = ["REG_SZ", "REG_MULTI_SZ", "REG_EXPAND_SZ",
-                 "REG_DWORD", "REG_BINARY", "REG_NONE"]
+    key_types = [
+        "REG_SZ",
+        "REG_MULTI_SZ",
+        "REG_EXPAND_SZ",
+        "REG_DWORD",
+        "REG_BINARY",
+        "REG_NONE",
+    ]
 
-    out = session.cmd_output(f"reg query \"{key_name}\" /v {value_name}").strip()
+    out = session.cmd_output(f'reg query "{key_name}" /v {value_name}').strip()
     LOG.info("Reg query for key %s and value %s: %s", key_name, value_name, out)
     for k in key_types:
         parts = out.split(k)
@@ -216,7 +225,9 @@ def query_registry(session, key_name, value_name):
     return None
 
 
-def add_reg_key(session, path, name, value, key_type, force=True):   # pylint: disable=R0913
+def add_reg_key(
+    session, path, name, value, key_type, force=True
+):  # pylint: disable=R0913
     """
     Wrapper around the reg add command.
 
@@ -231,7 +242,7 @@ def add_reg_key(session, path, name, value, key_type, force=True):   # pylint: d
     if not isinstance(key_type, RegistryKeyType):
         raise TypeError(f"{key_type} must be instance of RegistryKeyType")
 
-    cmd = f"reg add \"{path}\" /v {name} /d {value} /t {key_type.value}"
+    cmd = f'reg add "{path}" /v {name} /d {value} /t {key_type.value}'
     if force:
         cmd += " /f"
 
@@ -269,7 +280,7 @@ def path_exists(session, path):
     :returns: whether the given path exists
     :rtype: str
     """
-    output = session.cmd_output(f"if exist \"{path}\" echo yes")
+    output = session.cmd_output(f'if exist "{path}" echo yes')
     return output.strip() == "yes"
 
 
@@ -283,7 +294,7 @@ def hash_file(session, filename):
     :returns: hash value
     :rtype: str
     """
-    output = session.cmd(f"certutil -hashfile \"{filename}\" MD5")
+    output = session.cmd(f'certutil -hashfile "{filename}" MD5')
     LOG.debug("certutil output for %s is %s", filename, output)
     hash_value = output.splitlines()[1]
     LOG.debug("Hash value is %s", hash_value)
@@ -302,9 +313,9 @@ def mkdir(session, path, exist_ok=True):
              exists and exist_ok is False
     """
     if exist_ok:
-        cmd = f"if not exist \"{path}\" mkdir \"{path}\""
+        cmd = f'if not exist "{path}" mkdir "{path}"'
     else:
-        cmd = f"mkdir \"{path}\""
+        cmd = f'mkdir "{path}"'
     session.cmd(cmd)
 
 
@@ -318,7 +329,7 @@ def touch(session, path):
     :returns: path of the file created
     :rtype: str
     """
-    session.cmd(f"type nul > \"{path}\"")
+    session.cmd(f'type nul > "{path}"')
     return path
 
 
@@ -381,7 +392,9 @@ def tempfile(session, local=True):
 ###############################################################################
 
 
-def run_as(session, user, password, command, timeout=60, background=False):   # pylint: disable=R0913
+def run_as(
+    session, user, password, command, timeout=60, background=False
+):  # pylint: disable=R0913
     """
     Run a command as different user.
 
@@ -406,12 +419,12 @@ def run_as(session, user, password, command, timeout=60, background=False):   # 
         session.sendline(password)
 
     if background is True:
-        _run_as(f"runas /user:{user} \"{command}\"")
+        _run_as(f'runas /user:{user} "{command}"')
         return None
 
     outfile = tempfile(session, local=False)
     # runas produces no output, so we add a redirection to the inner command
-    cmd = f"runas /user:{user} \"cmd.exe /c {command} > {outfile}\""
+    cmd = f'runas /user:{user} "cmd.exe /c {command} > {outfile}"'
     _run_as(cmd)
     LOG.debug("Waiting %s seconds for the command to finish", timeout)
     # no need to capture anything, we redirected the output
@@ -432,7 +445,7 @@ def kill_program(session, program, kill_children=True):
     :param str program: name of the program to kill
     :param bool kill_children: whether to kill child processes
     """
-    cmd = f"taskkill /f /im \"{program}\""
+    cmd = f'taskkill /f /im "{program}"'
     if kill_children:
         cmd += " /t"
     session.cmd(cmd)
@@ -452,8 +465,9 @@ def wait_process_end(session, process, timeout=30):
     LOG.info("Waiting for process %s to end using PowerShell", process)
 
     # give some extra timeout to wait for PowerShell to return
-    ps_cmd(session, f"Wait-Process -Name {process} -Timeout {timeout}",
-           timeout=timeout+5)
+    ps_cmd(
+        session, f"Wait-Process -Name {process} -Timeout {timeout}", timeout=timeout + 5
+    )
 
 
 def kill_session(session):
@@ -504,7 +518,9 @@ def find_unused_port(session, start_port=10024):
     :rtype: int
     """
     # pylint: disable=C0301
-    output = ps_cmd(session, f"""
+    output = ps_cmd(
+        session,
+        f"""
         $port = {start_port}
         while($true) {{
             try {{
@@ -521,7 +537,8 @@ def find_unused_port(session, start_port=10024):
         }}
 
         Write-Host "::unused=$port"
-    """)
+    """,
+    )
     # pylint: enable=C0301
     port = re.search(r"::unused=(\d+)", output).group(1)
     return int(port)
@@ -540,7 +557,8 @@ def curl(session, url, proxy_address=None, proxy_port=None, insecure=False):
     :rtype: (int, str)
     """
     # extra indentation is not allowed within PS heredocs
-    skip_ssl_template = dedent("""\
+    skip_ssl_template = dedent(
+        """\
         Add-Type -Language CSharp @"
         namespace System.Net
         {
@@ -555,22 +573,28 @@ def curl(session, url, proxy_address=None, proxy_port=None, insecure=False):
             }
         }
         "@;
-        [System.Net.Util]::Init()""")
+        [System.Net.Util]::Init()"""
+    )
 
     # TODO: WebRequest (wrapper on top of System.Net.WebClient) is painfully slow
     # for some reason compared to the 3rd-party curl.exe tool, but let's use it for now.
-    webrequest_cmd = f"Invoke-WebRequest -Uri \"{url}\""
+    webrequest_cmd = f'Invoke-WebRequest -Uri "{url}"'
     if proxy_address is not None:
         # the session user must have access to the proxy (otherwise use -ProxyCredential)
-        webrequest_cmd += f" -Proxy http://{proxy_address}:{proxy_port} -ProxyUseDefaultCredentials"
+        webrequest_cmd += (
+            f" -Proxy http://{proxy_address}:{proxy_port} -ProxyUseDefaultCredentials"
+        )
 
-    output = ps_cmd(session, f"""
+    output = ps_cmd(
+        session,
+        f"""
         {skip_ssl_template if insecure else ''}
         $ProgressPreference = 'SilentlyContinue'
         $result = {webrequest_cmd}
         Write-Output $result.StatusCode
         Write-Output $result.Content
-    """)
+    """,
+    )
 
     LOG.debug("Powershell request produced output:\n'%s'", output)
     try:
