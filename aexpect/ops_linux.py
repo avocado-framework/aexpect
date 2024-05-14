@@ -432,6 +432,29 @@ def grep(session, expr, path, check=False, flags="-a"):
     return output
 
 
+def grep_pipe(session, cmd, expr, check=False, flags="-a"):
+    """
+    Invoke ``grep`` remotely searching for an expression in a command output.
+
+    :param session: session to run the command on
+    :type session: ShellSession
+    :param str cmd: command whose output will be grepped
+    :param str expr: search expression
+    :param bool check: whether to quietly run grep for a boolean check
+    :param str flags: extra flags passed to ``grep`` on the command line
+    :returns: whether there is a match or not or what ``grep`` emits on stdout
+              if the check mode is disabled
+    :rtype: bool or str
+    :raises: ShellCmdError if the check mode is disabled and status is nonzero
+    """
+    grep_command = f"{cmd} | grep {flags} '{expr}'"
+    status, output = session.cmd_status_output(grep_command)
+    if check:
+        return status == 0
+    _, output = _process_status_output(grep_command, status, output)
+    return output
+
+
 ###############################################################################
 # utilities
 ###############################################################################
