@@ -21,3 +21,13 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install -r requirements-travis.txt
       - run: make check
+
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: run static checks
+        uses: avocado-framework/avocado-ci-tools@main
+        with:
+          avocado-static-checks: true

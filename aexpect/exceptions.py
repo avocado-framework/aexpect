@@ -27,8 +27,10 @@ class ExpectError(Exception):
         return f"patterns {self.patterns!r}"
 
     def __str__(self):
-        return ("Unknown error occurred while looking for "
-                f"{self._pattern_str()}    (output: {self.output!r})")
+        return (
+            "Unknown error occurred while looking for "
+            f"{self._pattern_str()}    (output: {self.output!r})"
+        )
 
 
 class ExpectTimeoutError(ExpectError):
@@ -36,8 +38,10 @@ class ExpectTimeoutError(ExpectError):
     """Timeout when looking for output"""
 
     def __str__(self):
-        return ("Timeout expired while looking for "
-                f"{self._pattern_str()}    (output: {self.output!r})")
+        return (
+            "Timeout expired while looking for "
+            f"{self._pattern_str()}    (output: {self.output!r})"
+        )
 
 
 class ExpectProcessTerminatedError(ExpectError):
@@ -49,9 +53,11 @@ class ExpectProcessTerminatedError(ExpectError):
         self.status = status
 
     def __str__(self):
-        return ("Process terminated while looking for "
-                f"{self._pattern_str()}    (status: {self.status!r},    "
-                f"output: {self.output!r})")
+        return (
+            "Process terminated while looking for "
+            f"{self._pattern_str()}    (status: {self.status!r},    "
+            f"output: {self.output!r})"
+        )
 
 
 class ShellError(Exception):
@@ -64,8 +70,10 @@ class ShellError(Exception):
         self.output = output
 
     def __str__(self):
-        return (f"Could not execute shell command {self.cmd!r}    "
-                "(output: {self.output!r})")
+        return (
+            f"Could not execute shell command {self.cmd!r}    "
+            "(output: {self.output!r})"
+        )
 
 
 class ShellTimeoutError(ShellError):
@@ -73,8 +81,10 @@ class ShellTimeoutError(ShellError):
     """Timeout when waiting for command to complete"""
 
     def __str__(self):
-        return ("Timeout expired while waiting for shell command to "
-                f"complete: {self.cmd!r}    (output: {self.output!r})")
+        return (
+            "Timeout expired while waiting for shell command to "
+            f"complete: {self.cmd!r}    (output: {self.output!r})"
+        )
 
 
 class ShellProcessTerminatedError(ShellError):
@@ -89,9 +99,11 @@ class ShellProcessTerminatedError(ShellError):
         self.status = status
 
     def __str__(self):
-        return ("Shell process terminated while waiting for command to "
-                f"complete: {self.cmd!r}    (status: {self.status},    "
-                f"output: {self.output!r})")
+        return (
+            "Shell process terminated while waiting for command to "
+            f"complete: {self.cmd!r}    (status: {self.status},    "
+            f"output: {self.output!r})"
+        )
 
 
 class ShellCmdError(ShellError):
@@ -106,8 +118,10 @@ class ShellCmdError(ShellError):
         self.status = status
 
     def __str__(self):
-        return (f"Shell command failed: {self.cmd!r}    (status: {self.status}"
-                f",    output: {self.output!r})")
+        return (
+            f"Shell command failed: {self.cmd!r}    (status: {self.status}"
+            f",    output: {self.output!r})"
+        )
 
 
 class ShellStatusError(ShellError):
@@ -117,5 +131,7 @@ class ShellStatusError(ShellError):
     """
 
     def __str__(self):
-        return (f"Could not get exit status of command: {self.cmd!r}    "
-                f"(output: {self.output!r})")
+        return (
+            f"Could not get exit status of command: {self.cmd!r}    "
+            f"(output: {self.output!r})"
+        )

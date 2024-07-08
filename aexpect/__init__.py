@@ -14,23 +14,24 @@ Aexpect module, see help('aexpect.client') to get info about the main
 entry-points.
 """
 
-from .exceptions import ExpectError
-from .exceptions import ExpectProcessTerminatedError
-from .exceptions import ExpectTimeoutError
-from .exceptions import ShellCmdError
-from .exceptions import ShellError
-from .exceptions import ShellProcessTerminatedError
-from .exceptions import ShellStatusError
-from .exceptions import ShellTimeoutError
-
-from .client import Spawn
-from .client import Tail
-from .client import Expect
-from .client import ShellSession
-from .client import kill_tail_threads
-from .client import run_tail
-from .client import run_bg
-from .client import run_fg
-
-from . import remote
-from . import rss_client
+from . import remote, rss_client
+from .client import (
+    Expect,
+    ShellSession,
+    Spawn,
+    Tail,
+    kill_tail_threads,
+    run_bg,
+    run_fg,
+    run_tail,
+)
+from .exceptions import (
+    ExpectError,
+    ExpectProcessTerminatedError,
+    ExpectTimeoutError,
+    ShellCmdError,
+    ShellError,
+    ShellProcessTerminatedError,
+    ShellStatusError,
+    ShellTimeoutError,
+)
