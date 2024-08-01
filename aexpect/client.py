@@ -554,6 +554,7 @@ class Tail(Spawn):
         :param encoding: Override text encoding (by default: autodetect by
                 locale.getpreferredencoding())
         """
+        self.tail_thread = None
         # Add a reader and a close hook
         self._add_reader("tail")
         self._add_close_hook(Tail._join_thread)
@@ -574,7 +575,6 @@ class Tail(Spawn):
         self.output_prefix = output_prefix
 
         # Start the thread in the background
-        self.tail_thread = None
         if self.is_alive():
             if termination_func or output_func:
                 self._start_thread()
