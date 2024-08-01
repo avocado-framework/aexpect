@@ -178,24 +178,8 @@ class Spawn:
         # Start the server (which runs the command)
         if command:
             helper_cmd = utils_path.find_command('aexpect_helper')
-            self._aexpect_helper = subprocess.Popen([helper_cmd],  # pylint: disable=R1732
-                                                    shell=True,
-                                                    stdin=subprocess.PIPE,
-                                                    stdout=subprocess.PIPE,
-                                                    stderr=subprocess.STDOUT,
-                                                    pass_fds=pass_fds)
-            sub = self._aexpect_helper
-            # Send parameters to the server
-            sub.stdin.write(f"{self.a_id}\n".encode(self.encoding))
-            sub.stdin.write(f"{echo}\n".encode(self.encoding))
-            readers = ",".join(self.readers)
-            sub.stdin.write(f"{readers}\n".encode(self.encoding))
-            sub.stdin.write(f"{command}\n".encode(self.encoding))
-            sub.stdin.flush()
-            # Wait for the server to complete its initialization
-            while (f"Server {self.a_id} ready" not in
-                   sub.stdout.readline().decode(self.encoding, "ignore")):
-                pass
+            self._aexpect_helper = self._get_aexpect_helper(
+                helper_cmd, pass_fds, echo, command)
 
         # Open the reading pipes
         if is_file_locked(self.lock_server_running_filename):
@@ -231,6 +215,54 @@ class Spawn:
         self._close_reader_fds()
         if self.auto_close:
             self.close()
+
+    def _get_aexpect_helper(self, helper_cmd, pass_fds, echo, command):
+        """
+        Start the aexpect_helper server, send the command and wait for the server to
+        complete its initialization.
+
+        :param helper_cmd: The aexpect_helper command location.
+        :param pass_fds: Optional sequence of file descriptors to keep open
+                between the parent and child.
+        :param echo: Boolean indicating whether echo should be initially
+                enabled for the pseudo terminal running the subprocess.  This
+                parameter has an effect only when starting a new server.
+        :param command: Command to run, or None if accessing an already running
+                server.
+        :returns: The aexpect_helper process object
+        :raise ExpectTimeoutError: Raised if timeout expires
+        :raise ExpectProcessTerminatedError: Raised if the child process
+                terminates while waiting for output
+
+        """
+        sub = subprocess.Popen([helper_cmd],  # pylint: disable=R1732
+                               shell=True,
+                               stdin=subprocess.PIPE,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT,
+                               pass_fds=pass_fds)
+        # Send parameters to the server
+        sub.stdin.write(f"{self.a_id}\n".encode(self.encoding))
+        sub.stdin.write(f"{echo}\n".encode(self.encoding))
+        readers = ",".join(self.readers)
+        sub.stdin.write(f"{readers}\n".encode(self.encoding))
+        sub.stdin.write(f"{command}\n".encode(self.encoding))
+        sub.stdin.flush()
+        # Wait for the server to complete its initialization
+        full_output = ""
+        pattern = f"Server {self.a_id} ready"
+        end_time = time.time() + 60
+        while time.time() < end_time:
+            output = sub.stdout.readline().decode(self.encoding, "ignore")
+            if pattern in output:
+                break
+            full_output += output
+            sub_status = sub.poll()
+            if sub_status is not None:
+                raise ExpectProcessTerminatedError(pattern, sub_status, full_output)
+        else:
+            raise ExpectTimeoutError(pattern, full_output)
+        return sub
 
     def _add_reader(self, reader):
         """
