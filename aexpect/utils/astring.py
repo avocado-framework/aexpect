@@ -54,7 +54,7 @@ def strip_console_codes(output, custom_codes=None):
         try:
             special_code = re.findall(console_codes, tmp_word)[0]
         except IndexError as error:
-            if index + tmp_index < len(output):
+            if index < len(output):
                 raise ValueError(f"{tmp_word} is not included in the known "
                                  "console codes list "
                                  f"{console_codes}") from error

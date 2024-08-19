@@ -28,8 +28,12 @@ class Astring(unittest.TestCase):
         strip = astring.strip_console_codes
         self.assertEqual("simple color test",
                          strip("simple\x1b[33;1m color \x1b[0mtest"))
-        self.assertEqual("[33;1mstarts with code", "[33;1mstarts with code")
-        self.assertEqual("ends with escape\x1b", "ends with escape\x1b")
+        self.assertEqual("",
+                         strip("\x1bskip-full-text"))
+        self.assertEqual("ignores last",
+                         strip("ignores last\x1bbad"))
+        self.assertRaisesRegex(ValueError, "only is not included", strip,
+                               "ignores\x1bonly\x1blast\x1bbad")
 
 
 if __name__ == '__main__':
