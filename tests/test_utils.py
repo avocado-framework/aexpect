@@ -34,6 +34,9 @@ class Astring(unittest.TestCase):
                          strip("ignores last\x1bbad"))
         self.assertRaisesRegex(ValueError, "only is not included", strip,
                                "ignores\x1bonly\x1blast\x1bbad")
+        self.assertRaisesRegex(ValueError, "invalid-prefix.*included", strip,
+                               "\x1binvalid-prefix[33;1mconsole code "
+                               "must fail\x1b")
 
 
 if __name__ == '__main__':
