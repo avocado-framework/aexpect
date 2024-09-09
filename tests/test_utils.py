@@ -32,6 +32,8 @@ class Astring(unittest.TestCase):
                          strip("\x1bskip-full-text"))
         self.assertEqual("ignores last",
                          strip("ignores last\x1bbad"))
+        self.assertEqual("skips c [!p and ]104",
+                         strip("\x1b[?7hskips\x1bc c \x1b[!p[!p and ]104\x1b]104"))
         self.assertRaisesRegex(ValueError, "only is not included", strip,
                                "ignores\x1bonly\x1blast\x1bbad")
         self.assertRaisesRegex(ValueError, "invalid-prefix.*included", strip,
