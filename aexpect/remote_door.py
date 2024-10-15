@@ -838,7 +838,7 @@ def import_remote_exceptions(exceptions=None, modules=None):
     :type exceptions: [str] or None
     :param modules: full module paths whose custom exceptions will first be
                     detected and then automatically imported (optional)
-    :type exceptions: [str] or None
+    :type modules: [str] or None
 
     The deserialization by our Pyro backend requires the full module paths to
     each exception or module in order to correctly detect the exception type.
