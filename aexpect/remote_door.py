@@ -54,7 +54,7 @@ INTERFACE
 
 # disable import issues from optional dependencies or remote extra imports using
 # pylint: disable=E0401,C0415,W0212
-# disable too-many-* as we need them pylint: disable=R0912,R0913,R0914,R0915,C0302
+# disable too-many/few-* as we need them pylint: disable=R0903,R0912,R0913,R0914,R0915,R0917,C0302
 # ..todo:: we could reduce the disabled issues after more significant refactoring
 
 import os
@@ -70,8 +70,29 @@ import time
 # related to connectivity and perform further development on this utility.
 # os.environ["PYRO_LOGLEVEL"] = "DEBUG"
 try:
-    # noinspection PyPackageRequirements,PyUnresolvedReferences
-    import Pyro4
+    try:
+        # noinspection PyPackageRequirements,PyUnresolvedReferences
+        from Pyro5.compatibility import Pyro4
+        # noinspection PyPackageRequirements
+        from Pyro5 import server
+        # noinspection PyPackageRequirements
+        from Pyro5 import nameserver
+    except ImportError:
+        # noinspection PyPackageRequirements,PyUnresolvedReferences
+        import Pyro4
+        # Pyro5 compatibility does not support submodules so we need separate handling
+
+        class Server:
+            """Dummy class to replace a Pyro5 server."""
+            def __init__(self):
+                self.__dict__ = {}
+        server = Server()
+        server.expose = Pyro4.expose  # pylint: disable=W0201
+        server.is_private_attribute = Pyro4.util.is_private_attribute  # pylint: disable=W0201
+        # noinspection PyPackageRequirements
+        from Pyro4 import naming as nameserver
+        nameserver.start_ns = nameserver.startNS
+
 except ImportError:
     logging.warning("Remote object backend (Pyro4) not found, some functionality"
                     " of the remote door will not be available")
@@ -411,11 +432,13 @@ def set_subcontrol_parameter_dict(subcontrol, dict_name, value):
 
 
 @set_subcontrol
-def set_subcontrol_parameter_object(subcontrol, value):
+def set_subcontrol_parameter_object(subcontrol, object_type, value):
     """
     Prepare a URI to remote params for the remote control file.
 
     :param str subcontrol: path to the original control
+    :param str object_type: type of the object described as module path text,
+               for example "collections.UserDict"
     :param value: control parameters value
     :type value: Params object
     :returns: path to the modified control
@@ -438,7 +461,7 @@ def set_subcontrol_parameter_object(subcontrol, value):
 
     LOG.info("Sharing the test parameters over the network")
     Pyro4.config.AUTOPROXY = False
-    Pyro4.config.REQUIRE_EXPOSE = False
+    expose_remote_classes([object_type])
     try:
         pyro_daemon = Pyro4.Daemon(host=host_ip, port=1437)
         LOG.debug("Pyro4 daemon started successfully")
@@ -496,7 +519,8 @@ class DaemonLoop(threading.Thread):
         self.pyro_daemon.requestLoop()
 
 
-def get_remote_object(object_name, session=None, host="localhost", port=9090):
+def get_remote_object(object_name, session=None, host="localhost", port=9090,
+                      object_wl=None, expose_wl=None, serialize_wl=None):
     """
     Get a data object (visual or other) executing remotely or
     share one if none is available, generating control files along
@@ -508,6 +532,16 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
     :type session: RemoteSession or None
     :param str host: ip address of the local sharing server
     :param int port: port of the local name server
+    :param object_wl: whitelist of allowed functions/classes of the local (typically
+                      module) object as a tuple pair (functions, classes);
+                      expose and autoproxy all (do not filter) if None or empty
+    :type object_wl: ([str],[str]) or None
+    :param expose_wl: extra classes to expose as a pair of full module class paths
+                      and general module paths to expose all classes from
+    :type expose_wl: ([str],[str]) or None
+    :param serialize_wl: exceptions to serialize as a pair of full module class paths
+                         and general module paths to serialize all exceptions from
+    :type serialize_wl: ([str],[str]) or None
     :returns: proxy version of the remote object
     :rtype: Pyro4.Proxy
 
@@ -531,6 +565,10 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
     This method does not rely on any static (template) controls in order to
     work because the remote door takes care to reach back the local one.
     """
+    serialize_wl = serialize_wl or ([], [])
+    # additional exceptions to serialize
+    import_remote_exceptions(*serialize_wl)
+
     # noinspection PyUnresolvedReferences
     try:
         remote_object = Pyro4.Proxy(f"PYRONAME:{object_name}@{host}:{port}")
@@ -543,7 +581,10 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090):
         # if there is no door on the other side, open one
         _copy_control(session, os.path.abspath(__file__), is_utility=True)
         run_remote_util(session, "remote_door", "share_local_object",
-                        object_name, host=host, port=port, detach=True)
+                        object_name, host=host, port=port,
+                        object_wl=object_wl,
+                        expose_wl=expose_wl,
+                        detach=True)
         output, attempts = "", 10
         for _ in range(attempts):
             output = session.get_output()
@@ -611,26 +652,31 @@ def get_remote_objects(session=None, host="localhost", port=0):
     return remote_objects
 
 
-def share_local_object(object_name, whitelist=None, host="localhost", port=9090):
+def share_local_object(object_name, host="localhost", port=9090,
+                       object_wl=None, expose_wl=None):
     """
     Share a local object of the given name over the network.
 
     :param str object_name: name of the local object
-    :param whitelist: shared functions/classes of the local object as tuple
-                      pairs (module, function) or (module, class); whitelist
-                      all (do not filter) if None or empty
-    :type whitelist: [(str,str)] or None
     :param str host: ip address of the local name server
     :param port: port of the local sharing server
     :type port: int or str
+    :param object_wl: whitelist of allowed functions/classes of the local (typically
+                      module) object as a tuple pair (functions, classes);
+                      expose and autoproxy all (do not filter) if None or empty
+    :type object_wl: ([str],[str]) or None
+    :param expose_wl: extra classes to expose as a pair of full module class paths
+                      and general module paths to expose all classes from
+    :type expose_wl: ([str],[str]) or None
 
     This function shares a custom object with whitelisted attributes through a
     custom implementation. It is more secure but more limited as functionality
     since it requires serialization extensions.
     """
     Pyro4.config.AUTOPROXY = True
-    Pyro4.config.REQUIRE_EXPOSE = False
     port = int(port) if isinstance(port, str) else port
+    object_wl = object_wl or ([], [])
+    expose_wl = expose_wl or ([], [])
 
     # pyro daemon
     try:
@@ -653,9 +699,7 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
         LOG.debug("Pyro4 name server already started")
     # network unreachable and failed to locate the nameserver error
     except (OSError, Pyro4.errors.NamingError):
-        # noinspection PyPackageRequirements
-        from Pyro4 import naming
-        ns_uri, ns_daemon, _bc_server = naming.startNS(host=host, port=port)
+        ns_uri, ns_daemon, _bc_server = nameserver.start_ns(host=host, port=port)
         ns_server = Pyro4.Proxy(ns_uri)
         LOG.debug("Pyro4 name server started successfully with URI %s", ns_uri)
 
@@ -696,12 +740,30 @@ def share_local_object(object_name, whitelist=None, host="localhost", port=9090)
         """Module wrapped for transferability."""
 
     for fname, fobj in inspect.getmembers(module, inspect.isfunction):
-        if not whitelist or (object_name, fname) in whitelist:
+        if not object_wl[0] or fname in object_wl[0]:
+            LOG.info("Autoproxying %s's function %s", object_name, fname)
             setattr(ModuleObject, fname, staticmethod(proxymethod(fobj)))
+            if not server.is_private_attribute(fname):
+                LOG.info("Exposing %s's function %s", object_name, fname)
+                try:
+                    server.expose(fobj)
+                except AttributeError as error:
+                    LOG.warning(error)
     for cname, cobj in inspect.getmembers(module, inspect.isclass):
-        if not whitelist or (object_name, cname) in whitelist:
+        if not object_wl[1] or cname in object_wl[1]:
+            LOG.info("Autoproxying %s's class %s", object_name, cname)
             setattr(ModuleObject, cname, staticmethod(proxymethod(cobj)))
+            if not server.is_private_attribute(cname):
+                LOG.info("Exposing %s's class %s", object_name, cname)
+                try:
+                    server.expose(cobj)
+                except AttributeError as error:
+                    LOG.warning(error)
+
     local_object = ModuleObject()
+    server.expose(ModuleObject)
+    # additional classes to expose
+    expose_remote_classes(*expose_wl)
 
     # we should register to the pyro daemon before entering its loop
     uri = pyro_daemon.register(local_object)
@@ -838,7 +900,7 @@ def import_remote_exceptions(exceptions=None, modules=None):
     :type exceptions: [str] or None
     :param modules: full module paths whose custom exceptions will first be
                     detected and then automatically imported (optional)
-    :type exceptions: [str] or None
+    :type modules: [str] or None
 
     The deserialization by our Pyro backend requires the full module paths to
     each exception or module in order to correctly detect the exception type.
@@ -885,3 +947,52 @@ def import_remote_exceptions(exceptions=None, modules=None):
     for exception in exceptions:
         # noinspection PyUnresolvedReferences
         Pyro4.util.SerializerBase.register_dict_to_class(exception, recreate_exception)
+
+
+def expose_remote_classes(classes=None, modules=None):
+    """
+    Make accessible all remote custom classes.
+
+    :param classes: full module path class names (optional)
+    :type classes: [str] or None
+    :param modules: full module paths whose custom classes will first be
+                    detected and then automatically exposed inclusive of
+                    parent classes and inheritance (optional)
+    :type modules: [str] or None
+    """
+    def list_module_classes(modstr):
+        imported_module = importlib.import_module(modstr)
+        module_classes = []
+        for name in imported_module.__dict__:
+            if not inspect.isclass(imported_module.__dict__[name]):
+                continue
+            module_classes.append(modstr + "." + name)
+        return module_classes
+
+    classes = [] if not classes else classes
+    modules = [] if not modules else modules
+    for module in modules:
+        classes += list_module_classes(module)
+    LOG.debug("Exposing the following classes (with proper inheritance): %s",
+              ", ".join(classes))
+
+    def get_class_from_name(clsstr):
+        module_name, class_name = clsstr.rsplit('.', 1)
+        module = importlib.import_module(module_name)
+        cls = getattr(module, class_name)
+        return cls
+
+    for cls in map(get_class_from_name, classes):
+        # the inheritance is inclusive of the class itself
+        for base_cls in cls.__mro__:
+            if base_cls in (object, int, float, bool, str, tuple, frozenset):
+                # known immutable classes should be skipped
+                continue
+            if inspect.ismethoddescriptor(base_cls):
+                # method descriptors should be skipped
+                continue
+            try:
+                server.expose(base_cls)
+            except (TypeError, AttributeError) as error:
+                logging.warning("Additional class exposing error: %s", error)
+                continue
