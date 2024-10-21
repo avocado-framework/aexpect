@@ -12,29 +12,30 @@
 # Copyright: Intra2net AG and aexpect contributors
 # Author: Plamen Dimitrov <plamen.dimitrov@intra2net.com>
 #
-# selftests pylint: disable=C0111,C0111,W0613,R0913
+# selftests pylint: disable=C0111,C0111,W0613,R0913,E1101
 
 import os
 import glob
 import re
 import shutil
 import unittest.mock
+import html
 
-from aexpect import remote_door
+from aexpect import client, remote, remote_door
 from aexpect.client import RemoteSession
 
 mock = unittest.mock
 
 
 # noinspection PyUnusedLocal
-def _local_login(client, host, port, username, password, prompt,
+def _local_login(_client, host, port, username, password, prompt,
                  linesep="\n", log_filename=None, log_function=None,
                  timeout=10, internal_timeout=10, interface=None):
-    return RemoteSession("sh", prompt=prompt, client=client)
+    return RemoteSession("sh", prompt=prompt, client=_client)
 
 
 # noinspection PyUnusedLocal
-def _local_copy(address, client, username, password, port, local_path,
+def _local_copy(address, _client, username, password, port, local_path,
                 remote_path, limit="", log_filename=None, log_function=None,
                 verbose=False, timeout=600, interface=None, filesize=None,
                 directory=True):
@@ -51,6 +52,16 @@ class RemoteDoorTest(unittest.TestCase):
         if not os.path.isdir(remote_door.REMOTE_PYTHON_PATH):
             os.mkdir(remote_door.REMOTE_PYTHON_PATH)
 
+        self.has_remote_objects = hasattr(remote_door, "Pyro4")
+        if self.has_remote_objects:
+            self.pyro = mock.patch(remote_door.Pyro4)
+            self.server = mock.patch(remote_door.server)
+            self.nameserver = mock.patch(remote_door.nameserver)
+        else:
+            self.pyro = remote_door.Pyro4 = mock.MagicMock()
+            self.server = remote_door.server = mock.MagicMock()
+            self.nameserver = remote_door.nameserver = mock.MagicMock()
+
     def tearDown(self):
         for control_file in glob.glob("tmp*.control"):
             os.unlink(control_file)
@@ -62,6 +73,15 @@ class RemoteDoorTest(unittest.TestCase):
             os.unlink(deployed_remote_door)
         os.rmdir(remote_door.REMOTE_PYTHON_PATH)
         self.session.close()
+
+        if self.has_remote_objects:
+            self.pyro.stop()
+            self.server.stop()
+            self.nameserver.stop()
+        else:
+            del remote_door.Pyro4
+            del remote_door.server
+            del remote_door.nameserver
 
     def test_run_remote_util(self):
         """Test that a remote utility runs properly."""
@@ -152,9 +172,8 @@ class RemoteDoorTest(unittest.TestCase):
         """Test that a remote object can be retrieved properly."""
         self.session = mock.MagicMock(name='session')
         self.session.client = "ssh"
-        remote_door.Pyro4 = mock.MagicMock()
-        disconnect = remote_door.Pyro4.errors.PyroError = Exception
-        remote_door.Pyro4.Proxy.side_effect = [disconnect("no such object"), mock.DEFAULT]
+        disconnect = self.pyro.errors.PyroError = Exception
+        self.pyro.Proxy.side_effect = [disconnect("no such object"), mock.DEFAULT]
         self.session.get_output.return_value = "Local object sharing ready\n"
         self.session.get_output.return_value += "RESULT = None\n"
 
@@ -180,17 +199,24 @@ class RemoteDoorTest(unittest.TestCase):
             control_lines = handle.readlines()
             self.assertIn("import remote_door\n", control_lines)
             self.assertIn("result = remote_door.share_local_object(r'html', "
-                          "host=r'testhost', port=4242)\n",
+                          "expose_wl=None, host=r'testhost', object_wl=None, "
+                          "port=4242)\n",
                           control_lines)
 
-        # since the local run was face redo it here
-        remote_door.share_local_object("html", None, "testhost", 4242)
+        # since the local run was fake redo it here
+        self.server.is_private_attribute = lambda x: False
+        remote_door.share_local_object("html", "testhost", 4242)
+        self.server.expose.assert_called()
+        # TODO: to make the remote door usable with nearly no dependencies
+        # we use a lot of internal classes and functions to make sharing a
+        # local object possible but this makes testing these less accessible
+        self.server.expose.assert_any_call(html.escape)
+        self.server.expose.assert_any_call(html.unescape)
 
     def test_share_remote_objects(self):
         """Test that a remote object can be shared properly and remotely."""
         self.session = mock.MagicMock(name='session')
         self.session.client = "ssh"
-        remote_door.Pyro4 = mock.MagicMock()
 
         control_file = os.path.join(remote_door.REMOTE_CONTROL_DIR,
                                     "tmpxxxxxxxx.control")
@@ -212,12 +238,11 @@ class RemoteDoorTest(unittest.TestCase):
 
     def test_import_remote_exceptions(self):
         """Test that selected remote exceptions are properly imported and deserialized."""
-        remote_door.Pyro4 = mock.MagicMock()
         preselected_exceptions = ["aexpect.remote.RemoteError",
                                   "aexpect.remote.LoginError",
                                   "aexpect.remote.TransferError"]
         remote_door.import_remote_exceptions(preselected_exceptions)
-        register_method = remote_door.Pyro4.util.SerializerBase.register_dict_to_class
+        register_method = self.pyro.util.SerializerBase.register_dict_to_class
         self.assertEqual(len(register_method.mock_calls), 3)
 
         def get_first_arg(call):
@@ -239,3 +264,34 @@ class RemoteDoorTest(unittest.TestCase):
         # assert some detected exceptions from the remote module
         self.assertIn("aexpect.remote.RemoteError", imported_classes)
         self.assertIn("aexpect.remote.UDPError", imported_classes)
+
+    def test_expose_remote_classes(self):
+        """Test that selected remote classes are properly exposed."""
+        preselected_classes = ["aexpect.client.ShellSession",
+                               "aexpect.remote.LoginError"]
+        remote_door.expose_remote_classes(preselected_classes)
+        expose_method = self.server.expose
+        self.assertEqual(expose_method.mock_calls[0],
+                         mock.call(client.ShellSession))
+        self.assertEqual(expose_method.mock_calls[1],
+                         mock.call(client.Expect))
+        self.assertEqual(expose_method.mock_calls[2],
+                         mock.call(client.Tail))
+        self.assertEqual(expose_method.mock_calls[3],
+                         mock.call(client.Spawn))
+        self.assertNotEqual(expose_method.mock_calls[4],
+                            mock.call(object))
+        self.assertEqual(expose_method.mock_calls[4],
+                         mock.call(remote.LoginError))
+        self.assertEqual(expose_method.mock_calls[5],
+                         mock.call(remote.RemoteError))
+
+        expose_method.reset_mock()
+        preselected_modules = ["aexpect.client"]
+        remote_door.expose_remote_classes([], modules=preselected_modules)
+        self.assertIn(mock.call(client.ExpectError),
+                      expose_method.mock_calls,
+                      "classes imported from elsewhere are exposed")
+        self.assertIn(mock.call(client.ShellSession),
+                      expose_method.mock_calls,
+                      "defined classes are exposed")
