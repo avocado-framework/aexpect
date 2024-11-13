@@ -217,6 +217,7 @@ class RemoteDoorTest(unittest.TestCase):
         """Test that a remote object can be shared properly and remotely."""
         self.session = mock.MagicMock(name='session')
         self.session.client = "ssh"
+        remote_door.NS_MODULE = "pyro.name.server"
 
         control_file = os.path.join(remote_door.REMOTE_CONTROL_DIR,
                                     "tmpxxxxxxxx.control")
@@ -234,7 +235,7 @@ class RemoteDoorTest(unittest.TestCase):
         else:
             self.assertEqual(self.session.cmd.call_count, 1)
         command = self.session.cmd.call_args[0][0]
-        self.assertEqual("python -m Pyro4.naming -n testhost -p 4242 &", command)
+        self.assertEqual(f"python -m {remote_door.NS_MODULE} -n testhost -p 4242 &", command)
 
     def test_import_remote_exceptions(self):
         """Test that selected remote exceptions are properly imported and deserialized."""
