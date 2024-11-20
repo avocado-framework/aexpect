@@ -1311,11 +1311,16 @@ class ShellSession(Expect):
             # Send the 'echo $?' (or equivalent) command to get the exit status
             status = self.cmd_output(self.status_test_command, 30,
                                      internal_timeout, print_func, safe)
+            # Escape sequence for Bracketed Paste Mode
+            escape_sequence = r'\x1b\[\?[0-9;]*[hl]'
+
+            # Remove the Bracketed Paste Mode escape sequence using re.sub
+            clean_status = re.sub(escape_sequence, '', status)
         except ShellError as error:
             raise ShellStatusError(cmd, out) from error
 
         # Get the first line consisting of digits only
-        digit_lines = [_ for _ in status.splitlines()
+        digit_lines = [_ for _ in clean_status.splitlines()
                        if self.__RE_STATUS.match(_.strip())]
         if digit_lines:
             return int(digit_lines[0].strip()), out
