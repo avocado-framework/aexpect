@@ -77,6 +77,7 @@ try:
         from Pyro5 import server
         # noinspection PyPackageRequirements
         from Pyro5 import nameserver
+        NS_MODULE = "Pyro5.nameserver"
     except ImportError:
         # noinspection PyPackageRequirements,PyUnresolvedReferences
         import Pyro4
@@ -92,10 +93,12 @@ try:
         # noinspection PyPackageRequirements
         from Pyro4 import naming as nameserver
         nameserver.start_ns = nameserver.startNS
+        NS_MODULE = "Pyro4.naming"
 
 except ImportError:
     logging.warning("Remote object backend (Pyro4) not found, some functionality"
                     " of the remote door will not be available")
+    NS_MODULE = ""
 
 # NOTE: disable aexpect importing on the remote side if not available as the
 # remote door can run code remotely without the requirement for the aexpect
@@ -848,7 +851,7 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
 
     # setup remote objects server
     LOG.info("Starting nameserver for the remote objects")
-    cmd = f"python -m Pyro4.naming -n {host} -p {port}"
+    cmd = f"python -m {NS_MODULE} -n {host} -p {port}"
     session.cmd("START " + cmd if os_type == "windows" else cmd + " &")
 
     LOG.info("Starting the server daemon for the remote objects")
