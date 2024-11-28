@@ -1311,11 +1311,13 @@ class ShellSession(Expect):
             # Send the 'echo $?' (or equivalent) command to get the exit status
             status = self.cmd_output(self.status_test_command, 30,
                                      internal_timeout, print_func, safe)
+            # Using the function to remove escape sequence from the output
+            clean_status = astring.strip_console_codes(status)
         except ShellError as error:
             raise ShellStatusError(cmd, out) from error
 
         # Get the first line consisting of digits only
-        digit_lines = [_ for _ in status.splitlines()
+        digit_lines = [_ for _ in clean_status.splitlines()
                        if self.__RE_STATUS.match(_.strip())]
         if digit_lines:
             return int(digit_lines[0].strip()), out
