@@ -1311,11 +1311,8 @@ class ShellSession(Expect):
             # Send the 'echo $?' (or equivalent) command to get the exit status
             status = self.cmd_output(self.status_test_command, 30,
                                      internal_timeout, print_func, safe)
-            # Escape sequence for Bracketed Paste Mode
-            escape_sequence = r'\x1b\[\?[0-9;]*[hl]'
-
-            # Remove the Bracketed Paste Mode escape sequence using re.sub
-            clean_status = re.sub(escape_sequence, '', status)
+            # Using the function to remove escape sequence from the output
+            clean_status = astring.strip_console_codes(status)
         except ShellError as error:
             raise ShellStatusError(cmd, out) from error
 
