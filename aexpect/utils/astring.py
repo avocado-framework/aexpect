@@ -35,8 +35,9 @@ def strip_console_codes(output, custom_codes=None):
     return_str = ""
     index = 0
     output = f"\x1b[m{output}"
-    console_codes = "%[G@8]|\\[[@A-HJ-MPXa-hl-nqrsu\\`]"
-    console_codes += "|\\[[\\d;]+[HJKgqnrm]|#8|\\([B0UK]|\\)|\\[\\?2004[lh]"
+    console_codes = "^%[G@8]|^\\[[@A-HJ-MPXa-hl-nqrsu\\`]"
+    console_codes += "|^\\[[\\d;]+[HJKgqnrm]|^#8|^\\([B0UK]|^\\)"
+    console_codes += "|^\\[\\?2004[lh]|^c|^\\[!p|^\\]\\d+|^\\[\\?\\d+h"
     if custom_codes is not None and custom_codes not in console_codes:
         console_codes += f"|{custom_codes}"
     while index < len(output):
@@ -54,7 +55,7 @@ def strip_console_codes(output, custom_codes=None):
         try:
             special_code = re.findall(console_codes, tmp_word)[0]
         except IndexError as error:
-            if index + tmp_index < len(output):
+            if index < len(output):
                 raise ValueError(f"{tmp_word} is not included in the known "
                                  "console codes list "
                                  f"{console_codes}") from error
