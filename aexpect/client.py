@@ -1188,7 +1188,7 @@ class ShellSession(Expect):
                                                  print_func)[1]
 
     def cmd_output(self, cmd, timeout=60, internal_timeout=None,
-                   print_func=None, safe=False):
+                   print_func=None, safe=False, strip_console_codes=False):
         """
         Send a command and return its output.
 
@@ -1203,7 +1203,10 @@ class ShellSession(Expect):
                 error messages that make read_up_to_prompt to timeout. Let's
                 try to be a little more robust and send a carriage return, to
                 see if we can get to the prompt when safe=True.
-
+        :param strip_console_codes: Whether to remove the escape sequence from the output.
+                In serial sessions, there are escape sequences present. If it is not
+                expected while reading the output remove it by passing
+                serial_console_codes = True.
         :return: The output of cmd
         :raise ShellTimeoutError: Raised if timeout expires
         :raise ShellProcessTerminatedError: Raised if the shell process
@@ -1211,7 +1214,7 @@ class ShellSession(Expect):
         :raise ShellError: Raised if an unknown error occurs
         """
         if safe:
-            return self.cmd_output_safe(cmd, timeout)
+            return self.cmd_output_safe(cmd, timeout, strip_console_codes)
         session_tag = f"[{self.output_prefix}] " if self.output_prefix else ""
         LOG.debug("%sSending command: %s", session_tag, cmd)
         self.read_nonblocking(0, timeout)
@@ -1229,10 +1232,13 @@ class ShellSession(Expect):
             raise ShellError(cmd, output) from error
 
         # Remove the echoed command and the final shell prompt
+        if strip_console_codes:
+            # Removing the escape sequence
+            out = astring.strip_console_codes(out)
         return self.remove_last_nonempty_line(self.remove_command_echo(out,
                                                                        cmd))
 
-    def cmd_output_safe(self, cmd, timeout=60):
+    def cmd_output_safe(self, cmd, timeout=60, strip_console_codes=False):
         """
         Send a command and return its output (serial sessions).
 
@@ -1244,7 +1250,10 @@ class ShellSession(Expect):
         :param cmd: Command to send (must not contain newline characters)
         :param timeout: The duration (in seconds) to wait for the prompt to
                 return
-
+        :param strip_console_codes: Whether to remove the escape sequence from the output.
+                In serial sessions, there are escape sequences present. If it is not
+                expected while reading the output remove it by passing
+                serial_console_codes = True.
         :return: The output of cmd
         :raise ShellTimeoutError: Raised if timeout expires
         :raise ShellProcessTerminatedError: Raised if the shell process
@@ -1278,6 +1287,9 @@ class ShellSession(Expect):
             raise ShellTimeoutError(cmd, out)
 
         # Remove the echoed command and the final shell prompt
+        if strip_console_codes:
+            # Removing the escape sequence
+            out = astring.strip_console_codes(out)
         return self.remove_last_nonempty_line(self.remove_command_echo(out,
                                                                        cmd))
 
