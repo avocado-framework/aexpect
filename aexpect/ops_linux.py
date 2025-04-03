@@ -397,7 +397,7 @@ def sed_replace(session, pattern, replacement, filename):
     Using sed is convenient, but it does not error out when nothing is replaced
     and this can lead to false-positives when used inside tests.
     """
-    LOG.info("Replacing {pattern} with {replacement} in {filename}")
+    LOG.info("Replacing %s with %s in %s", pattern, replacement, filename)
     # for lines matching pattern, replace and print them (the p command won't work)
     cmd = f"""sed -ri '/{pattern}/{{
 s//{replacement}/g
