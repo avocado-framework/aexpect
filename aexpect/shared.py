@@ -32,7 +32,7 @@ def get_lock_fd(filename, timeout=-1):
     end_time = time.time() + timeout if timeout > 0 else -1
     while True:
         try:
-            fcntl.lockf(lock_fd, lock_flags)
+            fcntl.flock(lock_fd, lock_flags)
             break
         except IOError:
             if time.time() > end_time:
@@ -43,7 +43,7 @@ def get_lock_fd(filename, timeout=-1):
 
 def unlock_fd(lock_fd):
     """Unlock a file"""
-    fcntl.lockf(lock_fd, fcntl.LOCK_UN)
+    fcntl.flock(lock_fd, fcntl.LOCK_UN)
     os.close(lock_fd)
 
 
@@ -54,11 +54,11 @@ def is_file_locked(filename):
     except OSError:
         return False
     try:
-        fcntl.lockf(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except IOError:
         os.close(lock_fd)
         return True
-    fcntl.lockf(lock_fd, fcntl.LOCK_UN)
+    fcntl.flock(lock_fd, fcntl.LOCK_UN)
     os.close(lock_fd)
     return False
 
