@@ -417,7 +417,10 @@ class Spawn:
         if not self.closed:
             self.kill(sig=sig)
             # Wait for the server to exit
-            wait_for_lock(self.lock_server_running_filename)
+            if not wait_for_lock(self.lock_server_running_filename,
+                                 timeout=60):
+                LOG.warning("Failed to get lock, the aexpect_helper process "
+                            "might be left behind. Proceeding anyway...")
             # Call all cleanup routines
             for hook in self.close_hooks:
                 hook(self)

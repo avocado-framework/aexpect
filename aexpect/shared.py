@@ -14,17 +14,30 @@
 import os
 import fcntl
 import termios
+import time
 
 BASE_DIR = os.environ.get('TMPDIR', '/tmp')
 
 
-def get_lock_fd(filename):
+def get_lock_fd(filename, timeout=-1):
     """Lock a file"""
     if not os.path.exists(filename):
         with open(filename, "w", encoding="utf-8"):
             pass
+
     lock_fd = os.open(filename, os.O_RDWR)
-    fcntl.lockf(lock_fd, fcntl.LOCK_EX)
+    lock_flags = fcntl.LOCK_EX
+    if timeout > 0:
+        lock_flags |= fcntl.LOCK_NB
+    end_time = time.time() + timeout if timeout > 0 else -1
+    while True:
+        try:
+            fcntl.lockf(lock_fd, lock_flags)
+            break
+        except IOError:
+            if time.time() > end_time:
+                os.close(lock_fd)
+                raise
     return lock_fd
 
 
@@ -50,10 +63,18 @@ def is_file_locked(filename):
     return False
 
 
-def wait_for_lock(filename):
-    """Wait until lock can be acquired, then release it"""
-    lock_fd = get_lock_fd(filename)
+def wait_for_lock(filename, timeout=-1):
+    """
+    Wait until lock can be acquired, then release it
+
+    :return: True on success, False on failure/timeout
+    """
+    try:
+        lock_fd = get_lock_fd(filename, timeout)
+    except (IOError, FileNotFoundError):
+        return False
     unlock_fd(lock_fd)
+    return True
 
 
 def makeraw(shell_fd):
