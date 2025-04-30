@@ -143,6 +143,9 @@ class Spawn:
             self.encoding = encoding
         self.reader_fds = {}
         base_dir = os.path.join(BASE_DIR, f"aexpect_{self.a_id}")
+        self._close_lockfile = os.path.join(
+            BASE_DIR, f"aexpect_{self.a_id}.lock"
+        )
 
         # Define filenames for communication with server
         utils_path.init_dir(base_dir)
@@ -431,27 +434,48 @@ class Spawn:
 
         :param sig: The signal to send the process when attempting to kill it.
         """
-        if not self.closed:
-            self.kill(sig=sig)
-            # Wait for the server to exit
-            if not wait_for_lock(
-                self.lock_server_running_filename, timeout=60
-            ):
-                LOG.warning(
-                    "Failed to get lock, the aexpect_helper process "
-                    "might be left behind. Proceeding anyway..."
-                )
-            # Call all cleanup routines
-            for hook in self.close_hooks:
-                hook(self)
-            # Close reader file descriptors
-            self._close_reader_fds()
-            self.reader_fds = {}
-            # Remove all used files
-            if "AEXPECT_DEBUG" not in os.environ:
-                shutil.rmtree(os.path.join(BASE_DIR, f"aexpect_{self.a_id}"))
-            self._close_aexpect_helper()
-            self.closed = True
+        if self.closed:
+            return
+        lock = None
+        try:
+            try:
+                lock = get_lock_fd(self._close_lockfile, timeout=60)
+            except FileNotFoundError:
+                if not self.closed:
+                    raise
+            if not self.closed:
+                self.kill(sig=sig)
+                # Wait for the server to exit
+                if not wait_for_lock(
+                    self.lock_server_running_filename, timeout=60
+                ):
+                    LOG.warning(
+                        "Failed to get lock, the aexpect_helper "
+                        "process might be left behind. Proceeding "
+                        "anyway..."
+                    )
+                # Call all cleanup routines
+                for hook in self.close_hooks:
+                    hook(self)
+                # Close reader file descriptors
+                self._close_reader_fds()
+                self.reader_fds = {}
+                # Remove all used files
+                if "AEXPECT_DEBUG" not in os.environ:
+                    shutil.rmtree(
+                        os.path.join(BASE_DIR, f"aexpect_{self.a_id}"),
+                        ignore_errors=True,
+                    )
+                self._close_aexpect_helper()
+                self.closed = True
+        finally:
+            if lock is not None:
+                try:
+                    unlock_fd(lock)
+                    os.unlink(self._close_lockfile)
+                except FileNotFoundError:
+                    # File already removed by other thread
+                    pass
 
     def set_linesep(self, linesep):
         """
