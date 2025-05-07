@@ -402,13 +402,13 @@ class Spawn:
         """
         return utils_process.process_in_ptree_is_defunct(self.get_pid())
 
-    def kill(self, sig=signal.SIGKILL):
+    def kill(self, sig=signal.SIGKILL, debug=False):
         """
         Kill the child process if alive
         """
         # Kill it if it's alive
         if self.is_alive():
-            utils_process.kill_process_tree(self.get_pid(), sig)
+            utils_process.kill_process_tree(self.get_pid(), sig, debug=debug)
 
     def close(self, sig=signal.SIGKILL):
         """
@@ -426,13 +426,18 @@ class Spawn:
                 if not self.closed:
                     raise
             if not self.closed:
-                self.kill(sig=sig)
+                self.kill(sig=sig, debug=True)
                 # Wait for the server to exit
                 if not wait_for_lock(self.lock_server_running_filename,
-                                     timeout=60):
+                                     timeout=10):
                     LOG.warning("Failed to get lock, the aexpect_helper "
                                 "process might be left behind. Proceeding "
                                 "anyway...")
+                    LOG.debug("ldoktor: lock failed")
+                    LOG.debug("free:\n%s", utils_process.getoutput("free"))
+                    LOG.debug("ps aux:\n%s", utils_process.getoutput("ps aux"))
+                    LOG.debug("dmesg:\n%s", utils_process.getoutput("dmesg"))
+                    LOG.debug("journalctl:\n%s", utils_process.getoutput("journalctl --no-pager"))
                 # Call all cleanup routines
                 for hook in self.close_hooks:
                     hook(self)

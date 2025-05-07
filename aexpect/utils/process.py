@@ -14,6 +14,7 @@
 import subprocess
 import signal
 import os
+import time
 
 
 def getoutput(cmd):
@@ -60,7 +61,7 @@ def safe_kill(pid, sig):
         return False
 
 
-def kill_process_tree(pid, sig=signal.SIGKILL):
+def kill_process_tree(pid, sig=signal.SIGKILL, debug=False):
     """
     Signal a process and all of its children.
 
@@ -74,8 +75,20 @@ def kill_process_tree(pid, sig=signal.SIGKILL):
     children = getoutput(f"ps --ppid={int(pid)} -o pid=").split()
     for child in children:
         kill_process_tree(int(child), sig)
-    safe_kill(pid, sig)
+    failed = False
+    if safe_kill(pid, sig) and debug:
+        failed = True
+        print(f"ldoktor: kill failed {pid}")
+        print(f"free:\n{getoutput('free')}")
+        print(f"ps aux:\n{getoutput('ps aux')}")
     safe_kill(pid, signal.SIGCONT)
+    if failed:
+        time.sleep(5)
+        print(f"ldoktor: after SIGCONT {pid}")
+        print(f"free:\n{getoutput('free')}")
+        print(f"ps aux:\n{getoutput('ps aux')}")
+        print(f"dmesg:\n%s{subprocess.getoutput('dmesg')}")
+        print(f"journalctl:\n{subprocess.getoutput('journalctl --no-pager')}")
 
 
 def get_children_pids(ppid):
