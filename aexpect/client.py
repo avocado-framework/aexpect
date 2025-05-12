@@ -407,8 +407,11 @@ class Spawn:
         Kill the child process if alive
         """
         # Kill it if it's alive
+        pid = self.get_pid()
+        LOG.debug("ldoktor: kill(%s, %s) %s (%s)", sig, debug, pid, threading.get_ident())
+        LOG.debug("pstree:\n%s", utils_process.getoutput(f"pstree -p {pid}"))
         if self.is_alive():
-            utils_process.kill_process_tree(self.get_pid(), sig, debug=debug)
+            utils_process.kill_process_tree(pid, sig, debug=debug)
 
     def close(self, sig=signal.SIGKILL):
         """
