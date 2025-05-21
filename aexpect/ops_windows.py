@@ -414,7 +414,7 @@ def run_as(
     def _run_as(cmd_to_run):
         LOG.debug("Running command `%s`", cmd_to_run)
         session.sendline(cmd_to_run)
-        LOG.debug("Entering password `%s`", password)
+        LOG.debug("Entering password")
         session.read_until_output_matches(["Geben Sie das Kennwort"])
         session.sendline(password)
 
