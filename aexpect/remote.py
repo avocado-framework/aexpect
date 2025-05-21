@@ -532,9 +532,9 @@ def wait_for_login(
         client,
         timeout,
     )
-    end_time = time.time() + timeout
+    end_time = time.monotonic() + timeout
     verbose = False
-    while time.time() < end_time:
+    while time.monotonic() < end_time:
         try:
             return remote_login(
                 client,
@@ -1375,9 +1375,9 @@ def throughput_transfer(func):
             msg = f"Copy file from {args[0]}:{args[5]} to {args[6]}, "
         else:
             msg = f"Copy file from {args[5]} to {args[0]}:{args[6]}, "
-        start_time = time.time()
+        start_time = time.monotonic()
         ret = func(*args, **kwargs)
-        elapsed_time = time.time() - start_time
+        elapsed_time = time.monotonic() - start_time
         if kwargs.get("filesize", None) is not None:
             throughput = kwargs["filesize"] / elapsed_time
             msg += f"estimated throughput: {throughput:.2f} MB/s"

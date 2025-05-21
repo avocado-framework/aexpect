@@ -143,7 +143,7 @@ class FileTransferClient:
             ) from timeout_error
         self._send(struct.pack("=i", CHUNKSIZE))
         self._log_func = log_func
-        self._last_time = time.time()
+        self._last_time = time.monotonic()
         self._last_transferred = 0
         self.transferred = 0
 
@@ -173,10 +173,10 @@ class FileTransferClient:
 
     def _receive(self, size, timeout=60):
         strs = []
-        end_time = time.time() + timeout
+        end_time = time.monotonic() + timeout
         try:
             while size > 0:
-                timeout = end_time - time.time()
+                timeout = end_time - time.monotonic()
                 if timeout <= 0:
                     raise socket.timeout
                 self._socket.settimeout(timeout)
@@ -202,7 +202,7 @@ class FileTransferClient:
 
     def _report_stats(self, data):
         if self._log_func:
-            delta = time.time() - self._last_time
+            delta = time.monotonic() - self._last_time
             if delta >= 1:
                 transferred = self.transferred / 1048576.0
                 speed = (self.transferred - self._last_transferred) / delta
@@ -210,7 +210,7 @@ class FileTransferClient:
                 self._log_func(
                     f"{data} {transferred:.3f} MB ({speed:.3f}" " MB/sec)"
                 )
-                self._last_time = time.time()
+                self._last_time = time.monotonic()
                 self._last_transferred = self.transferred
 
     def _send_packet(self, data, timeout=60):
@@ -232,10 +232,10 @@ class FileTransferClient:
             self._log_func(f"Sending file {filename}")
         with open(filename, "rb") as file_handle:
             try:
-                end_time = time.time() + timeout
+                end_time = time.monotonic() + timeout
                 while True:
                     data = file_handle.read(CHUNKSIZE)
-                    self._send_packet(data, int(end_time - time.time()))
+                    self._send_packet(data, int(end_time - time.monotonic()))
                     if len(data) < CHUNKSIZE:
                         break
             except FileTransferError as error:
@@ -247,9 +247,9 @@ class FileTransferClient:
             self._log_func(f"Receiving file {filename}")
         with open(filename, "wb") as file_handle:
             try:
-                end_time = time.time() + timeout
+                end_time = time.monotonic() + timeout
                 while True:
-                    data = self._receive_packet(int(end_time - time.time()))
+                    data = self._receive_packet(int(end_time - time.monotonic()))
                     file_handle.write(data)
                     if len(data) < CHUNKSIZE:
                         break
@@ -306,7 +306,7 @@ class FileUploadClient(FileTransferClient):
         if os.path.isfile(path):
             self._send_msg(RSS_CREATE_FILE)
             self._send_packet(os.path.basename(path).encode())
-            self._send_file_chunks(path, end_time - time.time())
+            self._send_file_chunks(path, end_time - time.monotonic())
         elif os.path.isdir(path):
             self._send_msg(RSS_CREATE_DIR)
             self._send_packet(os.path.basename(path).encode())
@@ -349,7 +349,7 @@ class FileUploadClient(FileTransferClient):
                                         message to the client
         :note: Other exceptions can be raised.
         """
-        end_time = time.time() + timeout
+        end_time = time.monotonic() + timeout
         try:
             try:
                 self._send_msg(RSS_SET_PATH)
@@ -371,7 +371,7 @@ class FileUploadClient(FileTransferClient):
                         "or directories"
                     )
                 # Look for RSS_OK or RSS_ERROR
-                msg = self._receive_msg(int(end_time - time.time()))
+                msg = self._receive_msg(int(end_time - time.monotonic()))
                 if msg == RSS_OK:
                     return
                 if msg == RSS_ERROR:
@@ -446,7 +446,7 @@ class FileDownloadClient(FileTransferClient):
         :note: Other exceptions can be raised.
         """
         dst_path = os.path.abspath(dst_path)
-        end_time = time.time() + timeout
+        end_time = time.monotonic() + timeout
         file_count = 0
         dir_count = 0
         try:
@@ -463,7 +463,7 @@ class FileDownloadClient(FileTransferClient):
                     if os.path.isdir(dst_path):
                         dst_path = os.path.join(dst_path, filename)
                     self._receive_file_chunks(
-                        dst_path, int(end_time - time.time())
+                        dst_path, int(end_time - time.monotonic())
                     )
                     dst_path = os.path.dirname(dst_path)
                     file_count += 1
