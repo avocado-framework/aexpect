@@ -75,7 +75,7 @@ rpm-release: srpm-release
 check: clean
 	inspekt checkall --disable-lint R0917,R0205,W4901,W0703,W0511 --exclude .venv*
 	$(PYTHON) setup.py develop $(PYTHON_DEVELOP_ARGS)
-	$(PYTHON) setup.py test
+	$(PYTHON) -m pytest tests
 
 clean:
 	$(PYTHON) setup.py clean
