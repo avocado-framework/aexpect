@@ -253,8 +253,8 @@ class Spawn:
         # Wait for the server to complete its initialization
         full_output = ""
         pattern = f"Server {self.a_id} ready"
-        end_time = time.time() + 60
-        while time.time() < end_time:
+        end_time = time.monotonic() + 60
+        while time.monotonic() < end_time:
             output = sub.stdout.readline().decode(self.encoding, "ignore")
             if pattern in output:
                 break
@@ -834,7 +834,7 @@ class Expect(Tail):
             internal_timeout *= 1000
         end_time = None
         if timeout:
-            end_time = time.time() + timeout
+            end_time = time.monotonic() + timeout
         expect_pipe = self._get_fd("expect")
         poller = select.poll()
         poller.register(expect_pipe, select.POLLIN)
@@ -853,7 +853,7 @@ class Expect(Tail):
                 data += raw_data.decode(self.encoding, "ignore")
             else:
                 return read, data
-            if end_time and time.time() > end_time:
+            if end_time and time.monotonic() > end_time:
                 return read, data
 
     def read_nonblocking(self, internal_timeout=None, timeout=None):
@@ -941,10 +941,10 @@ class Expect(Tail):
         poller = select.poll()
         poller.register(expect_pipe, select.POLLIN)
         output = ""
-        end_time = time.time() + timeout
+        end_time = time.monotonic() + timeout
         while True:
             try:
-                max_ms = int((end_time - time.time()) * 1000)
+                max_ms = int((end_time - time.monotonic()) * 1000)
                 poll_timeout_ms = max(0, max_ms)
                 poll_status = poller.poll(poll_timeout_ms)
             except select.error:
@@ -953,7 +953,7 @@ class Expect(Tail):
                 raise ExpectTimeoutError(patterns, output)
             # Read data from child
             read, data = self._read_nonblocking(internal_timeout,
-                                                end_time - time.time())
+                                                end_time - time.monotonic())
             if not read:
                 break
             if not data:
@@ -1187,10 +1187,10 @@ class ShellSession(Expect):
         # Send a newline
         self.sendline()
         # Wait up to timeout seconds for some output from the child
-        end_time = time.time() + timeout
-        while time.time() < end_time:
+        end_time = time.monotonic() + timeout
+        while time.monotonic() < end_time:
             time.sleep(0.5)
-            if self.read_nonblocking(0, end_time - time.time()).strip():
+            if self.read_nonblocking(0, end_time - time.monotonic()).strip():
                 return True
         # No output -- report unresponsive
         return False
@@ -1299,8 +1299,8 @@ class ShellSession(Expect):
         self.sendline(cmd)
         out = ""
         success = False
-        start_time = time.time()
-        while (time.time() - start_time) < timeout:
+        start_time = time.monotonic()
+        while (time.monotonic() - start_time) < timeout:
             try:
                 out += self.read_up_to_prompt(0.5)
                 success = True
@@ -1567,8 +1567,8 @@ def run_tail(command, termination_func=None, output_func=None,
                       pass_fds=pass_fds,
                       encoding=encoding)
 
-    end_time = time.time() + timeout
-    while time.time() < end_time and bg_process.is_alive():
+    end_time = time.monotonic() + timeout
+    while time.monotonic() < end_time and bg_process.is_alive():
         time.sleep(0.1)
 
     return bg_process
@@ -1610,8 +1610,8 @@ def run_bg(command, termination_func=None, output_func=None, output_prefix="",
                         pass_fds=pass_fds,
                         encoding=encoding)
 
-    end_time = time.time() + timeout
-    while time.time() < end_time and bg_process.is_alive():
+    end_time = time.monotonic() + timeout
+    while time.monotonic() < end_time and bg_process.is_alive():
         time.sleep(0.1)
 
     return bg_process

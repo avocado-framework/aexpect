@@ -30,14 +30,14 @@ def wait_for(func, timeout, first=0.0, step=1.0, text=None):
     :param step: Time to sleep between attempts in seconds
     :param text: Text to print while waiting, for debug purposes
     """
-    start_time = time.time()
-    end_time = time.time() + timeout
+    start_time = time.monotonic()
+    end_time = time.monotonic() + timeout
 
     time.sleep(first)
 
-    while time.time() < end_time:
+    while time.monotonic() < end_time:
         if text:
-            _LOG.debug("%s (%f secs)", text, (time.time() - start_time))
+            _LOG.debug("%s (%f secs)", text, (time.monotonic() - start_time))
 
         output = func()
         if output:

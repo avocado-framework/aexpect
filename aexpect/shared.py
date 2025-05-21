@@ -29,13 +29,13 @@ def get_lock_fd(filename, timeout=-1):
     lock_flags = fcntl.LOCK_EX
     if timeout > 0:
         lock_flags |= fcntl.LOCK_NB
-    end_time = time.time() + timeout if timeout > 0 else -1
+    end_time = time.monotonic() + timeout if timeout > 0 else -1
     while True:
         try:
             fcntl.flock(lock_fd, lock_flags)
             break
         except IOError:
-            if time.time() > end_time:
+            if time.monotonic() > end_time:
                 os.close(lock_fd)
                 raise
     return lock_fd
