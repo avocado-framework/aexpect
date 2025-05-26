@@ -426,7 +426,7 @@ def set_subcontrol_parameter_dict(subcontrol, dict_name, value):
     .. warning:: The `subcontrol` parameter is control path externally but
         control content internally after decoration.
     """
-    match = re.search(fr"{dict_name.upper()}[ \t\v]*=[ \t\v]*\{{.*\}}", subcontrol)
+    match = re.search(fr"{dict_name.upper()}[ \t\v]*=[ \t\v]*{{.*}}", subcontrol)
     if match is None:
         return subcontrol
     # re.sub does undesirable post-processing of the replaced string
