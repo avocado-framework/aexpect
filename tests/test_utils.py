@@ -26,20 +26,28 @@ class Astring(unittest.TestCase):
         Try various strip_console_codes
         """
         strip = astring.strip_console_codes
-        self.assertEqual("simple color test",
-                         strip("simple\x1b[33;1m color \x1b[0mtest"))
-        self.assertEqual("",
-                         strip("\x1bskip-full-text"))
-        self.assertEqual("ignores last",
-                         strip("ignores last\x1bbad"))
-        self.assertEqual("skips c [!p and ]104",
-                         strip("\x1b[?7hskips\x1bc c \x1b[!p[!p and ]104\x1b]104"))
-        self.assertRaisesRegex(ValueError, "only is not included", strip,
-                               "ignores\x1bonly\x1blast\x1bbad")
-        self.assertRaisesRegex(ValueError, "invalid-prefix.*included", strip,
-                               "\x1binvalid-prefix[33;1mconsole code "
-                               "must fail\x1b")
+        self.assertEqual(
+            "simple color test", strip("simple\x1b[33;1m color \x1b[0mtest")
+        )
+        self.assertEqual("", strip("\x1bskip-full-text"))
+        self.assertEqual("ignores last", strip("ignores last\x1bbad"))
+        self.assertEqual(
+            "skips c [!p and ]104",
+            strip("\x1b[?7hskips\x1bc c \x1b[!p[!p and ]104\x1b]104"),
+        )
+        self.assertRaisesRegex(
+            ValueError,
+            "only is not included",
+            strip,
+            "ignores\x1bonly\x1blast\x1bbad",
+        )
+        self.assertRaisesRegex(
+            ValueError,
+            "invalid-prefix.*included",
+            strip,
+            "\x1binvalid-prefix[33;1mconsole code must fail\x1b",
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

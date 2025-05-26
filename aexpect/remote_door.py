@@ -73,31 +73,42 @@ try:
     try:
         # noinspection PyPackageRequirements,PyUnresolvedReferences
         from Pyro5.compatibility import Pyro4
+
         # noinspection PyPackageRequirements
         from Pyro5 import server
+
         # noinspection PyPackageRequirements
         from Pyro5 import nameserver
+
         NS_MODULE = "Pyro5.nameserver"
     except ImportError:
         # noinspection PyPackageRequirements,PyUnresolvedReferences
         import Pyro4
+
         # Pyro5 compatibility does not support submodules so we need separate handling
 
         class Server:
             """Dummy class to replace a Pyro5 server."""
+
             def __init__(self):
                 self.__dict__ = {}
+
         server = Server()
         server.expose = Pyro4.expose  # pylint: disable=W0201
-        server.is_private_attribute = Pyro4.util.is_private_attribute  # pylint: disable=W0201
+        server.is_private_attribute = (  # pylint: disable=W0201
+            Pyro4.util.is_private_attribute
+        )
         # noinspection PyPackageRequirements
         from Pyro4 import naming as nameserver
+
         nameserver.start_ns = nameserver.startNS
         NS_MODULE = "Pyro4.naming"
 
 except ImportError:
-    logging.warning("Remote object backend (Pyro4) not found, some functionality"
-                    " of the remote door will not be available")
+    logging.warning(
+        "Remote object backend (Pyro4) not found, some functionality"
+        " of the remote door will not be available"
+    )
     NS_MODULE = ""
 
 # NOTE: disable aexpect importing on the remote side if not available as the
@@ -107,8 +118,10 @@ try:
     # noinspection PyUnresolvedReferences
     from aexpect import remote
 except ImportError:
-    logging.warning("Failed to import 'aexpect.remote', some functionality "
-                    "might not be available")
+    logging.warning(
+        "Failed to import 'aexpect.remote', some functionality "
+        "might not be available"
+    )
 
 LOG = logging.getLogger(__name__)
 
@@ -140,8 +153,9 @@ def _string_call(function, *args, **kwargs):
         return f"{arg}"
 
     args = tuple(arg_to_str(arg) for arg in args)
-    kwargs = tuple(f"{key}={arg_to_str(value)}"
-                   for key, value in sorted(kwargs.items()))
+    kwargs = tuple(
+        f"{key}={arg_to_str(value)}" for key, value in sorted(kwargs.items())
+    )
     arguments = ", ".join(args + kwargs)
     return f"result = {function}({arguments})\n"
 
@@ -197,10 +211,15 @@ def run_remote_util(session, utility, function, *args, detach=False, **kwargs):
     control_body = f"import {utility}\n"
     control_body += _string_call(utility + "." + function, *args, **kwargs)
     control_path = _string_generated_control(session.client, control_body)
-    LOG.debug("Accessing %s remote utility using the wrapper control %s",
-              utility, control_path)
+    LOG.debug(
+        "Accessing %s remote utility using the wrapper control %s",
+        utility,
+        control_path,
+    )
     full_output = run_subcontrol(session, control_path, detach=detach)
-    return "None" if detach else re.search("RESULT = (.*)", full_output).group(1)
+    return (
+        "None" if detach else re.search("RESULT = (.*)", full_output).group(1)
+    )
 
 
 def run_remotely(function):
@@ -230,8 +249,10 @@ def run_remotely(function):
         control_body = "\n" + "".join(fn_source).replace("_session, ", "")
         control_body += "\n" + _string_call(function.__name__, *args, **kwargs)
         control_path = _string_generated_control(session.client, control_body)
-        LOG.debug("Running remotely a function using the wrapper control %s",
-                  control_path)
+        LOG.debug(
+            "Running remotely a function using the wrapper control %s",
+            control_path,
+        )
         full_output = run_subcontrol(session, control_path)
         return re.search("RESULT = (.*)", full_output).group(1)
 
@@ -249,7 +270,9 @@ def _copy_control(session, control_path, is_utility=False):
     if session.client == "ssh":
         transfer_client = "scp"
         transfer_port = session.port
-        remote_control_path = os.path.join(remote_dir, os.path.basename(control_path))
+        remote_control_path = os.path.join(
+            remote_dir, os.path.basename(control_path)
+        )
     # run on remote Windows hosts
     elif session.client == "nc":
         transfer_client = "rss"
@@ -257,11 +280,18 @@ def _copy_control(session, control_path, is_utility=False):
         # ..todo:: use `remote_dir` here
         remote_control_path = "%TEMP%\\" + os.path.basename(control_path)
     else:
-        raise NotImplementedError("run_subcontrol not implemented for client "
-                                  f"{session.client}")
-    remote.copy_files_to(session.host, transfer_client,
-                         session.username, session.password, transfer_port,
-                         control_path, remote_control_path)
+        raise NotImplementedError(
+            f"run_subcontrol not implemented for client {session.client}"
+        )
+    remote.copy_files_to(
+        session.host,
+        transfer_client,
+        session.username,
+        session.password,
+        transfer_port,
+        control_path,
+        remote_control_path,
+    )
     return remote_control_path
 
 
@@ -285,11 +315,13 @@ def run_subcontrol(session, control_path, timeout=600, detach=False):
     # run on remote Windows hosts
     # ..todo:: combine with REMOTE_PYTHON_BINARY
     elif session.client == "nc":
-        python_binary = session.cmd("where python", timeout=timeout,
-                                    print_func=LOG.info).strip()
+        python_binary = session.cmd(
+            "where python", timeout=timeout, print_func=LOG.info
+        ).strip()
     else:
-        raise NotImplementedError("run_subcontrol not implemented for client "
-                                  f"{session.client}")
+        raise NotImplementedError(
+            f"run_subcontrol not implemented for client {session.client}"
+        )
     cmd = python_binary + " " + remote_control_path
     if detach:
         session.set_output_func(LOG.info)
@@ -380,12 +412,13 @@ def set_subcontrol_parameter(subcontrol, parameter, value):
     .. warning:: The `subcontrol` parameter is control path externally but
         control content internally after decoration.
     """
-    match = re.search(fr"{parameter.upper()}[ \t\v]*=[ \t\v]*.*", subcontrol)
+    match = re.search(rf"{parameter.upper()}[ \t\v]*=[ \t\v]*.*", subcontrol)
     if match is None:
         return subcontrol
     # re.sub does undesirable post-processing of the replaced string
-    return subcontrol.replace(match.group(),
-                              f"{parameter.upper()} = {value!r}")
+    return subcontrol.replace(
+        match.group(), f"{parameter.upper()} = {value!r}"
+    )
 
 
 @set_subcontrol
@@ -403,12 +436,15 @@ def set_subcontrol_parameter_list(subcontrol, list_name, value):
     .. warning:: The `subcontrol` parameter is control path externally but
         control content internally after decoration.
     """
-    match = re.search(fr"{list_name.upper()}[ \t\v]*=[ \t\v]*\[.*\]",
-                      subcontrol)
+    match = re.search(
+        rf"{list_name.upper()}[ \t\v]*=[ \t\v]*\[.*\]", subcontrol
+    )
     if match is None:
         return subcontrol
     # re.sub does undesirable post-processing of the replaced string
-    return subcontrol.replace(match.group(), f"{list_name.upper()} = {value!r}")
+    return subcontrol.replace(
+        match.group(), f"{list_name.upper()} = {value!r}"
+    )
 
 
 @set_subcontrol
@@ -426,12 +462,15 @@ def set_subcontrol_parameter_dict(subcontrol, dict_name, value):
     .. warning:: The `subcontrol` parameter is control path externally but
         control content internally after decoration.
     """
-    match = re.search(fr"{dict_name.upper()}[ \t\v]*=[ \t\v]*{{.*}}", subcontrol)
+    match = re.search(
+        rf"{dict_name.upper()}[ \t\v]*=[ \t\v]*{{.*}}", subcontrol
+    )
     if match is None:
         return subcontrol
     # re.sub does undesirable post-processing of the replaced string
-    return subcontrol.replace(match.group(),
-                              f"{dict_name.upper()} = {value!r}")
+    return subcontrol.replace(
+        match.group(), f"{dict_name.upper()} = {value!r}"
+    )
 
 
 @set_subcontrol
@@ -472,16 +511,21 @@ def set_subcontrol_parameter_object(subcontrol, object_type, value):
         pyrod_running = False
     # address already in use OS error
     except OSError:
-        pyro_daemon = Pyro4.Proxy("PYRO:" + Pyro4.constants.DAEMON_NAME +
-                                  "@" + host_ip + ":1437")
+        pyro_daemon = Pyro4.Proxy(
+            "PYRO:" + Pyro4.constants.DAEMON_NAME + "@" + host_ip + ":1437"
+        )
         pyro_daemon.ping()
         registered = pyro_daemon.registered()
-        LOG.debug("Pyro4 daemon already started, available objects: %s",
-                  registered)
-        assert len(registered) == 2, "The Pyro4 daemon should contain only two"\
-                                     " initially registered objects"
-        assert registered[0] == "Pyro.Daemon", "The Pyro4 daemon must be first"\
-                                               " registered object"
+        LOG.debug(
+            "Pyro4 daemon already started, available objects: %s", registered
+        )
+        assert len(registered) == 2, (
+            "The Pyro4 daemon should contain only two"
+            " initially registered objects"
+        )
+        assert (
+            registered[0] == "Pyro.Daemon"
+        ), "The Pyro4 daemon must be first registered object"
         uri = "PYRO:" + registered[1] + "@" + host_ip + ":1437"
         pyrod_running = True
 
@@ -492,8 +536,9 @@ def set_subcontrol_parameter_object(subcontrol, object_type, value):
 
     LOG.debug("Sending the params object to the host via uri %s", uri)
     # post-processing of the replaced string is allowed for a URI
-    subcontrol = re.sub("URI[ \t\v]*=[ \t\v]*\".*\"", f"URI = \"{uri}\"",
-                        subcontrol, count=1)
+    subcontrol = re.sub(
+        'URI[ \t\v]*=[ \t\v]*".*"', f'URI = "{uri}"', subcontrol, count=1
+    )
 
     return subcontrol
 
@@ -522,8 +567,15 @@ class DaemonLoop(threading.Thread):
         self.pyro_daemon.requestLoop()
 
 
-def get_remote_object(object_name, session=None, host="localhost", port=9090,
-                      object_wl=None, expose_wl=None, serialize_wl=None):
+def get_remote_object(
+    object_name,
+    session=None,
+    host="localhost",
+    port=9090,
+    object_wl=None,
+    expose_wl=None,
+    serialize_wl=None,
+):
     """
     Get a data object (visual or other) executing remotely or
     share one if none is available, generating control files along
@@ -583,11 +635,17 @@ def get_remote_object(object_name, session=None, host="localhost", port=9090,
 
         # if there is no door on the other side, open one
         _copy_control(session, os.path.abspath(__file__), is_utility=True)
-        run_remote_util(session, "remote_door", "share_local_object",
-                        object_name, host=host, port=port,
-                        object_wl=object_wl,
-                        expose_wl=expose_wl,
-                        detach=True)
+        run_remote_util(
+            session,
+            "remote_door",
+            "share_local_object",
+            object_name,
+            host=host,
+            port=port,
+            object_wl=object_wl,
+            expose_wl=expose_wl,
+            detach=True,
+        )
         output, attempts = "", 10
         for _ in range(attempts):
             output = session.get_output()
@@ -636,8 +694,15 @@ def get_remote_objects(session=None, host="localhost", port=0):
 
         # if there is no door on the other side, open one
         _copy_control(session, os.path.abspath(__file__), is_utility=True)
-        run_remote_util(session, "remote_door", "share_local_objects",
-                        wait=True, host=host, port=port, detach=True)
+        run_remote_util(
+            session,
+            "remote_door",
+            "share_local_objects",
+            wait=True,
+            host=host,
+            port=port,
+            detach=True,
+        )
         control_log = session.cmd("cat " + REMOTE_CONTROL_LOG)
         for _ in range(10):
             if "ready" in control_log:
@@ -645,8 +710,9 @@ def get_remote_objects(session=None, host="localhost", port=0):
             time.sleep(1)
             control_log = session.cmd("cat " + REMOTE_CONTROL_LOG)
         else:
-            raise OSError("Local objects sharing failed:\n"
-                          f"{control_log}") from error
+            raise OSError(
+                f"Local objects sharing failed:\n{control_log}"
+            ) from error
         LOG.debug("Local objects sharing output:\n%s", control_log)
 
         remote_objects = flame.connect(host + ":" + str(port))
@@ -655,8 +721,9 @@ def get_remote_objects(session=None, host="localhost", port=0):
     return remote_objects
 
 
-def share_local_object(object_name, host="localhost", port=9090,
-                       object_wl=None, expose_wl=None):
+def share_local_object(
+    object_name, host="localhost", port=9090, object_wl=None, expose_wl=None
+):
     """
     Share a local object of the given name over the network.
 
@@ -690,8 +757,10 @@ def share_local_object(object_name, host="localhost", port=9090,
     except OSError:
         pyro_daemon = Pyro4.Proxy(f"PYRO:{Pyro4.constants.DAEMON_NAME}@{host}")
         pyro_daemon.ping()
-        LOG.debug("Pyro4 daemon already started, available objects: %s",
-                  pyro_daemon.registered())
+        LOG.debug(
+            "Pyro4 daemon already started, available objects: %s",
+            pyro_daemon.registered(),
+        )
         pyrod_running = True
 
     # name server
@@ -702,7 +771,9 @@ def share_local_object(object_name, host="localhost", port=9090,
         LOG.debug("Pyro4 name server already started")
     # network unreachable and failed to locate the nameserver error
     except (OSError, Pyro4.errors.NamingError):
-        ns_uri, ns_daemon, _bc_server = nameserver.start_ns(host=host, port=port)
+        ns_uri, ns_daemon, _bc_server = nameserver.start_ns(
+            host=host, port=port
+        )
         ns_server = Pyro4.Proxy(ns_uri)
         LOG.debug("Pyro4 name server started successfully with URI %s", ns_uri)
 
@@ -716,18 +787,27 @@ def share_local_object(object_name, host="localhost", port=9090,
             rarg = fun(*args, **kwargs)
 
             def proxify_type(_rarg):
-                if _rarg is None or type(_rarg) in (bool, int, float, str):  # pylint: disable=C0123
+                if _rarg is None or type(_rarg) in (
+                    bool,
+                    int,
+                    float,
+                    str,
+                ):  # pylint: disable=C0123
                     return _rarg
                 if isinstance(_rarg, tuple):
                     return tuple(proxify_type(e) for e in _rarg)
                 if isinstance(_rarg, list):
                     return [proxify_type(e) for e in _rarg]
                 if isinstance(_rarg, dict):
-                    return {proxify_type(k): proxify_type(v) for (k, v) in _rarg.items()}
+                    return {
+                        proxify_type(k): proxify_type(v)
+                        for (k, v) in _rarg.items()
+                    }
                 pyro_daemon.register(_rarg)
                 return _rarg
 
             import types
+
             if isinstance(rarg, types.GeneratorType):
 
                 def generator_wrapper():
@@ -807,6 +887,7 @@ def share_local_objects(wait=False, host="localhost", port=0):
     # main retrieval of the local objects
     # noinspection PyPackageRequirements
     from Pyro4.utils import flame
+
     flame.start(pyro_daemon)
 
     # request loop
@@ -816,8 +897,14 @@ def share_local_objects(wait=False, host="localhost", port=0):
         loop.join()
 
 
-def share_remote_objects(session, control_path, host="localhost", port=9090,
-                         os_type="windows", extra_params=None):
+def share_remote_objects(
+    session,
+    control_path,
+    host="localhost",
+    port=9090,
+    os_type="windows",
+    extra_params=None,
+):
     """
     Create and share remote objects from a remote location over the network.
 
@@ -861,19 +948,35 @@ def share_remote_objects(session, control_path, host="localhost", port=9090,
     local_path = set_subcontrol_parameter(control_path, "ro_server_ip", host)
     # optional parameters (set only if present and/or available)
     for key in extra_params.keys():
-        local_path = set_subcontrol_parameter(local_path, key, extra_params[key])
-    remote_path = os.path.join(REMOTE_CONTROL_DIR,
-                               os.path.basename(control_path))
+        local_path = set_subcontrol_parameter(
+            local_path, key, extra_params[key]
+        )
+    remote_path = os.path.join(
+        REMOTE_CONTROL_DIR, os.path.basename(control_path)
+    )
     # NOTE: since we are creating the path in Linux but use it in Windows,
     # we replace some backslashes
     if os_type == "windows":
         remote_path = remote_path.replace("/", "\\")
-    remote.copy_files_to(session.host, transfer_client,
-                         session.username, session.password, transfer_port,
-                         local_path, remote_path, timeout=10)
-    middleware_session = remote.wait_for_login(session.client, session.host, session.port,
-                                               session.username, session.password,
-                                               session.prompt, session.linesep)
+    remote.copy_files_to(
+        session.host,
+        transfer_client,
+        session.username,
+        session.password,
+        transfer_port,
+        local_path,
+        remote_path,
+        timeout=10,
+    )
+    middleware_session = remote.wait_for_login(
+        session.client,
+        session.host,
+        session.port,
+        session.username,
+        session.password,
+        session.prompt,
+        session.linesep,
+    )
     middleware_session.set_status_test_command(session.status_test_command)
     middleware_session.set_output_func(LOG.info)
     middleware_session.set_output_params(())
@@ -919,7 +1022,9 @@ def import_remote_exceptions(exceptions=None, modules=None):
         for name in imported_module.__dict__:
             if not inspect.isclass(imported_module.__dict__[name]):
                 continue
-            if issubclass(imported_module.__dict__[name], Exception) or name.endswith('Error'):
+            if issubclass(
+                imported_module.__dict__[name], Exception
+            ) or name.endswith("Error"):
                 module_exceptions.append(modstr + "." + name)
         return module_exceptions
 
@@ -927,11 +1032,14 @@ def import_remote_exceptions(exceptions=None, modules=None):
     modules = [] if not modules else modules
     for module in modules:
         exceptions += list_module_exceptions(module)
-    LOG.debug("Registering the following exceptions for deserialization: %s",
-              ", ".join(exceptions))
+    LOG.debug(
+        "Registering the following exceptions for deserialization: %s",
+        ", ".join(exceptions),
+    )
 
     class RemoteCustomException(Exception):
         """Standard class to instantiate during remote expectation deserialization."""
+
         __customclass__ = None
 
     def recreate_exception(class_name, class_dict):
@@ -949,7 +1057,9 @@ def import_remote_exceptions(exceptions=None, modules=None):
 
     for exception in exceptions:
         # noinspection PyUnresolvedReferences
-        Pyro4.util.SerializerBase.register_dict_to_class(exception, recreate_exception)
+        Pyro4.util.SerializerBase.register_dict_to_class(
+            exception, recreate_exception
+        )
 
 
 def expose_remote_classes(classes=None, modules=None):
@@ -963,6 +1073,7 @@ def expose_remote_classes(classes=None, modules=None):
                     parent classes and inheritance (optional)
     :type modules: [str] or None
     """
+
     def list_module_classes(modstr):
         imported_module = importlib.import_module(modstr)
         module_classes = []
@@ -976,11 +1087,13 @@ def expose_remote_classes(classes=None, modules=None):
     modules = [] if not modules else modules
     for module in modules:
         classes += list_module_classes(module)
-    LOG.debug("Exposing the following classes (with proper inheritance): %s",
-              ", ".join(classes))
+    LOG.debug(
+        "Exposing the following classes (with proper inheritance): %s",
+        ", ".join(classes),
+    )
 
     def get_class_from_name(clsstr):
-        module_name, class_name = clsstr.rsplit('.', 1)
+        module_name, class_name = clsstr.rsplit(".", 1)
         module = importlib.import_module(module_name)
         cls = getattr(module, class_name)
         return cls

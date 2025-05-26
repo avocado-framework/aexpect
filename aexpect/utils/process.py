@@ -18,13 +18,13 @@ import os
 
 def getoutput(cmd):
     """Executes command and returns stdout+stderr without tailing \n\r"""
-    with subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE) as proc:
+    with subprocess.Popen(
+        cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    ) as proc:
         return proc.communicate()[0].decode().rstrip("\n\r")
 
 
 class CmdError(Exception):
-
     """Error describing failed command execution"""
 
     def __init__(self, command=None, result=None):
@@ -84,7 +84,7 @@ def get_children_pids(ppid):
     param ppid: parent PID
     return: list of PIDs of all children/threads of ppid
     """
-    return getoutput(f"ps -L --ppid={int(ppid)} -o lwp").split('\n')[1:]
+    return getoutput(f"ps -L --ppid={int(ppid)} -o lwp").split("\n")[1:]
 
 
 def process_in_ptree_is_defunct(ppid):
@@ -104,7 +104,7 @@ def process_in_ptree_is_defunct(ppid):
     for pid in pids:
         cmd = f"ps --no-headers -o cmd {int(pid)}"
         proc_name = getoutput(cmd)
-        if '<defunct>' in proc_name:
+        if "<defunct>" in proc_name:
             defunct = True
             break
     return defunct
