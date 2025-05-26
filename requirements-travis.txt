@@ -2,3 +2,4 @@ setuptools==80.8.0
 pycodestyle==2.13.0
 inspektor==0.5.3
 pytest==8.3.5
+black==24.4.2

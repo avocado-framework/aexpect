@@ -72,7 +72,8 @@ rpm-release: srpm-release
 	mock -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 1" --rebuild BUILD/SRPM/python-aexpect-$(VERSION)-*.src.rpm
 
 check: clean
-	inspekt checkall --disable-lint R0917,R0205,W4901,W0703,W0511 --exclude .venv*
+	inspekt checkall --disable-lint R0917,R0205,R0801,W4901,W0703,W0511 --disable-style E203,E501,E265,W601,E402 --exclude .venv*
+	$(PYTHON) -m black --line-length 79 --check -- $(shell git ls-files -- "*.py")
 	$(PYTHON) -m pip install -e .
 	$(PYTHON) -m pytest tests
 
