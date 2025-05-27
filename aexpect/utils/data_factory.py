@@ -17,8 +17,7 @@ import string
 _RAND_POOL = random.SystemRandom()
 
 
-def generate_random_string(length, ignore=string.punctuation,
-                           convert=""):
+def generate_random_string(length, ignore=string.punctuation, convert=""):
     """
     Generate a random string using alphanumeric characters.
 

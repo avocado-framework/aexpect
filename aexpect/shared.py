@@ -15,7 +15,7 @@ import os
 import fcntl
 import termios
 
-BASE_DIR = os.environ.get('TMPDIR', '/tmp')
+BASE_DIR = os.environ.get("TMPDIR", "/tmp")
 
 
 def get_lock_fd(filename):
@@ -59,14 +59,26 @@ def wait_for_lock(filename):
 def makeraw(shell_fd):
     """Turn console into 'raw' format"""
     attr = termios.tcgetattr(shell_fd)
-    attr[0] &= ~(termios.IGNBRK | termios.BRKINT | termios.PARMRK |
-                 termios.ISTRIP | termios.INLCR | termios.IGNCR |
-                 termios.ICRNL | termios.IXON)
+    attr[0] &= ~(
+        termios.IGNBRK
+        | termios.BRKINT
+        | termios.PARMRK
+        | termios.ISTRIP
+        | termios.INLCR
+        | termios.IGNCR
+        | termios.ICRNL
+        | termios.IXON
+    )
     attr[1] &= ~termios.OPOST
     attr[2] &= ~(termios.CSIZE | termios.PARENB)
     attr[2] |= termios.CS8
-    attr[3] &= ~(termios.ECHO | termios.ECHONL | termios.ICANON |
-                 termios.ISIG | termios.IEXTEN)
+    attr[3] &= ~(
+        termios.ECHO
+        | termios.ECHONL
+        | termios.ICANON
+        | termios.ISIG
+        | termios.IEXTEN
+    )
     termios.tcsetattr(shell_fd, termios.TCSANOW, attr)
 
 
@@ -86,9 +98,16 @@ def makestandard(shell_fd, echo):
 
 def get_filenames(base_dir):
     """Get paths to files produced by aexpect in it's working dir"""
-    files = ("shell-pid", "status", "output", "inpipe", "ctrlpipe",
-             "lock-server-running", "lock-client-starting",
-             "server-log")
+    files = (
+        "shell-pid",
+        "status",
+        "output",
+        "inpipe",
+        "ctrlpipe",
+        "lock-server-running",
+        "lock-client-starting",
+        "server-log",
+    )
     return [os.path.join(base_dir, s) for s in files]
 
 

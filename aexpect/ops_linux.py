@@ -384,7 +384,11 @@ def cat(session, filename, quote_path=True, flags=""):
     Should only be used for very small files without tabs or other fancy
     contents. Otherwise, it is better to download the file or use some other method.
     """
-    cmd = f"cat {flags} {quote(filename)}" if quote_path else f"cat {flags} {filename}"
+    cmd = (
+        f"cat {flags} {quote(filename)}"
+        if quote_path
+        else f"cat {flags} {filename}"
+    )
     status, output = session.cmd_status_output(cmd)
     _, output = _process_status_output(cmd, status, output)
     return output

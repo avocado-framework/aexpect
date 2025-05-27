@@ -19,13 +19,15 @@ import unittest
 
 from aexpect import client
 
-LIST_FD_CMD = ('''python -c "import os; os.system('ls -l /proc/%d/fd' % '''
-               '''os.getpid())"''')
+LIST_FD_CMD = (
+    """python -c "import os; os.system('ls -l /proc/%d/fd' % """
+    '''os.getpid())"'''
+)
 
 
 class PassfdsTest(unittest.TestCase):
 
-    @unittest.skipUnless(os.path.exists('/proc/1/fd'), "requires Linux")
+    @unittest.skipUnless(os.path.exists("/proc/1/fd"), "requires Linux")
     def test_pass_fds_spawn(self):
         """
         Tests fd passing for `client.Spawn`
@@ -34,17 +36,19 @@ class PassfdsTest(unittest.TestCase):
             fd_null = devnull.fileno()
 
             child = client.Spawn(LIST_FD_CMD)
-            self.assertFalse(bool(child.get_status()),
-                             "child terminated abnormally")
+            self.assertFalse(
+                bool(child.get_status()), "child terminated abnormally"
+            )
             self.assertNotIn(os.devnull, child.get_output())
             child.close()
 
             child = client.Spawn(LIST_FD_CMD, pass_fds=[fd_null])
-            self.assertFalse(bool(child.get_status()),
-                             "child terminated abnormally")
+            self.assertFalse(
+                bool(child.get_status()), "child terminated abnormally"
+            )
             self.assertIn(os.devnull, child.get_output())
             child.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

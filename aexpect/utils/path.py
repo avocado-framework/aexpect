@@ -15,7 +15,6 @@ import os
 
 
 class CmdNotFoundError(Exception):
-
     """
     Indicates that the command was not found in the system after a search.
 
@@ -29,8 +28,10 @@ class CmdNotFoundError(Exception):
         self.paths = paths
 
     def __str__(self):
-        return (f"Command '{self.cmd}' could not be found in any of the PATH "
-                f"dirs: {self.paths}")
+        return (
+            f"Command '{self.cmd}' could not be found in any of the PATH "
+            f"dirs: {self.paths}"
+        )
 
 
 def find_command(cmd, default=None):
@@ -44,12 +45,19 @@ def find_command(cmd, default=None):
             command was not found and no default was given.
     """
     try:
-        path_paths = os.environ['PATH'].split(":")
+        path_paths = os.environ["PATH"].split(":")
     except IndexError:
         path_paths = []
 
-    for common_path in ["/usr/libexec", "/usr/local/sbin", "/usr/local/bin",
-                        "/usr/sbin", "/usr/bin", "/sbin", "/bin"]:
+    for common_path in [
+        "/usr/libexec",
+        "/usr/local/sbin",
+        "/usr/local/bin",
+        "/usr/sbin",
+        "/usr/bin",
+        "/sbin",
+        "/bin",
+    ]:
         if common_path not in path_paths:
             path_paths.append(common_path)
 

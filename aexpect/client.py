@@ -71,7 +71,6 @@ def kill_tail_threads():
 
 
 class Spawn:
-
     """
     This class is used for spawning and controlling a child process.
 
@@ -105,8 +104,16 @@ class Spawn:
     resumes _tail() if needed.
     """
 
-    def __init__(self, command=None, a_id=None, auto_close=False, echo=False,
-                 linesep="\n", pass_fds=(), encoding=None):
+    def __init__(
+        self,
+        command=None,
+        a_id=None,
+        auto_close=False,
+        echo=False,
+        linesep="\n",
+        pass_fds=(),
+        encoding=None,
+    ):
         """
         Initialize the class and run command as a child process.
 
@@ -140,14 +147,16 @@ class Spawn:
         # Define filenames for communication with server
         utils_path.init_dir(base_dir)
 
-        (self.shell_pid_filename,
-         self.status_filename,
-         self.output_filename,
-         self.inpipe_filename,
-         self.ctrlpipe_filename,
-         self.lock_server_running_filename,
-         self.lock_client_starting_filename,
-         self.server_log_filename) = get_filenames(base_dir)
+        (
+            self.shell_pid_filename,
+            self.status_filename,
+            self.output_filename,
+            self.inpipe_filename,
+            self.ctrlpipe_filename,
+            self.lock_server_running_filename,
+            self.lock_client_starting_filename,
+            self.server_log_filename,
+        ) = get_filenames(base_dir)
 
         assert os.path.isdir(base_dir)
 
@@ -168,7 +177,8 @@ class Spawn:
         # Define the reader filenames
         self.reader_filenames = dict(
             (reader, get_reader_filename(base_dir, reader))
-            for reader in self.readers)
+            for reader in self.readers
+        )
 
         # Let the server know a client intends to open some pipes;
         # if the executed command terminates quickly, the server will wait for
@@ -177,9 +187,10 @@ class Spawn:
 
         # Start the server (which runs the command)
         if command:
-            helper_cmd = utils_path.find_command('aexpect_helper')
+            helper_cmd = utils_path.find_command("aexpect_helper")
             self._aexpect_helper = self._get_aexpect_helper(
-                helper_cmd, pass_fds, echo, command)
+                helper_cmd, pass_fds, echo, command
+            )
 
         # Open the reading pipes
         if is_file_locked(self.lock_server_running_filename):
@@ -189,8 +200,7 @@ class Spawn:
             except OSError:
                 LOG.warning("Failed to open reader '%s'", filename)
         else:
-            LOG.warning("Not opening readers, lock_server_running "
-                        "not locked")
+            LOG.warning("Not opening readers, lock_server_running not locked")
 
         # Allow the server to continue
         unlock_fd(lock_client_starting)
@@ -235,12 +245,14 @@ class Spawn:
                 terminates while waiting for output
 
         """
-        sub = subprocess.Popen([helper_cmd],  # pylint: disable=R1732
-                               shell=True,
-                               stdin=subprocess.PIPE,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT,
-                               pass_fds=pass_fds)
+        sub = subprocess.Popen(  # pylint: disable=R1732
+            [helper_cmd],
+            shell=True,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            pass_fds=pass_fds,
+        )
         # Send parameters to the server
         sub.stdin.write(f"{self.a_id}\n".encode(self.encoding))
         sub.stdin.write(f"{echo}\n".encode(self.encoding))
@@ -259,7 +271,9 @@ class Spawn:
             full_output += output
             sub_status = sub.poll()
             if sub_status is not None:
-                raise ExpectProcessTerminatedError(pattern, sub_status, full_output)
+                raise ExpectProcessTerminatedError(
+                    pattern, sub_status, full_output
+                )
         else:
             raise ExpectTimeoutError(pattern, full_output)
         return sub
@@ -345,8 +359,9 @@ class Spawn:
         command.
         """
         try:
-            with open(self.shell_pid_filename, 'r',
-                      encoding='utf-8') as pid_file:
+            with open(
+                self.shell_pid_filename, "r", encoding="utf-8"
+            ) as pid_file:
                 try:
                     return int(pid_file.read())
                 except ValueError:
@@ -361,8 +376,9 @@ class Spawn:
         """
         wait_for_lock(self.lock_server_running_filename)
         try:
-            with open(self.status_filename, 'r',
-                      encoding='utf-8') as status_file:
+            with open(
+                self.status_filename, "r", encoding="utf-8"
+            ) as status_file:
                 try:
                     return int(status_file.read())
                 except ValueError:
@@ -375,9 +391,10 @@ class Spawn:
         Return the STDOUT and STDERR output of the process so far.
         """
         try:
-            with open(self.output_filename, 'rb') as output_file:
-                return output_file.read().decode(self.encoding,
-                                                 'backslashreplace')
+            with open(self.output_filename, "rb") as output_file:
+                return output_file.read().decode(
+                    self.encoding, "backslashreplace"
+                )
         except IOError:
             return None
 
@@ -425,8 +442,8 @@ class Spawn:
             self._close_reader_fds()
             self.reader_fds = {}
             # Remove all used files
-            if 'AEXPECT_DEBUG' not in os.environ:
-                shutil.rmtree(os.path.join(BASE_DIR, f'aexpect_{self.a_id}'))
+            if "AEXPECT_DEBUG" not in os.environ:
+                shutil.rmtree(os.path.join(BASE_DIR, f"aexpect_{self.a_id}"))
             self._close_aexpect_helper()
             self.closed = True
 
@@ -472,13 +489,20 @@ class Spawn:
         if 97 <= val <= 122:
             val = val - 97 + 1  # ctrl+a = '\0x01'
             return self.send(chr(val))
-        mapping = {'@': 0, '`': 0,
-                   '[': 27, '{': 27,
-                   '\\': 28, '|': 28,
-                   ']': 29, '}': 29,
-                   '^': 30, '~': 30,
-                   '_': 31,
-                   '?': 127}
+        mapping = {
+            "@": 0,
+            "`": 0,
+            "[": 27,
+            "{": 27,
+            "\\": 28,
+            "|": 28,
+            "]": 29,
+            "}": 29,
+            "^": 30,
+            "~": 30,
+            "_": 31,
+            "?": 127,
+        }
         return self.send(chr(mapping[char]))
 
     def send_ctrl(self, control_str=""):
@@ -504,7 +528,6 @@ class Spawn:
 
 
 class Tail(Spawn):
-
     """
     This class runs a child process in the background and sends its output in
     real time, line-by-line, to a callback function.
@@ -519,10 +542,22 @@ class Tail(Spawn):
     When this class is unpickled, it automatically resumes reporting output.
     """
 
-    def __init__(self, command=None, a_id=None, auto_close=False, echo=False,
-                 linesep="\n", termination_func=None, termination_params=(),
-                 output_func=None, output_params=(), output_prefix="",
-                 thread_name=None, pass_fds=(), encoding=None):
+    def __init__(
+        self,
+        command=None,
+        a_id=None,
+        auto_close=False,
+        echo=False,
+        linesep="\n",
+        termination_func=None,
+        termination_params=(),
+        output_func=None,
+        output_params=(),
+        output_prefix="",
+        thread_name=None,
+        pass_fds=(),
+        encoding=None,
+    ):
         """
         Initialize the class and run command as a child process.
 
@@ -560,8 +595,9 @@ class Tail(Spawn):
         self._add_close_hook(Tail._join_thread)
 
         # Init the superclass
-        super().__init__(command, a_id, auto_close, echo, linesep,
-                         pass_fds, encoding)
+        super().__init__(
+            command, a_id, auto_close, echo, linesep, pass_fds, encoding
+        )
         if thread_name is None:
             self.thread_name = f"tail_thread_{self.a_id}_{str(command)[:10]}"
         else:
@@ -583,12 +619,14 @@ class Tail(Spawn):
         return self.__class__, (self.__getinitargs__())
 
     def __getinitargs__(self):
-        return Spawn.__getinitargs__(self) + (self.termination_func,
-                                              self.termination_params,
-                                              self.output_func,
-                                              self.output_params,
-                                              self.output_prefix,
-                                              self.thread_name)
+        return Spawn.__getinitargs__(self) + (
+            self.termination_func,
+            self.termination_params,
+            self.output_func,
+            self.output_params,
+            self.output_prefix,
+            self.thread_name,
+        )
 
     def set_termination_func(self, termination_func):
         """
@@ -639,7 +677,9 @@ class Tail(Spawn):
         """
         self.output_prefix = output_prefix
 
-    def _tail(self):  # speed optimization pylint: disable=too-many-branches,too-many-statements
+    def _tail(
+        self,
+    ):  # speed optimization pylint: disable=too-many-branches,too-many-statements
 
         def _print_line(text):
             # Pre-pend prefix and remove trailing whitespace
@@ -651,8 +691,9 @@ class Tail(Spawn):
                 else:
                     self.output_func(text)
             except TypeError:
-                LOG.warning("Failed to print_line '%s' '%s'",
-                            self.output_params, text)
+                LOG.warning(
+                    "Failed to print_line '%s' '%s'", self.output_params, text
+                )
 
         try:
             tail_pipe = self._get_fd("tail")
@@ -688,7 +729,7 @@ class Tail(Spawn):
                             _print_line(line)
                     # Leave only the last line
                     last_newline_index = bfr.rfind("\n")
-                    bfr = bfr[last_newline_index + 1:]
+                    bfr = bfr[last_newline_index + 1 :]
                 else:
                     # No output is available right now; flush the bfr
                     if bfr:
@@ -708,14 +749,16 @@ class Tail(Spawn):
                     params = self.termination_params + (status,)
                     self.termination_func(*params)
                 except TypeError:
-                    LOG.warning("Termination function execution failure '%s'",
-                                params)
+                    LOG.warning(
+                        "Termination function execution failure '%s'", params
+                    )
         finally:
             self.tail_thread = None
 
     def _start_thread(self):
-        self.tail_thread = threading.Thread(target=self._tail,
-                                            name=self.thread_name)
+        self.tail_thread = threading.Thread(
+            target=self._tail, name=self.thread_name
+        )
         self.tail_thread.start()
 
     def _join_thread(self):
@@ -728,7 +771,6 @@ class Tail(Spawn):
 
 
 class Expect(Tail):
-
     """
     This class runs a child process in the background and provides expect-like
     services.
@@ -736,10 +778,22 @@ class Expect(Tail):
     It also provides all of Tail's functionality.
     """
 
-    def __init__(self, command=None, a_id=None, auto_close=True, echo=False,
-                 linesep="\n", termination_func=None, termination_params=(),
-                 output_func=None, output_params=(), output_prefix="",
-                 thread_name=None, pass_fds=(), encoding=None):
+    def __init__(
+        self,
+        command=None,
+        a_id=None,
+        auto_close=True,
+        echo=False,
+        linesep="\n",
+        termination_func=None,
+        termination_params=(),
+        output_func=None,
+        output_params=(),
+        output_prefix="",
+        thread_name=None,
+        pass_fds=(),
+        encoding=None,
+    ):
         """
         Initialize the class and run command as a child process.
 
@@ -774,10 +828,21 @@ class Expect(Tail):
         self._add_reader("expect")
 
         # Init the superclass
-        super().__init__(command, a_id, auto_close, echo, linesep,
-                         termination_func, termination_params,
-                         output_func, output_params, output_prefix, thread_name,
-                         pass_fds, encoding)
+        super().__init__(
+            command,
+            a_id,
+            auto_close,
+            echo,
+            linesep,
+            termination_func,
+            termination_params,
+            output_func,
+            output_params,
+            output_prefix,
+            thread_name,
+            pass_fds,
+            encoding,
+        )
 
     def __reduce__(self):
         return self.__class__, (self.__getinitargs__())
@@ -875,9 +940,15 @@ class Expect(Tail):
                     return i
         return None
 
-    def read_until_output_matches(self, patterns, filter_func=lambda x: x,
-                                  timeout=60.0, internal_timeout=None,
-                                  print_func=None, match_func=None):
+    def read_until_output_matches(
+        self,
+        patterns,
+        filter_func=lambda x: x,
+        timeout=60.0,
+        internal_timeout=None,
+        print_func=None,
+        match_func=None,
+    ):
         """
         Read from child using read_nonblocking until a pattern matches.
 
@@ -919,8 +990,9 @@ class Expect(Tail):
             if not poll_status:
                 raise ExpectTimeoutError(patterns, output)
             # Read data from child
-            read, data = self._read_nonblocking(internal_timeout,
-                                                end_time - time.time())
+            read, data = self._read_nonblocking(
+                internal_timeout, end_time - time.time()
+            )
             if not read:
                 break
             if not data:
@@ -937,13 +1009,15 @@ class Expect(Tail):
 
         # Check if the child has terminated
         if utils_wait.wait_for(lambda: not self.is_alive(), 5, 0, 0.1):
-            raise ExpectProcessTerminatedError(patterns, self.get_status(),
-                                               output)
+            raise ExpectProcessTerminatedError(
+                patterns, self.get_status(), output
+            )
         # This shouldn't happen
         raise ExpectError(patterns, output)
 
-    def read_until_last_word_matches(self, patterns, timeout=60.0,
-                                     internal_timeout=None, print_func=None):
+    def read_until_last_word_matches(
+        self, patterns, timeout=60.0, internal_timeout=None, print_func=None
+    ):
         """
         Read using read_nonblocking until the last word of the output matches
         one of the patterns (using match_patterns), or until timeout expires.
@@ -966,12 +1040,13 @@ class Expect(Tail):
                 return cont.split()[-1]
             return ""
 
-        return self.read_until_output_matches(patterns, _get_last_word,
-                                              timeout, internal_timeout,
-                                              print_func)
+        return self.read_until_output_matches(
+            patterns, _get_last_word, timeout, internal_timeout, print_func
+        )
 
-    def read_until_last_line_matches(self, patterns, timeout=60.0,
-                                     internal_timeout=None, print_func=None):
+    def read_until_last_line_matches(
+        self, patterns, timeout=60.0, internal_timeout=None, print_func=None
+    ):
         """
         Read until the last non-empty line matches a pattern.
 
@@ -999,13 +1074,17 @@ class Expect(Tail):
                 return nonempty_lines[-1]
             return ""
 
-        return self.read_until_output_matches(patterns,
-                                              _get_last_nonempty_line,
-                                              timeout, internal_timeout,
-                                              print_func)
+        return self.read_until_output_matches(
+            patterns,
+            _get_last_nonempty_line,
+            timeout,
+            internal_timeout,
+            print_func,
+        )
 
-    def read_until_any_line_matches(self, patterns, timeout=60.0,
-                                    internal_timeout=None, print_func=None):
+    def read_until_any_line_matches(
+        self, patterns, timeout=60.0, internal_timeout=None, print_func=None
+    ):
         """
         Read using read_nonblocking until any line matches a pattern.
 
@@ -1027,15 +1106,17 @@ class Expect(Tail):
                 terminates while waiting for output
         :raise ExpectError: Raised if an unknown error occurs
         """
-        return self.read_until_output_matches(patterns,
-                                              lambda x: x.splitlines(),
-                                              timeout, internal_timeout,
-                                              print_func,
-                                              self.match_patterns_multiline)
+        return self.read_until_output_matches(
+            patterns,
+            lambda x: x.splitlines(),
+            timeout,
+            internal_timeout,
+            print_func,
+            self.match_patterns_multiline,
+        )
 
 
 class ShellSession(Expect):
-
     """
     This class runs a child process in the background. It is suited for
     processes that provide an interactive shell, such as SSH and Telnet.
@@ -1048,11 +1129,24 @@ class ShellSession(Expect):
     # Return code pattern of shell interpreter
     __RE_STATUS = re.compile("^-?[0-9]+$")
 
-    def __init__(self, command=None, a_id=None, auto_close=True, echo=False,
-                 linesep="\n", termination_func=None, termination_params=(),
-                 output_func=None, output_params=(), output_prefix="",
-                 thread_name=None, prompt=r"[\#\$]\s*$",
-                 status_test_command="echo $?", pass_fds=(), encoding=None):
+    def __init__(
+        self,
+        command=None,
+        a_id=None,
+        auto_close=True,
+        echo=False,
+        linesep="\n",
+        termination_func=None,
+        termination_params=(),
+        output_func=None,
+        output_params=(),
+        output_prefix="",
+        thread_name=None,
+        prompt=r"[\#\$]\s*$",
+        status_test_command="echo $?",
+        pass_fds=(),
+        encoding=None,
+    ):
         """
         Initialize the class and run command as a child process.
 
@@ -1088,10 +1182,21 @@ class ShellSession(Expect):
                 locale.getpreferredencoding())
         """
         # Init the superclass
-        super().__init__(command, a_id, auto_close, echo, linesep,
-                         termination_func, termination_params,
-                         output_func, output_params, output_prefix, thread_name,
-                         pass_fds, encoding)
+        super().__init__(
+            command,
+            a_id,
+            auto_close,
+            echo,
+            linesep,
+            termination_func,
+            termination_params,
+            output_func,
+            output_params,
+            output_prefix,
+            thread_name,
+            pass_fds,
+            encoding,
+        )
 
         # Remember some attributes
         self.prompt = prompt
@@ -1101,8 +1206,10 @@ class ShellSession(Expect):
         return self.__class__, (self.__getinitargs__())
 
     def __getinitargs__(self):
-        return Expect.__getinitargs__(self) + (self.prompt,
-                                               self.status_test_command)
+        return Expect.__getinitargs__(self) + (
+            self.prompt,
+            self.status_test_command,
+        )
 
     @classmethod
     def remove_command_echo(cls, cont, cmd):
@@ -1162,8 +1269,9 @@ class ShellSession(Expect):
         # No output -- report unresponsive
         return False
 
-    def read_up_to_prompt(self, timeout=60.0, internal_timeout=None,
-                          print_func=None):
+    def read_up_to_prompt(
+        self, timeout=60.0, internal_timeout=None, print_func=None
+    ):
         """
         Read until the last non-empty line matches the prompt.
 
@@ -1183,12 +1291,19 @@ class ShellSession(Expect):
                 terminates while waiting for output
         :raise ExpectError: Raised if an unknown error occurs
         """
-        return self.read_until_last_line_matches([self.prompt], timeout,
-                                                 internal_timeout,
-                                                 print_func)[1]
+        return self.read_until_last_line_matches(
+            [self.prompt], timeout, internal_timeout, print_func
+        )[1]
 
-    def cmd_output(self, cmd, timeout=60, internal_timeout=None,
-                   print_func=None, safe=False, strip_console_codes=False):
+    def cmd_output(
+        self,
+        cmd,
+        timeout=60,
+        internal_timeout=None,
+        print_func=None,
+        safe=False,
+        strip_console_codes=False,
+    ):
         """
         Send a command and return its output.
 
@@ -1226,7 +1341,9 @@ class ShellSession(Expect):
             raise ShellTimeoutError(cmd, output) from error
         except ExpectProcessTerminatedError as error:
             output = self.remove_command_echo(error.output, cmd)
-            raise ShellProcessTerminatedError(cmd, error.status, output) from error
+            raise ShellProcessTerminatedError(
+                cmd, error.status, output
+            ) from error
         except ExpectError as error:
             output = self.remove_command_echo(error.output, cmd)
             raise ShellError(cmd, output) from error
@@ -1235,8 +1352,9 @@ class ShellSession(Expect):
         if strip_console_codes:
             # Removing the escape sequence
             out = astring.strip_console_codes(out)
-        return self.remove_last_nonempty_line(self.remove_command_echo(out,
-                                                                       cmd))
+        return self.remove_last_nonempty_line(
+            self.remove_command_echo(out, cmd)
+        )
 
     def cmd_output_safe(self, cmd, timeout=60, strip_console_codes=False):
         """
@@ -1277,8 +1395,9 @@ class ShellSession(Expect):
                 self.sendline()
             except ExpectProcessTerminatedError as error:
                 output = self.remove_command_echo(f"{out}{error.output}", cmd)
-                raise ShellProcessTerminatedError(cmd, error.status,
-                                                  output) from error
+                raise ShellProcessTerminatedError(
+                    cmd, error.status, output
+                ) from error
             except ExpectError as error:
                 output = self.remove_command_echo(f"{out}{error.output}", cmd)
                 raise ShellError(cmd, output) from error
@@ -1290,11 +1409,18 @@ class ShellSession(Expect):
         if strip_console_codes:
             # Removing the escape sequence
             out = astring.strip_console_codes(out)
-        return self.remove_last_nonempty_line(self.remove_command_echo(out,
-                                                                       cmd))
+        return self.remove_last_nonempty_line(
+            self.remove_command_echo(out, cmd)
+        )
 
-    def cmd_status_output(self, cmd, timeout=60, internal_timeout=None,
-                          print_func=None, safe=False):
+    def cmd_status_output(
+        self,
+        cmd,
+        timeout=60,
+        internal_timeout=None,
+        print_func=None,
+        safe=False,
+    ):
         """
         Send a command and return its exit status and output.
 
@@ -1321,22 +1447,36 @@ class ShellSession(Expect):
         out = self.cmd_output(cmd, timeout, internal_timeout, print_func, safe)
         try:
             # Send the 'echo $?' (or equivalent) command to get the exit status
-            status = self.cmd_output(self.status_test_command, 30,
-                                     internal_timeout, print_func, safe)
+            status = self.cmd_output(
+                self.status_test_command,
+                30,
+                internal_timeout,
+                print_func,
+                safe,
+            )
             # Removing the escape sequence from the status output
             clean_status = astring.strip_console_codes(status)
         except ShellError as error:
             raise ShellStatusError(cmd, out) from error
 
         # Get the first line consisting of digits only
-        digit_lines = [_ for _ in clean_status.splitlines()
-                       if self.__RE_STATUS.match(_.strip())]
+        digit_lines = [
+            _
+            for _ in clean_status.splitlines()
+            if self.__RE_STATUS.match(_.strip())
+        ]
         if digit_lines:
             return int(digit_lines[0].strip()), out
         raise ShellStatusError(cmd, out)
 
-    def cmd_status(self, cmd, timeout=60, internal_timeout=None,
-                   print_func=None, safe=False):
+    def cmd_status(
+        self,
+        cmd,
+        timeout=60,
+        internal_timeout=None,
+        print_func=None,
+        safe=False,
+    ):
         """
         Send a command and return its exit status.
 
@@ -1359,11 +1499,19 @@ class ShellSession(Expect):
         :raise ShellStatusError: Raised if the exit status cannot be obtained
         :raise ShellError: Raised if an unknown error occurs
         """
-        return self.cmd_status_output(cmd, timeout, internal_timeout,
-                                      print_func, safe)[0]
+        return self.cmd_status_output(
+            cmd, timeout, internal_timeout, print_func, safe
+        )[0]
 
-    def cmd(self, cmd, timeout=60, internal_timeout=None, print_func=None,
-            ok_status=None, ignore_all_errors=False):
+    def cmd(
+        self,
+        cmd,
+        timeout=60,
+        internal_timeout=None,
+        print_func=None,
+        ok_status=None,
+        ignore_all_errors=False,
+    ):
         """
         Send a command and return its output. If the command's exit status is
         nonzero, raise an exception.
@@ -1390,11 +1538,11 @@ class ShellSession(Expect):
         :raise ShellCmdError: Raised if the exit status is nonzero
         """
         if ok_status is None:
-            ok_status = [0, ]
+            ok_status = [0]
         try:
-            status, output = self.cmd_status_output(cmd, timeout,
-                                                    internal_timeout,
-                                                    print_func)
+            status, output = self.cmd_status_output(
+                cmd, timeout, internal_timeout, print_func
+            )
             if status not in ok_status:
                 raise ShellCmdError(cmd, status, output)
             return output
@@ -1403,23 +1551,27 @@ class ShellSession(Expect):
                 return None
             raise
 
-    def get_command_output(self, cmd, timeout=60, internal_timeout=None,
-                           print_func=None):
+    def get_command_output(
+        self, cmd, timeout=60, internal_timeout=None, print_func=None
+    ):
         """
         Alias for cmd_output() for backward compatibility.
         """
         return self.cmd_output(cmd, timeout, internal_timeout, print_func)
 
-    def get_command_status_output(self, cmd, timeout=60, internal_timeout=None,
-                                  print_func=None):
+    def get_command_status_output(
+        self, cmd, timeout=60, internal_timeout=None, print_func=None
+    ):
         """
         Alias for cmd_status_output() for backward compatibility.
         """
-        return self.cmd_status_output(cmd, timeout, internal_timeout,
-                                      print_func)
+        return self.cmd_status_output(
+            cmd, timeout, internal_timeout, print_func
+        )
 
-    def get_command_status(self, cmd, timeout=60, internal_timeout=None,
-                           print_func=None):
+    def get_command_status(
+        self, cmd, timeout=60, internal_timeout=None, print_func=None
+    ):
         """
         Alias for cmd_status() for backward compatibility.
         """
@@ -1427,7 +1579,6 @@ class ShellSession(Expect):
 
 
 class RemoteSession(ShellSession):
-
     """
     This class includes helpers specifically regarding remote sessions.
 
@@ -1435,14 +1586,29 @@ class RemoteSession(ShellSession):
     connection attributes like client, host, port, username, and password.
     """
 
-    def __init__(self, command=None, a_id=None, auto_close=True, echo=False,
-                 linesep="\n", termination_func=None, termination_params=(),
-                 output_func=None, output_params=(), output_prefix="",
-                 thread_name=None, prompt=r"[\#\$]\s*$",
-                 status_test_command="echo $?",
-                 client="ssh", host="localhost", port=22,
-                 username="root", password="test1234",
-                 pass_fds=(), encoding=None):
+    def __init__(
+        self,
+        command=None,
+        a_id=None,
+        auto_close=True,
+        echo=False,
+        linesep="\n",
+        termination_func=None,
+        termination_params=(),
+        output_func=None,
+        output_params=(),
+        output_prefix="",
+        thread_name=None,
+        prompt=r"[\#\$]\s*$",
+        status_test_command="echo $?",
+        client="ssh",
+        host="localhost",
+        port=22,
+        username="root",
+        password="test1234",
+        pass_fds=(),
+        encoding=None,
+    ):
         """
         Initialize the class and run command as a child process.
 
@@ -1483,11 +1649,23 @@ class RemoteSession(ShellSession):
                 locale.getpreferredencoding())
         """
         # Init the superclass
-        super().__init__(command, a_id, auto_close, echo, linesep,
-                         termination_func, termination_params,
-                         output_func, output_params, output_prefix, thread_name,
-                         prompt, status_test_command,
-                         pass_fds, encoding)
+        super().__init__(
+            command,
+            a_id,
+            auto_close,
+            echo,
+            linesep,
+            termination_func,
+            termination_params,
+            output_func,
+            output_params,
+            output_prefix,
+            thread_name,
+            prompt,
+            status_test_command,
+            pass_fds,
+            encoding,
+        )
 
         # Remember some attributes
         self.client = client
@@ -1497,9 +1675,16 @@ class RemoteSession(ShellSession):
         self.password = password
 
 
-def run_tail(command, termination_func=None, output_func=None,
-             output_prefix="", timeout=1.0, auto_close=True, pass_fds=(),
-             encoding=None):
+def run_tail(
+    command,
+    termination_func=None,
+    output_func=None,
+    output_prefix="",
+    timeout=1.0,
+    auto_close=True,
+    pass_fds=(),
+    encoding=None,
+):
     """
     Run a subprocess in the background and collect its output and exit status.
 
@@ -1526,13 +1711,15 @@ def run_tail(command, termination_func=None, output_func=None,
 
     :return: A Expect object.
     """
-    bg_process = Tail(command=command,
-                      termination_func=termination_func,
-                      output_func=output_func,
-                      output_prefix=output_prefix,
-                      auto_close=auto_close,
-                      pass_fds=pass_fds,
-                      encoding=encoding)
+    bg_process = Tail(
+        command=command,
+        termination_func=termination_func,
+        output_func=output_func,
+        output_prefix=output_prefix,
+        auto_close=auto_close,
+        pass_fds=pass_fds,
+        encoding=encoding,
+    )
 
     end_time = time.time() + timeout
     while time.time() < end_time and bg_process.is_alive():
@@ -1541,8 +1728,16 @@ def run_tail(command, termination_func=None, output_func=None,
     return bg_process
 
 
-def run_bg(command, termination_func=None, output_func=None, output_prefix="",
-           timeout=1.0, auto_close=True, pass_fds=(), encoding=None):
+def run_bg(
+    command,
+    termination_func=None,
+    output_func=None,
+    output_prefix="",
+    timeout=1.0,
+    auto_close=True,
+    pass_fds=(),
+    encoding=None,
+):
     """
     Run a subprocess in the background and collect its output and exit status.
 
@@ -1569,13 +1764,15 @@ def run_bg(command, termination_func=None, output_func=None, output_prefix="",
 
     :return: A Expect object.
     """
-    bg_process = Expect(command=command,
-                        termination_func=termination_func,
-                        output_func=output_func,
-                        output_prefix=output_prefix,
-                        auto_close=auto_close,
-                        pass_fds=pass_fds,
-                        encoding=encoding)
+    bg_process = Expect(
+        command=command,
+        termination_func=termination_func,
+        output_func=output_func,
+        output_prefix=output_prefix,
+        auto_close=auto_close,
+        pass_fds=pass_fds,
+        encoding=encoding,
+    )
 
     end_time = time.time() + timeout
     while time.time() < end_time and bg_process.is_alive():
@@ -1584,8 +1781,14 @@ def run_bg(command, termination_func=None, output_func=None, output_prefix="",
     return bg_process
 
 
-def run_fg(command, output_func=None, output_prefix="", timeout=1.0,
-           pass_fds=(), encoding=None):
+def run_fg(
+    command,
+    output_func=None,
+    output_prefix="",
+    timeout=1.0,
+    pass_fds=(),
+    encoding=None,
+):
     """
     Run a subprocess in the foreground and collect its output and exit status.
 
@@ -1610,8 +1813,15 @@ def run_fg(command, output_func=None, output_prefix="", timeout=1.0,
             STDOUT/STDERR output.  If timeout expires before the process
             terminates, the returned status is None.
     """
-    bg_process = run_bg(command, None, output_func, output_prefix, timeout,
-                        pass_fds=pass_fds, encoding=encoding)
+    bg_process = run_bg(
+        command,
+        None,
+        output_func,
+        output_prefix,
+        timeout,
+        pass_fds=pass_fds,
+        encoding=encoding,
+    )
     output = bg_process.get_output()
     if bg_process.is_alive():
         status = None

@@ -64,10 +64,12 @@ class TestRemoteFunctions(unittest.TestCase):
         remote.scp_to_remote(
             "127.0.0.1", 22, "user", "pass", "/local/path", "/remote/path"
         )
-        mock_remote_copy.assert_called_once_with(mock.ANY, ["pass"], 600, 300, "scp")
+        mock_remote_copy.assert_called_once_with(
+            mock.ANY, ["pass"], 600, 300, "scp"
+        )
         self.assertEqual(
             mock_remote_copy.call_args[0][0].command,
-            r"scp -r -v -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o PreferredAuthentications=password  -P 22 /local/path user@\[127.0.0.1\]:/remote/path"
+            r"scp -r -v -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o PreferredAuthentications=password  -P 22 /local/path user@\[127.0.0.1\]:/remote/path",
         )
 
     @mock.patch("aexpect.remote._remote_copy")
@@ -75,10 +77,12 @@ class TestRemoteFunctions(unittest.TestCase):
         remote.scp_from_remote(
             "127.0.0.1", 22, "user", "pass", "/remote/path", "/local/path"
         )
-        mock_remote_copy.assert_called_once_with(mock.ANY, ["pass"], 600, 300, "scp")
+        mock_remote_copy.assert_called_once_with(
+            mock.ANY, ["pass"], 600, 300, "scp"
+        )
         self.assertEqual(
             mock_remote_copy.call_args[0][0].command,
-            r"scp -r -v -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o PreferredAuthentications=password  -P 22 user@\[127.0.0.1\]:/remote/path /local/path"
+            r"scp -r -v -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o PreferredAuthentications=password  -P 22 user@\[127.0.0.1\]:/remote/path /local/path",
         )
 
     @mock.patch("aexpect.remote._remote_copy")
@@ -86,10 +90,12 @@ class TestRemoteFunctions(unittest.TestCase):
         remote.rsync_to_remote(
             "127.0.0.1", 22, "user", "pass", "/local/path", "/remote/path"
         )
-        mock_remote_copy.assert_called_once_with(mock.ANY, ["pass"], 600, 300, "rsync")
+        mock_remote_copy.assert_called_once_with(
+            mock.ANY, ["pass"], 600, 300, "rsync"
+        )
         self.assertEqual(
             mock_remote_copy.call_args[0][0].command,
-            r"rsync -r -avz -e 'ssh -p 22 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'  /local/path user@127.0.0.1:/remote/path"
+            r"rsync -r -avz -e 'ssh -p 22 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'  /local/path user@127.0.0.1:/remote/path",
         )
 
     @mock.patch("aexpect.remote._remote_copy")
@@ -110,7 +116,7 @@ class TestRemoteFunctions(unittest.TestCase):
         )
         self.assertEqual(
             mock_remote_copy.call_args[0][0].command,
-            r"scp -r -v -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o PreferredAuthentications=password  -P 22 src_user@\[src_host\]:/src/path dst_user@\[dst_host\]:/dst/path"
+            r"scp -r -v -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o PreferredAuthentications=password  -P 22 src_user@\[src_host\]:/src/path dst_user@\[dst_host\]:/dst/path",
         )
 
     @mock.patch("aexpect.remote._remote_copy")
@@ -118,8 +124,10 @@ class TestRemoteFunctions(unittest.TestCase):
         remote.rsync_from_remote(
             "127.0.0.1", 22, "user", "pass", "/remote/path", "/local/path"
         )
-        mock_remote_copy.assert_called_once_with(mock.ANY, ["pass"], 600, 300, "rsync")
+        mock_remote_copy.assert_called_once_with(
+            mock.ANY, ["pass"], 600, 300, "rsync"
+        )
         self.assertEqual(
             mock_remote_copy.call_args[0][0].command,
-            r"rsync -r -avz -e 'ssh -p 22 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'  user@127.0.0.1:/remote/path /local/path"
+            r"rsync -r -avz -e 'ssh -p 22 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'  user@127.0.0.1:/remote/path /local/path",
         )

@@ -101,7 +101,9 @@ def ps_cmd(session, script, timeout=60):
         # `cmd` is encoded here, replace before raising
         error.cmd = script
         error.output = _clean_error_message(error.output)
-        nicely_log_str("An error occurred while running the script", error.output)
+        nicely_log_str(
+            "An error occurred while running the script", error.output
+        )
         raise
 
 
@@ -216,7 +218,9 @@ def query_registry(session, key_name, value_name):
     ]
 
     out = session.cmd_output(f'reg query "{key_name}" /v {value_name}').strip()
-    LOG.info("Reg query for key %s and value %s: %s", key_name, value_name, out)
+    LOG.info(
+        "Reg query for key %s and value %s: %s", key_name, value_name, out
+    )
     for k in key_types:
         parts = out.split(k)
         if len(parts) > 1:
@@ -256,12 +260,16 @@ def refresh_path_variable(session):
     :param session: session of the Windows guest
     :type session: :py:class:`aexpect.client.RemoteSession`
     """
-    env_key = r"HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
+    env_key = (
+        r"HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
+    )
     # system path
     syspath = query_registry(session, env_key, "Path")
     # user path
     userpath = query_registry(session, r"HKCU\Environment", "Path")
-    LOG.info("Setting the PATH in the Windows session to %s;%s", syspath, userpath)
+    LOG.info(
+        "Setting the PATH in the Windows session to %s;%s", syspath, userpath
+    )
     session.cmd(f"set PATH={syspath};{userpath}")
 
 
@@ -466,7 +474,9 @@ def wait_process_end(session, process, timeout=30):
 
     # give some extra timeout to wait for PowerShell to return
     ps_cmd(
-        session, f"Wait-Process -Name {process} -Timeout {timeout}", timeout=timeout + 5
+        session,
+        f"Wait-Process -Name {process} -Timeout {timeout}",
+        timeout=timeout + 5,
     )
 
 
@@ -478,7 +488,9 @@ def kill_session(session):
     :type session: :py:class:`aexpect.client.RemoteSession`
     """
     LOG.info("Killing session for the user %s", session.username)
-    cmd = "(Get-WmiObject Win32_Process -Filter ProcessId=$PID).ParentProcessId"
+    cmd = (
+        "(Get-WmiObject Win32_Process -Filter ProcessId=$PID).ParentProcessId"
+    )
     cmd_pid = ps_cmd(session, cmd)
     LOG.debug("Got cmd.exe with PID %s", cmd_pid)
 
@@ -496,7 +508,9 @@ def kill_session(session):
         # session ended correctly
         pass
     else:
-        raise ProcessLookupError(f"Could not kill rss.exe for user {session.username}")
+        raise ProcessLookupError(
+            f"Could not kill rss.exe for user {session.username}"
+        )
 
     session.close()
     LOG.info("Session successfully killed")
@@ -582,9 +596,7 @@ def curl(session, url, proxy_address=None, proxy_port=None, insecure=False):
     webrequest_cmd = f'Invoke-WebRequest -Uri "{url}"'
     if proxy_address is not None:
         # the session user must have access to the proxy (otherwise use -ProxyCredential)
-        webrequest_cmd += (
-            f" -Proxy http://{proxy_address}:{proxy_port} -ProxyUseDefaultCredentials"
-        )
+        webrequest_cmd += f" -Proxy http://{proxy_address}:{proxy_port} -ProxyUseDefaultCredentials"
 
     output = ps_cmd(
         session,
@@ -601,5 +613,7 @@ def curl(session, url, proxy_address=None, proxy_port=None, insecure=False):
     try:
         status, content = output.split("\n", 1)
     except ValueError as error:
-        raise RuntimeError("The request failed -- invalid output structure") from error
+        raise RuntimeError(
+            "The request failed -- invalid output structure"
+        ) from error
     return int(status), content

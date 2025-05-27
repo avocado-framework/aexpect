@@ -69,7 +69,7 @@ class RemoteError(Exception):
 class LoginError(RemoteError):
     """Base class for any remote error related to logins and session creation."""
 
-    def __init__(self, msg, output=''):
+    def __init__(self, msg, output=""):
         super().__init__()
         self.msg = msg
         self.output = output
@@ -85,27 +85,29 @@ class LoginAuthenticationError(LoginError):
 class LoginTimeoutError(LoginError):
     """Remote error related to login timeout expiration."""
 
-    def __init__(self, output=''):
+    def __init__(self, output=""):
         super().__init__("Login timeout expired", output)
 
 
 class LoginProcessTerminatedError(LoginError):
     """Remote error related to login process termination."""
 
-    def __init__(self, status, output=''):
+    def __init__(self, status, output=""):
         super().__init__("Client process terminated", output)
         self.status = status
 
     def __str__(self):
-        return (f"{self.msg}    (status: {self.status},    "
-                f"output: {self.output!r})")
+        return (
+            f"{self.msg}    (status: {self.status},    "
+            f"output: {self.output!r})"
+        )
 
 
 class LoginBadClientError(LoginError):
     """Remote error related to unknown remote shell client."""
 
     def __init__(self, client):
-        super().__init__('Unknown remote shell client')
+        super().__init__("Unknown remote shell client")
         self.client = client
 
     def __str__(self):
@@ -132,8 +134,10 @@ class TransferBadClientError(RemoteError):
         self.client = client
 
     def __str__(self):
-        return (f"Unknown file copy client: '{self.client}', "
-                "valid values are scp and rss")
+        return (
+            f"Unknown file copy client: '{self.client}', "
+            "valid values are scp and rss"
+        )
 
 
 class SCPError(TransferError):
@@ -170,8 +174,10 @@ class TransferFailedError(SCPError):
         self.status = status
 
     def __str__(self):
-        return (f"SCP transfer failed    (status: {self.status},    "
-                f"output: {self.output!r})")
+        return (
+            f"SCP transfer failed    (status: {self.status},    "
+            f"output: {self.output!r})"
+        )
 
 
 class NetcatError(TransferError):
@@ -193,8 +199,10 @@ class NetcatTransferFailedError(NetcatError):
         self.status = status
 
     def __str__(self):
-        return (f"Netcat transfer failed    (status: {self.status},    "
-                f"output: {self.output!r})")
+        return (
+            f"Netcat transfer failed    (status: {self.status},    "
+            f"output: {self.output!r})"
+        )
 
 
 class NetcatTransferIntegrityError(NetcatError):
@@ -220,12 +228,13 @@ def quote_path(path):
     :return: Shell escaped version
     """
     if isinstance(path, list):
-        return ' '.join(map(shlex.quote, path))
+        return " ".join(map(shlex.quote, path))
     return shlex.quote(path)
 
 
-def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
-                   timeout=10, debug=False):
+def handle_prompts(
+    session, username, password, prompt=PROMPT_LINUX, timeout=10, debug=False
+):
     """
     Connect to a remote host (guest) using SSH or Telnet or else.
 
@@ -256,18 +265,29 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
     while True:
         try:
             match, text = session.read_until_last_line_matches(
-                [r"[Aa]re you sure", r"[Pp]assword:\s*",
-                 # Prompt of rescue mode for Red Hat.
-                 r"\(or (press|type) Control-D to continue\):\s*$",
-                 r"[Gg]ive.*[Ll]ogin:\s*$",  # Prompt of rescue mode for SUSE.
-                 r"(?<![Ll]ast )[Ll]ogin:\s*$",  # Don't match "Last Login:"
-                 r"[Cc]onnection.*closed", r"[Cc]onnection.*refused",
-                 r"[Pp]lease wait", r"[Ww]arning", r"[Ee]nter.*username",
-                 r"[Ee]nter.*password", r"[Cc]onnection timed out", prompt,
-                 r"Escape character is.*",
-                 r"Command>",
-                 r"[Ll]ost connection"],
-                timeout=timeout, internal_timeout=0.5)
+                [
+                    r"[Aa]re you sure",
+                    r"[Pp]assword:\s*",
+                    # Prompt of rescue mode for Red Hat.
+                    r"\(or (press|type) Control-D to continue\):\s*$",
+                    # Prompt of rescue mode for SUSE.
+                    r"[Gg]ive.*[Ll]ogin:\s*$",
+                    r"(?<![Ll]ast )[Ll]ogin:\s*$",  # Don't match "Last Login:"
+                    r"[Cc]onnection.*closed",
+                    r"[Cc]onnection.*refused",
+                    r"[Pp]lease wait",
+                    r"[Ww]arning",
+                    r"[Ee]nter.*username",
+                    r"[Ee]nter.*password",
+                    r"[Cc]onnection timed out",
+                    prompt,
+                    r"Escape character is.*",
+                    r"Command>",
+                    r"[Ll]ost connection",
+                ],
+                timeout=timeout,
+                internal_timeout=0.5,
+            )
             output += text
             if match == 0:  # "Are you sure you want to continue connecting"
                 if debug:
@@ -276,18 +296,21 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
             elif match in [1, 2, 3, 10]:  # "password:"
                 if password_prompt_count == 0:
                     if debug:
-                        LOG.debug("Got password prompt, sending '%s'",
-                                  password)
+                        LOG.debug(
+                            "Got password prompt, sending '%s'", password
+                        )
                     session.sendline(password)
                     password_prompt_count += 1
                 else:
-                    raise LoginAuthenticationError("Got password prompt twice",
-                                                   text)
+                    raise LoginAuthenticationError(
+                        "Got password prompt twice", text
+                    )
             elif match in [4, 9]:  # "login:"
                 if login_prompt_count == 0 and password_prompt_count == 0:
                     if debug:
-                        LOG.debug("Got username prompt; sending '%s'",
-                                  username)
+                        LOG.debug(
+                            "Got username prompt; sending '%s'", username
+                        )
                     session.sendline(username)
                     login_prompt_count += 1
                 else:
@@ -320,15 +343,17 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
                 session.sendline()
             elif match == 14:  # VMware vCenter command prompt
                 # Some old vsphere version (e.x. 6.0.0) needs to enable first.
-                cmd = 'shell.set --enabled True'
+                cmd = "shell.set --enabled True"
                 LOG.debug(
                     "Got VMware VCenter prompt, "
-                    "send '%s' to enable shell first", cmd)
+                    "send '%s' to enable shell first",
+                    cmd,
+                )
                 session.sendline(cmd)
                 LOG.debug(
-                    "Got VMware VCenter prompt, "
-                    "send 'shell' to launch bash")
-                session.sendline('shell')
+                    "Got VMware VCenter prompt, send 'shell' to launch bash"
+                )
+                session.sendline("shell")
         except ExpectTimeoutError as error:
             # sometimes, linux kernel print some message to console
             # the message maybe impact match login pattern, so send
@@ -340,18 +365,33 @@ def handle_prompts(session, username, password, prompt=PROMPT_LINUX,
             else:
                 raise LoginTimeoutError(error.output) from error
         except ExpectProcessTerminatedError as error:
-            raise LoginProcessTerminatedError(error.status, error.output) from error
+            raise LoginProcessTerminatedError(
+                error.status, error.output
+            ) from error
 
     return output
 
 
-def remote_login(client, host, port, username, password, prompt, linesep="\n",
-                 log_filename=None, log_function=None, timeout=10,
-                 interface=None, identity_file=None,
-                 status_test_command="echo $?", verbose=False, bind_ip=None,
-                 preferred_authentication='password',
-                 user_known_hosts_file='/dev/null',
-                 extra_cmdline=''):
+def remote_login(
+    client,
+    host,
+    port,
+    username,
+    password,
+    prompt,
+    linesep="\n",
+    log_filename=None,
+    log_function=None,
+    timeout=10,
+    interface=None,
+    identity_file=None,
+    status_test_command="echo $?",
+    verbose=False,
+    bind_ip=None,
+    preferred_authentication="password",
+    user_known_hosts_file="/dev/null",
+    extra_cmdline="",
+):
     """
     Log into a remote host (guest) using SSH/Telnet/Netcat.
 
@@ -394,12 +434,15 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
         extra_params.append(extra_cmdline)
     if host and host.lower().startswith("fe80"):
         if not interface:
-            raise RemoteError("When using ipv6 linklocal an interface must "
-                              "be assigned")
+            raise RemoteError(
+                "When using ipv6 linklocal an interface must be assigned"
+            )
         host = f"{host}%{interface}"
     if client == "ssh":
-        cmd = (f"ssh {' '.join(extra_params)} -o UserKnownHostsFile={user_known_hosts_file} "
-               f"-o StrictHostKeyChecking=no -p {port}")
+        cmd = (
+            f"ssh {' '.join(extra_params)} -o UserKnownHostsFile={user_known_hosts_file} "
+            f"-o StrictHostKeyChecking=no -p {port}"
+        )
         if bind_ip:
             cmd += f" -b {bind_ip}"
         if identity_file:
@@ -419,11 +462,20 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
 
     if verbose:
         LOG.debug("Login command: '%s'", cmd)
-    session = RemoteSession(cmd, linesep=linesep, output_func=log_function,
-                            output_params=output_params, output_prefix=host,
-                            prompt=prompt, status_test_command=status_test_command,
-                            client=client, host=host, port=port,
-                            username=username, password=password)
+    session = RemoteSession(
+        cmd,
+        linesep=linesep,
+        output_func=log_function,
+        output_params=output_params,
+        output_prefix=host,
+        prompt=prompt,
+        status_test_command=status_test_command,
+        client=client,
+        host=host,
+        port=port,
+        username=username,
+        password=password,
+    )
     try:
         handle_prompts(session, username, password, prompt, timeout)
     except Exception:
@@ -432,11 +484,22 @@ def remote_login(client, host, port, username, password, prompt, linesep="\n",
     return session
 
 
-def wait_for_login(client, host, port, username, password, prompt,
-                   linesep="\n", log_filename=None, log_function=None,
-                   timeout=240, internal_timeout=10, interface=None,
-                   preferred_authentication='password',
-                   user_known_hosts_file='/dev/null'):
+def wait_for_login(
+    client,
+    host,
+    port,
+    username,
+    password,
+    prompt,
+    linesep="\n",
+    log_filename=None,
+    log_function=None,
+    timeout=240,
+    internal_timeout=10,
+    interface=None,
+    preferred_authentication="password",
+    user_known_hosts_file="/dev/null",
+):
     """
     Make multiple attempts to log into a guest until one succeeds or timeouts.
 
@@ -462,31 +525,62 @@ def wait_for_login(client, host, port, username, password, prompt,
     :see: remote_login()
     :return: A RemoteSession object.
     """
-    LOG.debug("Attempting to log into %s:%s using %s (timeout %ds)",
-              host, port, client, timeout)
+    LOG.debug(
+        "Attempting to log into %s:%s using %s (timeout %ds)",
+        host,
+        port,
+        client,
+        timeout,
+    )
     end_time = time.time() + timeout
     verbose = False
     while time.time() < end_time:
         try:
-            return remote_login(client, host, port, username, password, prompt,
-                                linesep, log_filename, log_function,
-                                internal_timeout, interface, verbose=verbose,
-                                preferred_authentication=preferred_authentication,
-                                user_known_hosts_file=user_known_hosts_file)
+            return remote_login(
+                client,
+                host,
+                port,
+                username,
+                password,
+                prompt,
+                linesep,
+                log_filename,
+                log_function,
+                internal_timeout,
+                interface,
+                verbose=verbose,
+                preferred_authentication=preferred_authentication,
+                user_known_hosts_file=user_known_hosts_file,
+            )
         except LoginError as error:
             LOG.debug(error)
             verbose = True
         time.sleep(2)
     # Timeout expired; try one more time but don't catch exceptions
-    return remote_login(client, host, port, username, password, prompt,
-                        linesep, log_filename, log_function,
-                        internal_timeout, interface,
-                        preferred_authentication=preferred_authentication,
-                        user_known_hosts_file=user_known_hosts_file)
+    return remote_login(
+        client,
+        host,
+        port,
+        username,
+        password,
+        prompt,
+        linesep,
+        log_filename,
+        log_function,
+        internal_timeout,
+        interface,
+        preferred_authentication=preferred_authentication,
+        user_known_hosts_file=user_known_hosts_file,
+    )
 
 
 def _remote_copy(
-        session, password_list, transfer_timeout=600, login_timeout=300, method="scp"):
+    session,
+    password_list,
+    transfer_timeout=600,
+    login_timeout=300,
+    method="scp",
+):
     """
     Transfer files using SCP or rsync, given a command line.
 
@@ -519,29 +613,36 @@ def _remote_copy(
         try:
             match, text = session.read_until_last_line_matches(
                 [r"[Aa]re you sure", r"[Pp]assword:\s*$", r"lost connection"],
-                timeout=timeout, internal_timeout=0.5)
+                timeout=timeout,
+                internal_timeout=0.5,
+            )
             if match == 0:  # "Are you sure you want to continue connecting"
                 LOG.debug("Got 'Are you sure...', sending 'yes'")
                 session.sendline("yes")
             elif match == 1:  # "password:"
                 if password_prompt_count == 0:
-                    LOG.debug("Got password prompt, sending '%s'",
-                              password_list[password_prompt_count])
+                    LOG.debug(
+                        "Got password prompt, sending '%s'",
+                        password_list[password_prompt_count],
+                    )
                     session.sendline(password_list[password_prompt_count])
                     password_prompt_count += 1
                     timeout = transfer_timeout
                     if transfer_type == 1:
                         authentication_done = True
                 elif password_prompt_count == 1 and transfer_type == 2:
-                    LOG.debug("Got password prompt, sending '%s'",
-                              password_list[password_prompt_count])
+                    LOG.debug(
+                        "Got password prompt, sending '%s'",
+                        password_list[password_prompt_count],
+                    )
                     session.sendline(password_list[password_prompt_count])
                     password_prompt_count += 1
                     timeout = transfer_timeout
                     authentication_done = True
                 else:
-                    raise AuthenticationError("Got password prompt twice",
-                                              text)
+                    raise AuthenticationError(
+                        "Got password prompt twice", text
+                    )
             elif match == 2:  # "lost connection"
                 raise SCPError("SCP client said 'lost connection'", text)
         except ExpectTimeoutError as error:
@@ -555,8 +656,14 @@ def _remote_copy(
             raise TransferFailedError(error.status, error.output) from error
 
 
-def remote_copy(command, password_list, log_filename=None, log_function=None,
-                transfer_timeout=600, login_timeout=300):
+def remote_copy(
+    command,
+    password_list,
+    log_filename=None,
+    log_function=None,
+    transfer_timeout=600,
+    login_timeout=300,
+):
     """
     Transfer files using rsync or SCP, given a command line.
 
@@ -572,8 +679,11 @@ def remote_copy(command, password_list, log_filename=None, log_function=None,
             each step of the login procedure (i.e. the "Are you sure" prompt
             or the password prompt)
     """
-    LOG.debug("Trying to copy with command '%s', timeout %ss",
-              command, transfer_timeout)
+    LOG.debug(
+        "Trying to copy with command '%s', timeout %ss",
+        command,
+        transfer_timeout,
+    )
     if log_filename:
         output_func = log_function
         output_params = (log_filename,)
@@ -581,14 +691,28 @@ def remote_copy(command, password_list, log_filename=None, log_function=None,
         output_func = None
         output_params = ()
     method = "rsync" if "rsync" in command else "scp"
-    with Expect(command, output_func=output_func,
-                output_params=output_params) as session:
-        _remote_copy(session, password_list, transfer_timeout, login_timeout, method)
+    with Expect(
+        command, output_func=output_func, output_params=output_params
+    ) as session:
+        _remote_copy(
+            session, password_list, transfer_timeout, login_timeout, method
+        )
 
 
-def scp_to_remote(host, port, username, password, local_path, remote_path,
-                  directory=True, limit="", log_filename=None, log_function=None,
-                  timeout=600, interface=None):
+def scp_to_remote(
+    host,
+    port,
+    username,
+    password,
+    local_path,
+    remote_path,
+    directory=True,
+    limit="",
+    log_filename=None,
+    log_function=None,
+    timeout=600,
+    interface=None,
+):
     """
     Copy files to a remote host (guest) through scp.
 
@@ -612,26 +736,42 @@ def scp_to_remote(host, port, username, password, local_path, remote_path,
 
     if host and host.lower().startswith("fe80"):
         if not interface:
-            raise SCPError("When using ipv6 linklocal address must assign",
-                           "the interface the neighbour attache")
+            raise SCPError(
+                "When using ipv6 linklocal address must assign",
+                "the interface the neighbour attache",
+            )
         host = f"{host}%{interface}"
 
     command = "scp"
     if directory:
         command += " -r"
-    command += (r" -v -o UserKnownHostsFile=/dev/null "
-                r"-o StrictHostKeyChecking=no "
-                fr"-o PreferredAuthentications=password {limit} "
-                fr"-P {port} {quote_path(local_path)} {username}@\[{host}\]:"
-                fr"{shlex.quote(remote_path)}")
+    command += (
+        r" -v -o UserKnownHostsFile=/dev/null "
+        r"-o StrictHostKeyChecking=no "
+        rf"-o PreferredAuthentications=password {limit} "
+        rf"-P {port} {quote_path(local_path)} {username}@\[{host}\]:"
+        rf"{shlex.quote(remote_path)}"
+    )
     password_list = [password]
-    return remote_copy(command, password_list,
-                       log_filename, log_function, timeout)
+    return remote_copy(
+        command, password_list, log_filename, log_function, timeout
+    )
 
 
-def scp_from_remote(host, port, username, password, remote_path, local_path,
-                    directory=True, limit="", log_filename=None, log_function=None,
-                    timeout=600, interface=None):
+def scp_from_remote(
+    host,
+    port,
+    username,
+    password,
+    remote_path,
+    local_path,
+    directory=True,
+    limit="",
+    log_filename=None,
+    log_function=None,
+    timeout=600,
+    interface=None,
+):
     """
     Copy files from a remote host (guest).
 
@@ -654,27 +794,44 @@ def scp_from_remote(host, port, username, password, remote_path, local_path,
         limit = f"-l {limit}"
     if host and host.lower().startswith("fe80"):
         if not interface:
-            raise SCPError("When using ipv6 linklocal address must assign, ",
-                           "the interface the neighbour attache")
+            raise SCPError(
+                "When using ipv6 linklocal address must assign, ",
+                "the interface the neighbour attache",
+            )
         host = f"{host}%{interface}"
 
     command = "scp"
     if directory:
         command += " -r"
-    command += (r" -v -o UserKnownHostsFile=/dev/null "
-                r"-o StrictHostKeyChecking=no "
-                fr"-o PreferredAuthentications=password {limit} "
-                fr"-P {port} {username}@\[{host}\]:{quote_path(remote_path)} "
-                fr"{shlex.quote(local_path)}")
+    command += (
+        r" -v -o UserKnownHostsFile=/dev/null "
+        r"-o StrictHostKeyChecking=no "
+        rf"-o PreferredAuthentications=password {limit} "
+        rf"-P {port} {username}@\[{host}\]:{quote_path(remote_path)} "
+        rf"{shlex.quote(local_path)}"
+    )
     password_list = [password]
-    remote_copy(command, password_list,
-                log_filename, log_function, timeout)
+    remote_copy(command, password_list, log_filename, log_function, timeout)
 
 
-def scp_between_remotes(src, dst, port, s_passwd, d_passwd, s_name, d_name,
-                        s_path, d_path, directory=True, limit="",
-                        log_filename=None, log_function=None, timeout=600,
-                        src_inter=None, dst_inter=None):
+def scp_between_remotes(
+    src,
+    dst,
+    port,
+    s_passwd,
+    d_passwd,
+    s_name,
+    d_name,
+    s_path,
+    d_path,
+    directory=True,
+    limit="",
+    log_filename=None,
+    log_function=None,
+    timeout=600,
+    src_inter=None,
+    dst_inter=None,
+):
     """
     Copy files from a remote host (guest) to another remote host (guest).
 
@@ -702,31 +859,49 @@ def scp_between_remotes(src, dst, port, s_passwd, d_passwd, s_name, d_name,
         limit = f"-l {limit}"
     if src and src.lower().startswith("fe80"):
         if not src_inter:
-            raise SCPError("When using ipv6 linklocal address must assign ",
-                           "the interface the neighbour attache")
+            raise SCPError(
+                "When using ipv6 linklocal address must assign ",
+                "the interface the neighbour attache",
+            )
         src = f"{src}%{src_inter}"
     if dst and dst.lower().startswith("fe80"):
         if not dst_inter:
-            raise SCPError("When using ipv6 linklocal address must assign ",
-                           "the interface the neighbour attache")
+            raise SCPError(
+                "When using ipv6 linklocal address must assign ",
+                "the interface the neighbour attache",
+            )
         dst = f"{dst}%{dst_inter}"
 
     command = "scp"
     if directory:
         command += " -r"
-    command += (r" -v -o UserKnownHostsFile=/dev/null "
-                r"-o StrictHostKeyChecking=no "
-                fr"-o PreferredAuthentications=password {limit} -P {port}"
-                fr" {s_name}@\[{src}\]:{quote_path(s_path)} {d_name}@\[{dst}\]"
-                fr":{shlex.quote(d_path)}")
+    command += (
+        r" -v -o UserKnownHostsFile=/dev/null "
+        r"-o StrictHostKeyChecking=no "
+        rf"-o PreferredAuthentications=password {limit} -P {port}"
+        rf" {s_name}@\[{src}\]:{quote_path(s_path)} {d_name}@\[{dst}\]"
+        rf":{shlex.quote(d_path)}"
+    )
     password_list = [s_passwd, d_passwd]
-    return remote_copy(command, password_list,
-                       log_filename, log_function, timeout)
+    return remote_copy(
+        command, password_list, log_filename, log_function, timeout
+    )
 
 
-def rsync_to_remote(host, port, username, password, local_path, remote_path,
-                    directory=True, limit="", log_filename=None, log_function=None,
-                    timeout=600, interface=None):
+def rsync_to_remote(
+    host,
+    port,
+    username,
+    password,
+    local_path,
+    remote_path,
+    directory=True,
+    limit="",
+    log_filename=None,
+    log_function=None,
+    timeout=600,
+    interface=None,
+):
     """
     Copy files to a remote host (guest) through rsync.
 
@@ -751,24 +926,40 @@ def rsync_to_remote(host, port, username, password, local_path, remote_path,
 
     if host and host.lower().startswith("fe80"):
         if not interface:
-            raise RsyncError("When using ipv6 linklocal address must assign",
-                             "the interface the neighbour attache")
+            raise RsyncError(
+                "When using ipv6 linklocal address must assign",
+                "the interface the neighbour attache",
+            )
         host = f"{host}%{interface}"
 
     command = "rsync"
     if directory:
         command += " -r"
-    command += (f" -avz -e 'ssh -p {port} -o UserKnownHostsFile=/dev/null "
-                f"-o StrictHostKeyChecking=no' {limit} "
-                f"{quote_path(local_path)} {username}@{host}:{shlex.quote(remote_path)}")
+    command += (
+        f" -avz -e 'ssh -p {port} -o UserKnownHostsFile=/dev/null "
+        f"-o StrictHostKeyChecking=no' {limit} "
+        f"{quote_path(local_path)} {username}@{host}:{shlex.quote(remote_path)}"
+    )
     password_list = [password]
-    return remote_copy(command, password_list,
-                       log_filename, log_function, timeout)
+    return remote_copy(
+        command, password_list, log_filename, log_function, timeout
+    )
 
 
-def rsync_from_remote(host, port, username, password, remote_path, local_path,
-                      directory=True, limit="", log_filename=None, log_function=None,
-                      timeout=600, interface=None):
+def rsync_from_remote(
+    host,
+    port,
+    username,
+    password,
+    remote_path,
+    local_path,
+    directory=True,
+    limit="",
+    log_filename=None,
+    log_function=None,
+    timeout=600,
+    interface=None,
+):
     """
     Copy files from a remote host (guest) through rsync.
 
@@ -792,28 +983,45 @@ def rsync_from_remote(host, port, username, password, remote_path, local_path,
         limit = f"--bwlimit={limit}"
     if host and host.lower().startswith("fe80"):
         if not interface:
-            raise RsyncError("When using ipv6 linklocal address must assign, ",
-                             "the interface the neighbour attache")
+            raise RsyncError(
+                "When using ipv6 linklocal address must assign, ",
+                "the interface the neighbour attache",
+            )
         host = f"{host}%{interface}"
 
     command = "rsync"
     if directory:
         command += " -r"
-    command += (f" -avz -e 'ssh -p {port} -o UserKnownHostsFile=/dev/null "
-                f"-o StrictHostKeyChecking=no' {limit} "
-                f"{username}@{host}:{quote_path(remote_path)} {shlex.quote(local_path)}")
+    command += (
+        f" -avz -e 'ssh -p {port} -o UserKnownHostsFile=/dev/null "
+        f"-o StrictHostKeyChecking=no' {limit} "
+        f"{username}@{host}:{quote_path(remote_path)} {shlex.quote(local_path)}"
+    )
     password_list = [password]
-    remote_copy(command, password_list,
-                log_filename, log_function, timeout)
+    remote_copy(command, password_list, log_filename, log_function, timeout)
 
 
 # noinspection PyBroadException
-def nc_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
-                            s_name, d_name, s_path, d_path,
-                            c_type="ssh", c_prompt="\n",
-                            d_port="8888", d_protocol="tcp", timeout=2,
-                            check_sum=True, s_session=None,
-                            d_session=None, file_transfer_timeout=600):
+def nc_copy_between_remotes(
+    src,
+    dst,
+    s_port,
+    s_passwd,
+    d_passwd,
+    s_name,
+    d_name,
+    s_path,
+    d_path,
+    c_type="ssh",
+    c_prompt="\n",
+    d_port="8888",
+    d_protocol="tcp",
+    timeout=2,
+    check_sum=True,
+    s_session=None,
+    d_session=None,
+    file_transfer_timeout=600,
+):
     """
     Copy files from guest to guest using netcat.
 
@@ -843,19 +1051,13 @@ def nc_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
     """
     check_string = "NCFT"
     if not s_session:
-        s_session = remote_login(c_type,
-                                 src,
-                                 s_port,
-                                 s_name,
-                                 s_passwd,
-                                 c_prompt)
+        s_session = remote_login(
+            c_type, src, s_port, s_name, s_passwd, c_prompt
+        )
     if not d_session:
-        d_session = remote_login(c_type,
-                                 dst,
-                                 s_port,
-                                 d_name,
-                                 d_passwd,
-                                 c_prompt)
+        d_session = remote_login(
+            c_type, dst, s_port, d_name, d_passwd, c_prompt
+        )
 
     try:
         s_session.cmd(f"iptables -I INPUT -p {d_protocol} -j ACCEPT")
@@ -871,12 +1073,15 @@ def nc_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
     d_session.sendline(receive_cmd)
     send_cmd = f"{cmd} {dst} {d_port} < {s_path}"
     status, output = s_session.cmd_status_output(
-        send_cmd, timeout=file_transfer_timeout)
+        send_cmd, timeout=file_transfer_timeout
+    )
     if status:
         err = f"Fail to transfer file between {src} -> {dst}."
         if check_string not in output:
-            err += ("src did not receive check "
-                    f"string {check_string} sent by dst.")
+            err += (
+                "src did not receive check "
+                f"string {check_string} sent by dst."
+            )
         err += f"send nc command {send_cmd}, output {output}"
         err += f"Receive nc command {receive_cmd}."
         raise NetcatTransferFailedError(status, err)
@@ -887,17 +1092,30 @@ def nc_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
         src_md5 = output.split()[0]
         dst_md5 = d_session.cmd(f"md5sum {d_path}").split()[0]
         if src_md5.strip() != dst_md5.strip():
-            err_msg = ("Files md5sum mismatch, "
-                       f"file {s_path} md5sum is '{src_md5}', "
-                       f"but the file {d_path} md5sum is {dst_md5}")
+            err_msg = (
+                "Files md5sum mismatch, "
+                f"file {s_path} md5sum is '{src_md5}', "
+                f"but the file {d_path} md5sum is {dst_md5}"
+            )
             raise NetcatTransferIntegrityError(err_msg)
     return True
 
 
-def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
-                             s_name, d_name, s_path, d_path,
-                             c_type="ssh", c_prompt="\n",
-                             d_port="9000", timeout=600):
+def udp_copy_between_remotes(
+    src,
+    dst,
+    s_port,
+    s_passwd,
+    d_passwd,
+    s_name,
+    d_name,
+    s_path,
+    d_path,
+    c_type="ssh",
+    c_prompt="\n",
+    d_port="9000",
+    timeout=600,
+):
     """
     Copy files from guest to guest using udp.
 
@@ -924,23 +1142,25 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
         cmd_tmp += "extension='%s'\" get drive^,path"
         cmd = cmd_tmp % (filename, extension)
         info = session.cmd_output(cmd, timeout=360).strip()
-        drive_path = re.search(r'(\w):\s+(\S+)', info, re.M)
+        drive_path = re.search(r"(\w):\s+(\S+)", info, re.M)
         if not drive_path:
-            raise UDPError(f"Not found file {filename}.{extension} "
-                           "in your guest")
+            raise UDPError(
+                f"Not found file {filename}.{extension} in your guest"
+            )
         return ":".join(drive_path.groups())
 
     def get_file_md5(session, file_path):
         """Get files md5sums."""
         if c_type == "ssh":
             md5_cmd = f"md5sum {file_path}"
-            md5_reg = fr"(\w+)\s+{file_path}.*"
+            md5_reg = rf"(\w+)\s+{file_path}.*"
         else:
             drive_path = get_abs_path(session, "md5sums", "exe")
             filename = file_path.split("\\")[-1]
-            md5_reg = fr"{filename}\s+(\w+)"
-            md5_cmd = (f'{drive_path}md5sums.exe {file_path} | '
-                       f'find "{filename}"')
+            md5_reg = rf"{filename}\s+(\w+)"
+            md5_cmd = (
+                f"{drive_path}md5sums.exe {file_path} | " f'find "{filename}"'
+            )
         output = session.cmd_output(md5_cmd)
         file_md5 = re.findall(md5_reg, output)
         if not output:
@@ -978,9 +1198,13 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
         else:
             drive_path = get_abs_path(session, "recvfile", "exe")
             client_cmd_tmp = "%srecvfile.exe %s %s %s %s"
-            client_cmd = client_cmd_tmp % (drive_path, src, d_port,
-                                           s_path.split("\\")[-1],
-                                           d_path.split("\\")[-1])
+            client_cmd = client_cmd_tmp % (
+                drive_path,
+                src,
+                d_port,
+                s_path.split("\\")[-1],
+                d_path.split("\\")[-1],
+            )
         session.cmd_output_safe(client_cmd, timeout)
 
     def stop_server(session):
@@ -999,9 +1223,11 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
         start_client(d_session)
         dst_md5 = get_file_md5(d_session, d_path)
         if src_md5 != dst_md5:
-            err_msg = ("Files md5sum mismatch, "
-                       f"file {s_path} md5sum is '{src_md5}', "
-                       f"but the file {d_path} md5sum is {dst_md5}")
+            err_msg = (
+                "Files md5sum mismatch, "
+                f"file {s_path} md5sum is '{src_md5}', "
+                f"but the file {d_path} md5sum is {dst_md5}"
+            )
             raise UDPError(err_msg)
     finally:
         stop_server(s_session)
@@ -1009,8 +1235,14 @@ def udp_copy_between_remotes(src, dst, s_port, s_passwd, d_passwd,
         d_session.close()
 
 
-def login_from_session(session, log_filename=None, log_function=None,
-                       timeout=240, internal_timeout=10, interface=None):
+def login_from_session(
+    session,
+    log_filename=None,
+    log_function=None,
+    timeout=240,
+    internal_timeout=10,
+    interface=None,
+):
     """
     Log in remotely and return a session for the connection with the same
     configuration as a previous session.
@@ -1027,16 +1259,33 @@ def login_from_session(session, log_filename=None, log_function=None,
 
     The rest of the arguments are identical to wait_for_login().
     """
-    return wait_for_login(session.client, session.host, session.port,
-                          session.username, session.password,
-                          session.prompt, session.linesep,
-                          log_filename, log_function,
-                          timeout, internal_timeout, interface)
+    return wait_for_login(
+        session.client,
+        session.host,
+        session.port,
+        session.username,
+        session.password,
+        session.prompt,
+        session.linesep,
+        log_filename,
+        log_function,
+        timeout,
+        internal_timeout,
+        interface,
+    )
 
 
-def scp_to_session(session, local_path, remote_path,
-                   directory=True, limit="", log_filename=None, log_function=None,
-                   timeout=600, interface=None):
+def scp_to_session(
+    session,
+    local_path,
+    remote_path,
+    directory=True,
+    limit="",
+    log_filename=None,
+    log_function=None,
+    timeout=600,
+    interface=None,
+):
     """
     Secure copy a filepath (w/o wildcard) to a remote location with the same
     configuration as a previous session.
@@ -1054,16 +1303,33 @@ def scp_to_session(session, local_path, remote_path,
 
     The rest of the arguments are identical to scp_to_remote().
     """
-    scp_to_remote(session.host, session.port,
-                  session.username, session.password,
-                  local_path, remote_path, directory,
-                  limit, log_filename, log_function,
-                  timeout, interface)
+    scp_to_remote(
+        session.host,
+        session.port,
+        session.username,
+        session.password,
+        local_path,
+        remote_path,
+        directory,
+        limit,
+        log_filename,
+        log_function,
+        timeout,
+        interface,
+    )
 
 
-def scp_from_session(session, remote_path, local_path,
-                     directory=True, limit="", log_filename=None, log_function=None,
-                     timeout=600, interface=None):
+def scp_from_session(
+    session,
+    remote_path,
+    local_path,
+    directory=True,
+    limit="",
+    log_filename=None,
+    log_function=None,
+    timeout=600,
+    interface=None,
+):
     """
     Secure copy a filepath (w/o wildcard) from a remote location with the same
     configuration as a previous session.
@@ -1081,11 +1347,20 @@ def scp_from_session(session, remote_path, local_path,
 
     The rest of the arguments are identical to scp_from_remote().
     """
-    scp_from_remote(session.host, session.port,
-                    session.username, session.password,
-                    remote_path, local_path, directory,
-                    limit, log_filename, log_function,
-                    timeout, interface)
+    scp_from_remote(
+        session.host,
+        session.port,
+        session.username,
+        session.password,
+        remote_path,
+        local_path,
+        directory,
+        limit,
+        log_filename,
+        log_function,
+        timeout,
+        interface,
+    )
 
 
 def throughput_transfer(func):
@@ -1116,10 +1391,23 @@ def throughput_transfer(func):
 
 # noinspection PyUnusedLocal
 @throughput_transfer
-def copy_files_to(address, client, username, password, port, local_path,
-                  remote_path, directory=True, limit="", log_filename=None, log_function=None,
-                  verbose=False, timeout=600, interface=None, filesize=None,  # pylint: disable=unused-argument
-                  ):
+def copy_files_to(
+    address,
+    client,
+    username,
+    password,
+    port,
+    local_path,
+    remote_path,
+    directory=True,
+    limit="",
+    log_filename=None,
+    log_function=None,
+    verbose=False,
+    timeout=600,
+    interface=None,
+    filesize=None,  # pylint: disable=unused-argument
+):
     """
     Copy files to a remote host (guest) using the selected client.
 
@@ -1142,13 +1430,35 @@ def copy_files_to(address, client, username, password, port, local_path,
     :param filesize: size of file will be transferred
     """
     if client == "scp":
-        scp_to_remote(address, port, username, password, local_path, remote_path,
-                      directory, limit, log_filename, log_function,
-                      timeout, interface=interface)
+        scp_to_remote(
+            address,
+            port,
+            username,
+            password,
+            local_path,
+            remote_path,
+            directory,
+            limit,
+            log_filename,
+            log_function,
+            timeout,
+            interface=interface,
+        )
     elif client == "rsync":
-        rsync_to_remote(address, port, username, password, local_path, remote_path,
-                        directory, limit, log_filename, log_function,
-                        timeout, interface=interface)
+        rsync_to_remote(
+            address,
+            port,
+            username,
+            password,
+            local_path,
+            remote_path,
+            directory,
+            limit,
+            log_filename,
+            log_function,
+            timeout,
+            interface=interface,
+        )
     elif client == "rss":
         log_func = None
         if verbose:
@@ -1164,10 +1474,23 @@ def copy_files_to(address, client, username, password, port, local_path,
 
 # noinspection PyUnusedLocal
 @throughput_transfer
-def copy_files_from(address, client, username, password, port, remote_path,
-                    local_path, directory=True, limit="", log_filename=None, log_function=None,
-                    verbose=False, timeout=600, interface=None, filesize=None,  # pylint: disable=unused-argument
-                    ):
+def copy_files_from(
+    address,
+    client,
+    username,
+    password,
+    port,
+    remote_path,
+    local_path,
+    directory=True,
+    limit="",
+    log_filename=None,
+    log_function=None,
+    verbose=False,
+    timeout=600,
+    interface=None,
+    filesize=None,  # pylint: disable=unused-argument
+):
     """
     Copy files from a remote host (guest) using the selected client.
 
@@ -1190,13 +1513,35 @@ def copy_files_from(address, client, username, password, port, remote_path,
     :param filesize: size of file will be transferred
     """
     if client == "scp":
-        scp_from_remote(address, port, username, password, remote_path, local_path,
-                        directory, limit, log_filename, log_function, timeout,
-                        interface=interface)
+        scp_from_remote(
+            address,
+            port,
+            username,
+            password,
+            remote_path,
+            local_path,
+            directory,
+            limit,
+            log_filename,
+            log_function,
+            timeout,
+            interface=interface,
+        )
     elif client == "rsync":
-        rsync_from_remote(address, port, username, password, remote_path, local_path,
-                          directory, limit, log_filename, log_function, timeout,
-                          interface=interface)
+        rsync_from_remote(
+            address,
+            port,
+            username,
+            password,
+            remote_path,
+            local_path,
+            directory,
+            limit,
+            log_filename,
+            log_function,
+            timeout,
+            interface=interface,
+        )
     elif client == "rss":
         log_func = None
         if verbose:
