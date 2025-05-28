@@ -249,7 +249,9 @@ class FileTransferClient:
             try:
                 end_time = time.monotonic() + timeout
                 while True:
-                    data = self._receive_packet(int(end_time - time.monotonic()))
+                    data = self._receive_packet(
+                        int(end_time - time.monotonic())
+                    )
                     file_handle.write(data)
                     if len(data) < CHUNKSIZE:
                         break
