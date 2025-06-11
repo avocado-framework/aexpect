@@ -1716,7 +1716,8 @@ def run_tail(
     encoding=None,
 ):
     """
-    Run a subprocess in the background and collect its output and exit status.
+    Run a command then await for it to finish up to timeout and return the
+    Tail object (alive or dead, allows reading output, no stdin interaction).
 
     Run command as a subprocess.  Call output_func with each line of output
     from the subprocess (prefixed by output_prefix).  Call termination_func
@@ -1769,7 +1770,8 @@ def run_bg(
     encoding=None,
 ):
     """
-    Run a subprocess in the background and collect its output and exit status.
+    Run a command then await for it to finish up to timeout and return the
+    Expect object (alive or dead, allows interaction).
 
     Run command as a subprocess.  Call output_func with each line of output
     from the subprocess (prefixed by output_prefix).  Call termination_func
