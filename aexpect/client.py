@@ -473,7 +473,7 @@ class Spawn:
                 try:
                     unlock_fd(lock)
                     os.unlink(self._close_lockfile)
-                except FileNotFoundError:
+                except (FileNotFoundError, OSError):
                     # File already removed by other thread
                     pass
 
