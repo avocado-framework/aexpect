@@ -20,7 +20,7 @@ from setuptools import setup
 if __name__ == "__main__":
     setup(
         name="aexpect",
-        version="1.7.0",
+        version="1.8.0",
         description="Aexpect",
         author="Aexpect developers",
         author_email="avocado-devel@redhat.com",

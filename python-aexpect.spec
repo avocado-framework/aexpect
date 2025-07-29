@@ -22,7 +22,7 @@
 %global with_tests 0
 
 Name: python-aexpect
-Version: 1.7.0
+Version: 1.8.0
 Release: 1%{?gitrel}%{?dist}
 Summary: Aexpect is a python library to control interactive applications
 
@@ -80,6 +80,9 @@ selftests/checkall
 %{_bindir}/aexpect_helper*
 
 %changelog
+* Tue Jul 29 2025 Lukas Doktor <ldoktor@redhat.com> - 1.8.0-1
+- New release
+
 * Tue Feb 28 2022 Lucas Meneghel Rodrigues <lmr@amazon.com> - 1.7.0-1
 - New release
 
