@@ -15,7 +15,15 @@
 
 """Aexpect setup script"""
 
+import os
 from setuptools import setup
+
+
+def get_long_description():
+    with open('README.rst', 'r') as req:
+        req_contents = req.read()
+    return req_contents
+
 
 if __name__ == "__main__":
     setup(
@@ -24,6 +32,8 @@ if __name__ == "__main__":
         description="Aexpect",
         author="Aexpect developers",
         author_email="avocado-devel@redhat.com",
+        long_description=get_long_description(),
+        long_description_content_type="text/markdown",
         url="http://avocado-framework.github.io/",
         license="GPLv2+",
         classifiers=[
