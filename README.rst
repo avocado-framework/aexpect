@@ -59,6 +59,12 @@ Simple usage
     >>> session.is_responsive()
     False
 
+To get more information use the python `help()` command on various objects,
+we do keep our docstrings updated. To get details about all `aexpect.client`
+objects simply run `python -c "import aexpect; [print(f'\n{name}\n{len(name)
+* '='}', func.__doc__) for name, func in aexpect.__dict__.items() if
+hasattr(func, '__doc__')]"`
+
 Debugging
 ---------
 
