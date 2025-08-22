@@ -14,12 +14,12 @@
 #
 # selftests pylint: disable=C0111,C0111,W0613,R0913,E1101
 
-import os
 import glob
+import html
+import os
 import re
 import shutil
 import unittest.mock
-import html
 
 from aexpect import client, remote, remote_door
 from aexpect.client import RemoteSession

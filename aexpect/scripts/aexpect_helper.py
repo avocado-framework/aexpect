@@ -15,21 +15,23 @@
 Helper script that runs and interacts with the process executed by aexpect
 """
 
-import os
-import sys
 import logging
+import os
 import pty
-import tempfile
 import select
+import sys
+import tempfile
 
-from aexpect.shared import BASE_DIR
-from aexpect.shared import get_filenames
-from aexpect.shared import get_reader_filename
-from aexpect.shared import get_lock_fd
-from aexpect.shared import unlock_fd
-from aexpect.shared import wait_for_lock
-from aexpect.shared import makestandard
-from aexpect.shared import makeraw
+from aexpect.shared import (
+    BASE_DIR,
+    get_filenames,
+    get_lock_fd,
+    get_reader_filename,
+    makeraw,
+    makestandard,
+    unlock_fd,
+    wait_for_lock,
+)
 
 
 def main():  # too-many-* pylint:disable=R0914,R0912,R0915

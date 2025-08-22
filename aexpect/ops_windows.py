@@ -33,12 +33,12 @@ network ops:
 Network configuration and downloads.
 """
 
+import logging
 import re
 import uuid
-import logging
-from textwrap import dedent
 from base64 import b64encode
 from enum import Enum, auto
+from textwrap import dedent
 
 # avocado imports
 from aexpect.exceptions import ShellError, ShellProcessTerminatedError
