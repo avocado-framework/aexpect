@@ -25,11 +25,11 @@ all:
 
 source: clean
 	if test ! -d SOURCES; then mkdir SOURCES; fi
-	git archive --prefix="aexpect-$(COMMIT)/" -o "SOURCES/aexpect-$(SHORT_COMMIT).tar.gz" HEAD
+	git archive --prefix="$(PROJECT)-$(COMMIT)/" -o "SOURCES/$(PROJECT)-$(SHORT_COMMIT).tar.gz" HEAD
 
 source-release: clean
 	if test ! -d SOURCES; then mkdir SOURCES; fi
-	git archive --prefix="aexpect-$(VERSION)/" -o "SOURCES/aexpect-$(VERSION).tar.gz" $(VERSION)
+	git archive --prefix="$(PROJECT)-$(VERSION)/" -o "SOURCES/$(PROJECT)-$(VERSION).tar.gz" $(VERSION)
 
 install:
 	$(PYTHON) -m pip install --upgrade build
@@ -60,19 +60,19 @@ build-deb-all: prepare-source
 
 srpm: source
 	if test ! -d BUILD/SRPM; then mkdir -p BUILD/SRPM; fi
-	mock -r $(MOCK_CONFIG) --resultdir BUILD/SRPM -D "rel_build 0" -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --buildsrpm --spec python-aexpect.spec --sources SOURCES
+	mock -r $(MOCK_CONFIG) --resultdir BUILD/SRPM -D "rel_build 0" -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --buildsrpm --spec python-$(PROJECT).spec --sources SOURCES
 
 rpm: srpm
 	if test ! -d BUILD/RPM; then mkdir -p BUILD/RPM; fi
-	mock -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 0" -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --rebuild BUILD/SRPM/python-aexpect-$(VERSION)-*.src.rpm
+	mock -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 0" -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --rebuild BUILD/SRPM/python-$(PROJECT)-$(VERSION)-*.src.rpm
 
 srpm-release: source-release
 	if test ! -d BUILD/SRPM; then mkdir -p BUILD/SRPM; fi
-	mock -r $(MOCK_CONFIG) --resultdir BUILD/SRPM -D "rel_build 1" --buildsrpm --spec python-aexpect.spec --sources SOURCES
+	mock -r $(MOCK_CONFIG) --resultdir BUILD/SRPM -D "rel_build 1" --buildsrpm --spec python-$(PROJECT).spec --sources SOURCES
 
 rpm-release: srpm-release
 	if test ! -d BUILD/RPM; then mkdir -p BUILD/RPM; fi
-	mock -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 1" --rebuild BUILD/SRPM/python-aexpect-$(VERSION)-*.src.rpm
+	mock -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 1" --rebuild BUILD/SRPM/python-$(PROJECT)-$(VERSION)-*.src.rpm
 
 check: clean
 	inspekt checkall --disable-lint R0917,R0205,R0801,W4901,W0703,W0511 --disable-style E203,E501,E265,W601,E402 --exclude .venv*
