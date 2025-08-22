@@ -86,6 +86,6 @@ clean:
 	find . -name '*.pyc' -delete
 	find . -name '__pycache__' -delete
 
-
-.PHONY: source install clean
+.PHONY: all source source-release install develop pypi check clean \
+	build-deb-src build-deb-bin build-deb-all srpm rpm srpm-release rpm-release prepare-source
 
