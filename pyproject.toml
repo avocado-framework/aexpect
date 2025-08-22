@@ -44,3 +44,15 @@ include = ["aexpect*"]
 [tool.setuptools_scm]
 version_scheme = "post-release"
 local_scheme = "node-and-date"
+
+[tool.black]
+line-length = 79
+target-version = ["py38", "py39", "py310", "py311", "py312", "py313"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.isort]
+profile = "black"
+line_length = 79
