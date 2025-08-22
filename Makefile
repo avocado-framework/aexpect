@@ -1,8 +1,6 @@
 PYTHON=$(shell which python 2>/dev/null || which python3 2>/dev/null)
-DESTDIR=/
-BUILDIR=$(CURDIR)/debian/aexpect
 PROJECT=aexpect
-VERSION="1.8.0"
+VERSION=$(shell $(PYTHON) -m setuptools_scm)
 COMMIT=$(shell git log --pretty=format:'%H' -n 1)
 SHORT_COMMIT=$(shell git log --pretty=format:'%h' -n 1)
 COMMIT_DATE=$(shell git log --pretty='format:%cd' --date='format:%Y%m%d' -n 1)
@@ -34,13 +32,18 @@ source-release: clean
 	git archive --prefix="aexpect-$(VERSION)/" -o "SOURCES/aexpect-$(VERSION).tar.gz" $(VERSION)
 
 install:
-	$(PYTHON) setup.py install --root $(DESTDIR) $(COMPILE)
+	$(PYTHON) -m pip install --upgrade build
+	$(PYTHON) -m build
+	$(PYTHON) -m pip install dist/*.whl
+
+develop:
+	$(PYTHON) -m pip install --editable .[dev]
 
 prepare-source:
 	# build the source package in the parent directory
 	# then rename it to project_version.orig.tar.gz
 	dch -D "utopic" -M -v "$(VERSION)" "Automated (make builddeb) build."
-	$(PYTHON) setup.py sdist $(COMPILE) --dist-dir=../
+	$(PYTHON) -m build --sdist --outdir ../
 	rename -f 's/$(PROJECT)-(.*)\.tar\.gz/$(PROJECT)_$$1\.orig\.tar\.gz/' ../*
 
 build-deb-src: prepare-source
@@ -78,23 +81,18 @@ check: clean
 	$(PYTHON) -m pytest tests
 
 clean:
-	$(PYTHON) setup.py clean
 	$(MAKE) -f $(CURDIR)/debian/rules clean || true
-	rm -rf build/ MANIFEST BUILD BUILDROOT SPECS RPMS SRPMS SOURCES
+	rm -rf .venv* .mypy_cache *.egg-info MANIFEST BUILD BUILDROOT SPECS RPMS SRPMS SOURCES dist
 	find . -name '*.pyc' -delete
+	find . -name '__pycache__' -delete
 
 pypi: clean
-	if test ! -d PYPI_UPLOAD; then mkdir PYPI_UPLOAD; fi
-	$(PYTHON) setup.py bdist_wheel -d PYPI_UPLOAD
-	$(PYTHON) setup.py sdist -d PYPI_UPLOAD
+	$(PYTHON) -m build
 	@echo
-	@echo "Please use the files on PYPI_UPLOAD dir to upload a new version to PyPI"
-	@echo "The URL to do that may be a bit tricky to find, so here it is:"
-	@echo " https://pypi.python.org/pypi?%3Aaction=submit_form"
 	@echo
-	@echo "Alternatively, you can also run a command like: "
-	@echo " twine upload -u <PYPI_USERNAME> PYPI_UPLOAD/*.{tar.gz,whl}"
-	@echo
+	@echo "Use 'python3 -m twine upload dist/*'"
+	@echo "to upload this release"
+
 
 .PHONY: source install clean
 
