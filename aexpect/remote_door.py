@@ -57,13 +57,13 @@ INTERFACE
 # disable too-many/few-* as we need them pylint: disable=R0903,R0912,R0913,R0914,R0915,R0917,C0302
 # ..todo:: we could reduce the disabled issues after more significant refactoring
 
+import importlib
+import inspect
+import logging
 import os
 import re
-import logging
-import inspect
-import importlib
-import threading
 import tempfile
+import threading
 import time
 
 # NOTE: enable this before importing the Pyro backend in order to debug issues
@@ -72,13 +72,10 @@ import time
 try:
     try:
         # noinspection PyPackageRequirements,PyUnresolvedReferences
+        # noinspection PyPackageRequirements
+        # noinspection PyPackageRequirements
+        from Pyro5 import nameserver, server
         from Pyro5.compatibility import Pyro4
-
-        # noinspection PyPackageRequirements
-        from Pyro5 import server
-
-        # noinspection PyPackageRequirements
-        from Pyro5 import nameserver
 
         NS_MODULE = "Pyro5.nameserver"
     except ImportError:

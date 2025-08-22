@@ -1,0 +1,5 @@
+prune debian
+prune .github
+prune tests
+prune docs
+global-exclude *.py[cod] __pycache__ *.so *.spec *.txt .gitignore MANIFEST.in Makefile
