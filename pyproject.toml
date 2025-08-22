@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aexpect"
+description = "Python library used to control interactive programs"
+readme = "README.rst"
+dynamic = ["version"]
+license = {text = "GPL-2.0-or-later"}
+authors = [{name = "Aexpect developers", email = "avocado-devel@redhat.com"}]
+maintainers = [{name = "Aexpect developers", email = "avocado-devel@redhat.com"}]
+requires-python = ">=3.6"
+classifiers = [
+    "Development Status :: 6 - Mature",
+    "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
+    "Natural Language :: English",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/avocado-framework/aexpect"
+Repository = "https://github.com/avocado-framework/aexpect"
+Issues = "https://github.com/avocado-framework/aexpect/issues"
+
+[project.optional-dependencies]
+test = ["pytest>=6.0"]
+lint = ["black", "pycodestyle", "isort", "inspektor"]
+dev = ["aexpect[test,lint]", "setuptools-scm>=8", "build", "twine"]
+
+[project.scripts]
+aexpect_helper = "aexpect.scripts.aexpect_helper:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aexpect*"]
+exclude = ["debian*", "docs*", "tests*", ".github*"]
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "node-and-date"
