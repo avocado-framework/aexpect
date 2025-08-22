@@ -43,16 +43,15 @@ Example usage:
 # ..todo:: we could reduce the disabled issues after more significant refactoring
 
 from __future__ import division
+
 import logging
-import time
 import re
 import shlex
+import time
 
-from aexpect.client import Expect
-from aexpect.client import RemoteSession
-from aexpect.exceptions import ExpectTimeoutError
-from aexpect.exceptions import ExpectProcessTerminatedError
 from aexpect import rss_client
+from aexpect.client import Expect, RemoteSession
+from aexpect.exceptions import ExpectProcessTerminatedError, ExpectTimeoutError
 
 LOG = logging.getLogger(__name__)
 

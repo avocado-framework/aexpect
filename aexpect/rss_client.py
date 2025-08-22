@@ -25,13 +25,14 @@ Client for file transfer services offered by RSS (Remote Shell Server).
 # ..todo:: we could reduce the disabled issues after more significant refactoring
 
 from __future__ import division, print_function
+
+import argparse
+import glob
+import os
 import socket
 import struct
-import time
 import sys
-import os
-import glob
-import argparse
+import time
 
 # Globals
 CHUNKSIZE = 65536
