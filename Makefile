@@ -76,9 +76,9 @@ rpm-release: srpm-release
 
 check: clean
 	inspekt checkall --disable-lint R0917,R0205,R0801,W4901,W0703,W0511 --disable-style E203,E501,E265,W601,E402 --exclude .venv*
-	$(PYTHON) -m black --line-length 79 --check -- $(shell git ls-files -- "*.py")
-	$(PYTHON) -m pip install -e .
-	$(PYTHON) -m pytest tests
+	$(PYTHON) -m black --check -- $(shell git ls-files -- "*.py")
+	$(PYTHON) -m isort --check-only -- $(shell git ls-files -- "*.py")
+	$(PYTHON) -m pytest
 
 clean:
 	$(MAKE) -f $(CURDIR)/debian/rules clean || true

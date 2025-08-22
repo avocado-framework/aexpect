@@ -41,3 +41,14 @@ exclude = ["debian*", "docs*", "tests*", ".github*"]
 [tool.setuptools_scm]
 version_scheme = "post-release"
 local_scheme = "node-and-date"
+
+[tool.black]
+line-length = 79
+target-version = ["py38"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.isort]
+profile = "black"
