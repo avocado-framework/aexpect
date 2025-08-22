@@ -24,11 +24,11 @@ all:
 	@echo "rpm-release:        Generate binary RPMs for the latest tagged release"
 
 source: clean
-	if test ! -d SOURCES; then mkdir SOURCES; fi
+	mkdir -p SOURCES
 	git archive --prefix="$(PROJECT)-$(COMMIT)/" -o "SOURCES/$(PROJECT)-$(SHORT_COMMIT).tar.gz" HEAD
 
 source-release: clean
-	if test ! -d SOURCES; then mkdir SOURCES; fi
+	mkdir -p SOURCES
 	git archive --prefix="$(PROJECT)-$(VERSION)/" -o "SOURCES/$(PROJECT)-$(VERSION).tar.gz" $(VERSION)
 
 install:
@@ -59,19 +59,19 @@ build-deb-all: prepare-source
 	dpkg-buildpackage -i -I -rfakeroot
 
 srpm: source
-	if test ! -d BUILD/SRPM; then mkdir -p BUILD/SRPM; fi
+	mkdir -p BUILD/SRPM
 	mock -r $(MOCK_CONFIG) --resultdir BUILD/SRPM -D "rel_build 0" -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --buildsrpm --spec python-$(PROJECT).spec --sources SOURCES
 
 rpm: srpm
-	if test ! -d BUILD/RPM; then mkdir -p BUILD/RPM; fi
+	mkdir -p BUILD/RPM
 	mock -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 0" -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --rebuild BUILD/SRPM/python-$(PROJECT)-$(VERSION)-*.src.rpm
 
 srpm-release: source-release
-	if test ! -d BUILD/SRPM; then mkdir -p BUILD/SRPM; fi
+	mkdir -p BUILD/SRPM
 	mock -r $(MOCK_CONFIG) --resultdir BUILD/SRPM -D "rel_build 1" --buildsrpm --spec python-$(PROJECT).spec --sources SOURCES
 
 rpm-release: srpm-release
-	if test ! -d BUILD/RPM; then mkdir -p BUILD/RPM; fi
+	mkdir -p BUILD/RPM
 	mock -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 1" --rebuild BUILD/SRPM/python-$(PROJECT)-$(VERSION)-*.src.rpm
 
 check: clean
