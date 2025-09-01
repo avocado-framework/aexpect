@@ -11,9 +11,9 @@
 
 """Process handling helpers"""
 
-import subprocess
-import signal
 import os
+import signal
+import subprocess
 
 
 def getoutput(cmd):

@@ -11,8 +11,8 @@
 
 """Some shared functions"""
 
-import os
 import fcntl
+import os
 import termios
 import time
 
