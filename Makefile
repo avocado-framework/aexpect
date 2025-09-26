@@ -28,15 +28,17 @@ source-release: clean
 	git archive --prefix="$(PROJECT)-$(VERSION)/" -o "SOURCES/$(PROJECT)-$(VERSION).tar.gz" $(VERSION)
 
 install:
-	$(PYTHON) -m pip install --upgrade build
+	rm -r dist 2>/dev/null || true
+	$(PYTHON) -m pip install --upgrade pip build wheel
 	$(PYTHON) -m build
-	$(PYTHON) -m pip install dist/*.whl
+	$(PYTHON) -m pip install --no-deps --force-reinstall dist/*.whl
 
 develop:
 	$(PYTHON) -m pip install --editable .[dev]
 
 pypi: clean
 	$(PYTHON) -m build
+	$(PYTHON) -m twine check dist/*
 	@echo
 	@echo
 	@echo "Use 'python3 -m twine upload dist/*'"
@@ -48,6 +50,8 @@ check: clean
 	$(PYTHON) -m black --check -- $(shell git ls-files -- "*.py")
 	$(PYTHON) -m isort --check-only -- $(shell git ls-files -- "*.py")
 	$(PYTHON) -m pytest
+
+test: check
 
 # --- Distro packaging (unchanged except cosmetic) ---
 prepare-source:
@@ -82,10 +86,10 @@ rpm-release: srpm-release
 
 clean:
 	$(MAKE) -f $(CURDIR)/debian/rules clean || true
-	rm -rf .venv* .mypy_cache *.egg-info MANIFEST BUILD BUILDROOT SPECS RPMS SRPMS SOURCES dist
+	rm -rf .mypy_cache *.egg-info MANIFEST BUILD BUILDROOT SPECS RPMS SRPMS SOURCES dist
 	find . -name '*.pyc' -delete
 	find . -name '__pycache__' -delete
 
-.PHONY: all source source-release install develop pypi check clean \
+.PHONY: all source source-release install develop pypi check test clean \
 	build-deb-src build-deb-bin build-deb-all srpm rpm srpm-release rpm-release prepare-source
 
