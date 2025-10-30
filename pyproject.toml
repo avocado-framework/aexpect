@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aexpect"
+description = "Python library used to control interactive programs"
+readme = "README.rst"
+dynamic = ["version"]
+license = "GPL-2.0-or-later"
+authors = [{name = "Aexpect developers", email = "avocado-devel@redhat.com"}]
+maintainers = [{name = "Aexpect developers", email = "avocado-devel@redhat.com"}]
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 6 - Mature",
+    "Natural Language :: English",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/avocado-framework/aexpect"
+Repository = "https://github.com/avocado-framework/aexpect"
+Issues = "https://github.com/avocado-framework/aexpect/issues"
+
+[project.optional-dependencies]
+test = ["pytest>=6.0"]
+lint = ["black", "pycodestyle", "isort", "inspektor"]
+dev = ["aexpect[test,lint]", "setuptools-scm>=8", "build", "twine"]
+
+[project.scripts]
+aexpect_helper = "aexpect.scripts.aexpect_helper:main"
+
+[tool.setuptools.packages.find]
+include = ["aexpect*"]
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "node-and-date"
+
+[tool.black]
+line-length = 79
+target-version = ["py38", "py39", "py310", "py311", "py312", "py313"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.isort]
+profile = "black"
+line_length = 79

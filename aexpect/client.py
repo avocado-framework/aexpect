@@ -17,38 +17,39 @@ API used to run/control interactive processes.
 
 # disable too-many-* as we need them pylint: disable=R0902,R0913,R0914,C0302
 
-import time
-import signal
-import os
-import re
-import threading
-import shutil
-import select
-import subprocess
 import locale
 import logging
+import os
+import re
+import select
+import shutil
+import signal
+import subprocess
+import threading
+import time
 
-from aexpect.exceptions import ExpectError
-from aexpect.exceptions import ExpectProcessTerminatedError
-from aexpect.exceptions import ExpectTimeoutError
-from aexpect.exceptions import ShellCmdError
-from aexpect.exceptions import ShellError
-from aexpect.exceptions import ShellProcessTerminatedError
-from aexpect.exceptions import ShellStatusError
-from aexpect.exceptions import ShellTimeoutError
-
-from aexpect.shared import BASE_DIR
-from aexpect.shared import get_filenames
-from aexpect.shared import get_reader_filename
-from aexpect.shared import get_lock_fd
-from aexpect.shared import is_file_locked
-from aexpect.shared import unlock_fd
-from aexpect.shared import wait_for_lock
-
-from aexpect.utils import astring
-from aexpect.utils import data_factory
-from aexpect.utils import process as utils_process
+from aexpect.exceptions import (
+    ExpectError,
+    ExpectProcessTerminatedError,
+    ExpectTimeoutError,
+    ShellCmdError,
+    ShellError,
+    ShellProcessTerminatedError,
+    ShellStatusError,
+    ShellTimeoutError,
+)
+from aexpect.shared import (
+    BASE_DIR,
+    get_filenames,
+    get_lock_fd,
+    get_reader_filename,
+    is_file_locked,
+    unlock_fd,
+    wait_for_lock,
+)
+from aexpect.utils import astring, data_factory
 from aexpect.utils import path as utils_path
+from aexpect.utils import process as utils_process
 from aexpect.utils import wait as utils_wait
 
 _THREAD_KILL_REQUESTED = threading.Event()

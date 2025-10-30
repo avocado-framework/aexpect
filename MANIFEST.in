@@ -1,0 +1,4 @@
+prune debian
+prune .github
+prune docs
+global-exclude *.py[cod] __pycache__ *.so *.spec *.txt .gitignore

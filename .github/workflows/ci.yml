@@ -20,4 +20,5 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -r requirements-travis.txt
+      - run: make install
       - run: make check
