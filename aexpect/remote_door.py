@@ -77,7 +77,7 @@ try:
         from Pyro5 import nameserver, server
         from Pyro5.compatibility import Pyro4
 
-        NS_MODULE = "Pyro5.nameserver"
+        NS_MODULE = "Pyro5.nameserver"  # pylint: disable=C0103
     except ImportError:
         # noinspection PyPackageRequirements,PyUnresolvedReferences
         import Pyro4
@@ -99,14 +99,14 @@ try:
         from Pyro4 import naming as nameserver
 
         nameserver.start_ns = nameserver.startNS
-        NS_MODULE = "Pyro4.naming"
+        NS_MODULE = "Pyro4.naming"  # pylint: disable=C0103
 
 except ImportError:
     logging.warning(
         "Remote object backend (Pyro4) not found, some functionality"
         " of the remote door will not be available"
     )
-    NS_MODULE = ""
+    NS_MODULE = ""  # pylint: disable=C0103
 
 # NOTE: disable aexpect importing on the remote side if not available as the
 # remote door can run code remotely without the requirement for the aexpect
