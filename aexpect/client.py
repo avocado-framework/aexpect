@@ -1102,7 +1102,9 @@ class Expect(Tail):
         def _get_last_nonempty_line(cont):
             nonempty_lines = [_ for _ in cont.splitlines() if _.strip()]
             if nonempty_lines:
-                return nonempty_lines[-1]
+                # Removing escape sequence from the last element of nonempty_lines
+                nonempty_last_no_escape = astring.strip_console_codes(nonempty_lines[-1])
+                return nonempty_last_no_escape
             return ""
 
         return self.read_until_output_matches(
