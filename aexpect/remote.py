@@ -662,6 +662,7 @@ def remote_copy(
     log_function=None,
     transfer_timeout=600,
     login_timeout=300,
+    tries=1,
 ):
     """
     Transfer files using rsync or SCP, given a command line.
@@ -677,25 +678,67 @@ def remote_copy(
     :param login_timeout: The maximal time duration (in seconds) to wait for
             each step of the login procedure (i.e. the "Are you sure" prompt
             or the password prompt)
+    :param tries: Number of attempts to make to deal with transient errors like
+                  timeouts and connection issues.
     """
-    LOG.debug(
-        "Trying to copy with command '%s', timeout %ss",
-        command,
-        transfer_timeout,
-    )
-    if log_filename:
-        output_func = log_function
-        output_params = (log_filename,)
-    else:
-        output_func = None
-        output_params = ()
     method = "rsync" if "rsync" in command else "scp"
-    with Expect(
-        command, output_func=output_func, output_params=output_params
-    ) as session:
-        _remote_copy(
-            session, password_list, transfer_timeout, login_timeout, method
-        )
+
+    for attempt in range(tries):
+        try:
+            LOG.debug(
+                "Trying to copy with command '%s', timeout %ss (attempt %d/%d)",
+                command,
+                transfer_timeout,
+                attempt + 1,
+                tries,
+            )
+            if log_filename:
+                output_func = log_function
+                output_params = (log_filename,)
+            else:
+                output_func = None
+                output_params = ()
+            with Expect(
+                command, output_func=output_func, output_params=output_params
+            ) as session:
+                _remote_copy(
+                    session,
+                    password_list,
+                    transfer_timeout,
+                    login_timeout,
+                    method,
+                )
+            return  # transfer is successful
+        except (
+            TransferTimeoutError,
+            AuthenticationTimeoutError,
+            ExpectTimeoutError,
+        ) as error:
+            if attempt < tries - 1:
+                LOG.debug(
+                    "Transient error on attempt %d/%d, retrying: %s",
+                    attempt + 1,
+                    tries,
+                    error,
+                )
+                time.sleep(1)  # small delay before retry
+            else:
+                raise
+        except (TransferFailedError, SCPError, RsyncError) as error:
+            # For transfer failures, only retry on specific conditions
+            if "Connection" in str(error) or "timeout" in str(error).lower():
+                if attempt < tries - 1:
+                    LOG.debug(
+                        "Connection error on attempt %d/%d, retrying: %s",
+                        attempt + 1,
+                        tries,
+                        error,
+                    )
+                    time.sleep(1)  # small delay before retry
+                else:
+                    raise
+            else:
+                raise
 
 
 def scp_to_remote(
@@ -711,6 +754,7 @@ def scp_to_remote(
     log_function=None,
     timeout=600,
     interface=None,
+    tries=1,
 ):
     """
     Copy files to a remote host (guest) through scp.
@@ -729,6 +773,8 @@ def scp_to_remote(
                     to complete.
     :param interface: The interface the neighbours attach to (only use when using
                       ipv6 linklocal address).
+    :param tries: Number of attempts to make to deal with transient errors like
+                  timeouts and connection issues.
     """
     if limit:
         limit = f"-l {limit}"
@@ -753,7 +799,12 @@ def scp_to_remote(
     )
     password_list = [password]
     return remote_copy(
-        command, password_list, log_filename, log_function, timeout
+        command,
+        password_list,
+        log_filename,
+        log_function,
+        timeout,
+        tries=tries,
     )
 
 
@@ -770,6 +821,7 @@ def scp_from_remote(
     log_function=None,
     timeout=600,
     interface=None,
+    tries=1,
 ):
     """
     Copy files from a remote host (guest).
@@ -788,6 +840,8 @@ def scp_from_remote(
                     to complete.
     :param interface: The interface the neighbours attach to (only use when
                       using ipv6 linklocal address).
+    :param tries: Number of attempts to make to deal with transient errors like
+                  timeouts and connection issues.
     """
     if limit:
         limit = f"-l {limit}"
@@ -810,7 +864,14 @@ def scp_from_remote(
         rf"{shlex.quote(local_path)}"
     )
     password_list = [password]
-    remote_copy(command, password_list, log_filename, log_function, timeout)
+    remote_copy(
+        command,
+        password_list,
+        log_filename,
+        log_function,
+        timeout,
+        tries=tries,
+    )
 
 
 def scp_between_remotes(
@@ -830,6 +891,7 @@ def scp_between_remotes(
     timeout=600,
     src_inter=None,
     dst_inter=None,
+    tries=1,
 ):
     """
     Copy files from a remote host (guest) to another remote host (guest).
@@ -851,6 +913,8 @@ def scp_between_remotes(
                     to complete.
     :param src_inter: The interface on local that the src neighbour attached
     :param dst_inter: The interface on the src that the dst neighbour attached
+    :param tries: Number of attempts to make to deal with transient errors like
+                  timeouts and connection issues.
 
     :return: True on success and False on failure.
     """
@@ -883,7 +947,12 @@ def scp_between_remotes(
     )
     password_list = [s_passwd, d_passwd]
     return remote_copy(
-        command, password_list, log_filename, log_function, timeout
+        command,
+        password_list,
+        log_filename,
+        log_function,
+        timeout,
+        tries=tries,
     )
 
 
@@ -900,6 +969,7 @@ def rsync_to_remote(
     log_function=None,
     timeout=600,
     interface=None,
+    tries=1,
 ):
     """
     Copy files to a remote host (guest) through rsync.
@@ -918,6 +988,8 @@ def rsync_to_remote(
                     to complete.
     :param interface: The interface the neighbours attach to (only use when using
                       ipv6 linklocal address).
+    :param tries: Number of attempts to make to deal with transient errors like
+                  timeouts and connection issues.
     :raise: Whatever remote_rsync() raises
     """
     if limit:
@@ -941,7 +1013,12 @@ def rsync_to_remote(
     )
     password_list = [password]
     return remote_copy(
-        command, password_list, log_filename, log_function, timeout
+        command,
+        password_list,
+        log_filename,
+        log_function,
+        timeout,
+        tries=tries,
     )
 
 
@@ -958,6 +1035,7 @@ def rsync_from_remote(
     log_function=None,
     timeout=600,
     interface=None,
+    tries=1,
 ):
     """
     Copy files from a remote host (guest) through rsync.
@@ -976,6 +1054,8 @@ def rsync_from_remote(
                     to complete.
     :param interface: The interface the neighbours attach to (only use when
                       using ipv6 linklocal address).
+    :param tries: Number of attempts to make to deal with transient errors like
+                  timeouts and connection issues.
     :raise: Whatever remote_rsync() raises
     """
     if limit:
@@ -997,7 +1077,14 @@ def rsync_from_remote(
         f"{username}@{host}:{quote_path(remote_path)} {shlex.quote(local_path)}"
     )
     password_list = [password]
-    remote_copy(command, password_list, log_filename, log_function, timeout)
+    remote_copy(
+        command,
+        password_list,
+        log_filename,
+        log_function,
+        timeout,
+        tries=tries,
+    )
 
 
 # noinspection PyBroadException
@@ -1284,6 +1371,7 @@ def scp_to_session(
     log_function=None,
     timeout=600,
     interface=None,
+    tries=1,
 ):
     """
     Secure copy a filepath (w/o wildcard) to a remote location with the same
@@ -1299,6 +1387,8 @@ def scp_to_session(
     :param log_function: Function to perform logging
     :param timeout: Timeout for the scp operation
     :param interface: Interface used for the transfer
+    :param tries: Number of attempts to make to deal with transient errors like
+                  timeouts and connection issues.
 
     The rest of the arguments are identical to scp_to_remote().
     """
@@ -1315,6 +1405,7 @@ def scp_to_session(
         log_function,
         timeout,
         interface,
+        tries,
     )
 
 
@@ -1328,6 +1419,7 @@ def scp_from_session(
     log_function=None,
     timeout=600,
     interface=None,
+    tries=1,
 ):
     """
     Secure copy a filepath (w/o wildcard) from a remote location with the same
@@ -1343,6 +1435,8 @@ def scp_from_session(
     :param log_function: Function to perform logging
     :param timeout: Timeout for the scp operation
     :param interface: Interface used for the transfer
+    :param tries: Number of attempts to make to deal with transient errors like
+                  timeouts and connection issues.
 
     The rest of the arguments are identical to scp_from_remote().
     """
@@ -1359,6 +1453,7 @@ def scp_from_session(
         log_function,
         timeout,
         interface,
+        tries,
     )
 
 
@@ -1406,6 +1501,7 @@ def copy_files_to(
     timeout=600,
     interface=None,
     filesize=None,  # pylint: disable=unused-argument
+    tries=1,
 ):
     """
     Copy files to a remote host (guest) using the selected client.
@@ -1427,6 +1523,8 @@ def copy_files_to(
     :param interface: The interface the neighbours attach to (only use when
                       using ipv6 linklocal address.)
     :param filesize: size of file will be transferred
+    :param tries: Number of attempts to make to deal with transient errors like
+                  timeouts and connection issues.
     """
     if client == "scp":
         scp_to_remote(
@@ -1442,6 +1540,7 @@ def copy_files_to(
             log_function,
             timeout,
             interface=interface,
+            tries=tries,
         )
     elif client == "rsync":
         rsync_to_remote(
@@ -1457,6 +1556,7 @@ def copy_files_to(
             log_function,
             timeout,
             interface=interface,
+            tries=tries,
         )
     elif client == "rss":
         log_func = None
@@ -1464,9 +1564,23 @@ def copy_files_to(
             log_func = LOG.debug
         if interface:
             address = f"{address}%{interface}"
-        fdclient = rss_client.FileUploadClient(address, port, log_func)
-        fdclient.upload(local_path, remote_path, timeout)
-        fdclient.close()
+        for attempt in range(tries):
+            try:
+                fdclient = rss_client.FileUploadClient(address, port, log_func)
+                fdclient.upload(local_path, remote_path, timeout)
+                fdclient.close()
+                return  # transfer is successful
+            except Exception as error:  # pylint: disable=broad-except
+                if attempt < tries - 1:
+                    LOG.debug(
+                        "RSS upload failed on attempt %d/%d, retrying: %s",
+                        attempt + 1,
+                        tries,
+                        error,
+                    )
+                    time.sleep(1)  # small delay before retry
+                else:
+                    raise
     else:
         raise TransferBadClientError(client)
 
@@ -1489,6 +1603,7 @@ def copy_files_from(
     timeout=600,
     interface=None,
     filesize=None,  # pylint: disable=unused-argument
+    tries=1,
 ):
     """
     Copy files from a remote host (guest) using the selected client.
@@ -1510,6 +1625,8 @@ def copy_files_from(
     :param interface: The interface the neighbours attach to (only
                       use when using ipv6 linklocal address.)
     :param filesize: size of file will be transferred
+    :param tries: Number of attempts to make to deal with transient errors like
+                  timeouts and connection issues.
     """
     if client == "scp":
         scp_from_remote(
@@ -1525,6 +1642,7 @@ def copy_files_from(
             log_function,
             timeout,
             interface=interface,
+            tries=tries,
         )
     elif client == "rsync":
         rsync_from_remote(
@@ -1540,6 +1658,7 @@ def copy_files_from(
             log_function,
             timeout,
             interface=interface,
+            tries=tries,
         )
     elif client == "rss":
         log_func = None
@@ -1547,8 +1666,24 @@ def copy_files_from(
             log_func = LOG.debug
         if interface:
             address = f"{address}%{interface}"
-        fdclient = rss_client.FileDownloadClient(address, port, log_func)
-        fdclient.download(remote_path, local_path, timeout)
-        fdclient.close()
+        for attempt in range(tries):
+            try:
+                fdclient = rss_client.FileDownloadClient(
+                    address, port, log_func
+                )
+                fdclient.download(remote_path, local_path, timeout)
+                fdclient.close()
+                return  # transfer is successful
+            except Exception as error:  # pylint: disable=broad-except
+                if attempt < tries - 1:
+                    LOG.debug(
+                        "RSS download failed on attempt %d/%d, retrying: %s",
+                        attempt + 1,
+                        tries,
+                        error,
+                    )
+                    time.sleep(1)  # small delay before retry
+                else:
+                    raise
     else:
         raise TransferBadClientError(client)
