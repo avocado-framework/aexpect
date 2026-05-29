@@ -1107,6 +1107,7 @@ def nc_copy_between_remotes(
     s_session=None,
     d_session=None,
     file_transfer_timeout=600,
+    tries=1,
 ):
     """
     Copy files from guest to guest using netcat.
@@ -1132,59 +1133,91 @@ def nc_copy_between_remotes(
     :param d_session: A shell session object for dst or None.
     :param check_sum: Whether to run checksum for the operation.
     :param file_transfer_timeout: Timeout for file transfer.
-
+    :param tries: Number of attempts to make to deal with transient errors like
+                  timeouts and connection issues.
     :return: True on success and False on failure.
     """
-    check_string = "NCFT"
-    if not s_session:
-        s_session = remote_login(
-            c_type, src, s_port, s_name, s_passwd, c_prompt
-        )
-    if not d_session:
-        d_session = remote_login(
-            c_type, dst, s_port, d_name, d_passwd, c_prompt
-        )
+    for attempt in range(tries):
+        try:
+            check_string = "NCFT"
+            if not s_session:
+                s_session = remote_login(
+                    c_type, src, s_port, s_name, s_passwd, c_prompt
+                )
+            if not d_session:
+                d_session = remote_login(
+                    c_type, dst, s_port, d_name, d_passwd, c_prompt
+                )
 
-    try:
-        s_session.cmd(f"iptables -I INPUT -p {d_protocol} -j ACCEPT")
-        d_session.cmd(f"iptables -I OUTPUT -p {d_protocol} -j ACCEPT")
-    except Exception:  # pylint: disable=W0703
-        pass
+            try:
+                s_session.cmd(f"iptables -I INPUT -p {d_protocol} -j ACCEPT")
+                d_session.cmd(f"iptables -I OUTPUT -p {d_protocol} -j ACCEPT")
+            except Exception:  # pylint: disable=W0703
+                pass
 
-    LOG.info("Transfer data using netcat from %s to %s", src, dst)
-    cmd = f"nc -w {timeout}"
-    if d_protocol == "udp":
-        cmd += " -u"
-    receive_cmd = f"echo {check_string} | {cmd} -l {d_port} > {d_path}"
-    d_session.sendline(receive_cmd)
-    send_cmd = f"{cmd} {dst} {d_port} < {s_path}"
-    status, output = s_session.cmd_status_output(
-        send_cmd, timeout=file_transfer_timeout
-    )
-    if status:
-        err = f"Fail to transfer file between {src} -> {dst}."
-        if check_string not in output:
-            err += (
-                "src did not receive check "
-                f"string {check_string} sent by dst."
+            LOG.info(
+                "Transfer data using netcat from %s to %s (attempt %d/%d)",
+                src,
+                dst,
+                attempt + 1,
+                tries,
             )
-        err += f"send nc command {send_cmd}, output {output}"
-        err += f"Receive nc command {receive_cmd}."
-        raise NetcatTransferFailedError(status, err)
-
-    if check_sum:
-        LOG.info("md5sum cmd = md5sum %s", s_path)
-        output = s_session.cmd(f"md5sum {s_path}")
-        src_md5 = output.split()[0]
-        dst_md5 = d_session.cmd(f"md5sum {d_path}").split()[0]
-        if src_md5.strip() != dst_md5.strip():
-            err_msg = (
-                "Files md5sum mismatch, "
-                f"file {s_path} md5sum is '{src_md5}', "
-                f"but the file {d_path} md5sum is {dst_md5}"
+            cmd = f"nc -w {timeout}"
+            if d_protocol == "udp":
+                cmd += " -u"
+            receive_cmd = f"echo {check_string} | {cmd} -l {d_port} > {d_path}"
+            d_session.sendline(receive_cmd)
+            send_cmd = f"{cmd} {dst} {d_port} < {s_path}"
+            status, output = s_session.cmd_status_output(
+                send_cmd, timeout=file_transfer_timeout
             )
-            raise NetcatTransferIntegrityError(err_msg)
-    return True
+            if status:
+                err = f"Fail to transfer file between {src} -> {dst}."
+                if check_string not in output:
+                    err += (
+                        "src did not receive check "
+                        f"string {check_string} sent by dst."
+                    )
+                err += f"send nc command {send_cmd}, output {output}"
+                err += f"Receive nc command {receive_cmd}."
+                raise NetcatTransferFailedError(status, err)
+
+            if check_sum:
+                LOG.info("md5sum cmd = md5sum %s", s_path)
+                output = s_session.cmd(f"md5sum {s_path}")
+                src_md5 = output.split()[0]
+                dst_md5 = d_session.cmd(f"md5sum {d_path}").split()[0]
+                if src_md5.strip() != dst_md5.strip():
+                    err_msg = (
+                        "Files md5sum mismatch, "
+                        f"file {s_path} md5sum is '{src_md5}', "
+                        f"but the file {d_path} md5sum is {dst_md5}"
+                    )
+                    raise NetcatTransferIntegrityError(err_msg)
+            return True
+        except (
+            NetcatTransferTimeoutError,
+            NetcatTransferFailedError,
+            UDPError,
+        ) as error:
+            if attempt < tries - 1:
+                LOG.debug(
+                    "Transfer failed on attempt %d/%d, retrying: %s",
+                    attempt + 1,
+                    tries,
+                    error,
+                )
+                time.sleep(1)  # small delay before retry
+                # reset sessions for retry
+                if s_session:
+                    s_session.close()
+                if d_session:
+                    d_session.close()
+                s_session = None
+                d_session = None
+            else:
+                raise
+    return False
 
 
 def udp_copy_between_remotes(
@@ -1201,6 +1234,7 @@ def udp_copy_between_remotes(
     c_prompt="\n",
     d_port="9000",
     timeout=600,
+    tries=1,
 ):
     """
     Copy files from guest to guest using udp.
@@ -1218,9 +1252,9 @@ def udp_copy_between_remotes(
     :param c_prompt: command line prompt of remote host(guest)
     :param d_port:  the port data transfer
     :param timeout: data transfer timeout
+    :param tries: Number of attempts to make to deal with transient errors like
+                  timeouts and connection issues.
     """
-    s_session = remote_login(c_type, src, s_port, s_name, s_passwd, c_prompt)
-    d_session = remote_login(c_type, dst, s_port, d_name, d_passwd, c_prompt)
 
     def get_abs_path(session, filename, extension):
         """Return file path drive+path."""
@@ -1302,23 +1336,43 @@ def udp_copy_between_remotes(
         if server_alive(session):
             session.cmd_output_safe(stop_cmd)
 
-    try:
-        src_md5 = get_file_md5(s_session, s_path)
-        if not server_alive(s_session):
-            start_server(s_session)
-        start_client(d_session)
-        dst_md5 = get_file_md5(d_session, d_path)
-        if src_md5 != dst_md5:
-            err_msg = (
-                "Files md5sum mismatch, "
-                f"file {s_path} md5sum is '{src_md5}', "
-                f"but the file {d_path} md5sum is {dst_md5}"
+    for attempt in range(tries):
+        try:
+            s_session = remote_login(
+                c_type, src, s_port, s_name, s_passwd, c_prompt
             )
-            raise UDPError(err_msg)
-    finally:
-        stop_server(s_session)
-        s_session.close()
-        d_session.close()
+            d_session = remote_login(
+                c_type, dst, s_port, d_name, d_passwd, c_prompt
+            )
+            try:
+                src_md5 = get_file_md5(s_session, s_path)
+                if not server_alive(s_session):
+                    start_server(s_session)
+                start_client(d_session)
+                dst_md5 = get_file_md5(d_session, d_path)
+                if src_md5 != dst_md5:
+                    err_msg = (
+                        "Files md5sum mismatch, "
+                        f"file {s_path} md5sum is '{src_md5}', "
+                        f"but the file {d_path} md5sum is {dst_md5}"
+                    )
+                    raise UDPError(err_msg)
+            finally:
+                stop_server(s_session)
+                s_session.close()
+                d_session.close()
+            return  # transfer is successful
+        except UDPError as error:
+            if attempt < tries - 1:
+                LOG.debug(
+                    "UDP transfer failed on attempt %d/%d, retrying: %s",
+                    attempt + 1,
+                    tries,
+                    error,
+                )
+                time.sleep(1)  # small delay before retry
+            else:
+                raise
 
 
 def login_from_session(
