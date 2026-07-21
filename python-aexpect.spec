@@ -39,6 +39,7 @@ BuildArch: noarch
 BuildRequires: python3-devel
 BuildRequires: python3-pip
 BuildRequires: python3-setuptools
+BuildRequires: python3-setuptools_scm
 
 %description
 Aexpect is a python library used to control interactive applications, very
@@ -61,6 +62,7 @@ sftp, telnet, among others.
 %endif
 
 %build
+export SETUPTOOLS_SCM_PRETEND_VERSION=%{version}
 %pyproject_wheel
 
 %install
