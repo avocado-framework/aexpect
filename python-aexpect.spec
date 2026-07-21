@@ -37,6 +37,7 @@ Source0: %{url}/archive/%{commit}/%{gittar}
 
 BuildArch: noarch
 BuildRequires: python3-devel
+BuildRequires: python3-pip
 BuildRequires: python3-setuptools
 
 %description
