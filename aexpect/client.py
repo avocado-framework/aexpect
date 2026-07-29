@@ -57,6 +57,9 @@ _THREAD_KILL_REQUESTED = threading.Event()
 
 LOG = logging.getLogger(__name__)
 
+# Buffer size in byte for pipe reads
+READ_BUFFER_SIZE = 1024
+
 
 def kill_tail_threads():
     """
@@ -748,7 +751,7 @@ class Tail(Spawn):
                     break
                 if poll_status:
                     # Some data is available; read it
-                    new_bytes = os.read(tail_pipe, 1024)
+                    new_bytes = os.read(tail_pipe, READ_BUFFER_SIZE)
                     if not new_bytes:
                         break
                     new_data = decoder.decode(input=new_bytes)
@@ -912,7 +915,7 @@ class Expect(Tail):
             except select.error:
                 return read, data
             if poll_status:
-                raw_data = os.read(expect_pipe, 1024)
+                raw_data = os.read(expect_pipe, READ_BUFFER_SIZE)
                 if not raw_data:
                     return read, data.decode(self.encoding, "ignore")
                 read += len(raw_data)
