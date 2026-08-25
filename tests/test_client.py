@@ -18,6 +18,7 @@ import os
 import random
 import string
 import sys
+import time
 import unittest
 
 from aexpect import client
@@ -192,6 +193,157 @@ class CommandsTests(unittest.TestCase):
             msg="fd leak: Closing the session didn't close "
             "the file descriptors",
         )
+
+
+class EncodingTest(unittest.TestCase):
+
+    DEBUG = False
+
+    # Encoding used to translate between Unicode text and bytes
+    ENCODING = "utf-8"
+
+    # text whose characters decode to multiple byte
+    TEXT = "嗨😀"
+
+    REPETITIONS_FOR_TAIL = 3
+
+    MAX_OFFSET = 10
+
+    def analyze_output(self, offset, new_output):
+        """Helper; Compare output to expectation"""
+        # remove the leading offset whitespace
+        idx = 0
+        for idx, char in enumerate(new_output):
+            if char.isspace():
+                continue
+            if char == self.TEXT[0]:
+                break
+            self.fail(
+                f"Unexpected char found at {idx=}: {char!r} ({char.encode(self.ENCODING)}). "
+                f"Line start: {new_output[:50]}, line length: {len(new_output)}"
+            )
+        if idx == len(new_output):
+            self.fail("Test text not found!")
+        if idx > 0:
+            new_output = new_output[idx:]
+        if self.DEBUG:
+            print(f"Skipping {idx} whitespace chars at start")
+
+        # print start and end, count chars
+        n_chars = len(new_output)
+        if self.DEBUG:
+            print(f"Output for offset {offset}: len={n_chars}.")
+            for idx, char in enumerate(new_output[:3]):
+                print_char = chr(0x21B2) if char == "\n" else char
+                print(
+                    f"char {idx}: {print_char} ({char.encode(self.ENCODING)})",
+                    end="; ",
+                )
+            print("...", end="")
+            for idx, char in enumerate(new_output[-3:]):
+                print_char = chr(0x21B2) if char == "\n" else char
+                print(
+                    f"char {n_chars-3+idx}: {print_char} ({char.encode(self.ENCODING)})",
+                    end="; ",
+                )
+            print()
+        return n_chars
+
+    def analyze_results(self, all_lengths: list):
+        """Helper: compare results, decide whether test was successful"""
+        if not all_lengths:
+            self.fail("no successful output analyses")
+        expect = all_lengths[0]
+        if any(curr_length != expect for curr_length in all_lengths[1:]):
+            self.fail("There were differences in encoded output lengths")
+        elif self.DEBUG:
+            print("SUCCESS")
+
+    @unittest.skipUnless(os.name == "posix", "Unix/Linux/macOS only")
+    def test_shell(self):
+        """
+        Tests correct decoding of multibyte characters in ShellSession.
+
+        Even if reading is interrupted with incomplete characters, we
+        expect correct output.
+
+        Spawns a python session that produces multibyte output
+        with various single-byte offsets.
+        """
+        sess = client.ShellSession("/bin/sh")
+        sess.cmd_output(
+            "echo 'Just removing potential initial prompt from output'"
+        )
+        all_lengths = []
+        output = self.TEXT.encode(self.ENCODING)
+        repetitions = 1024 // len(output) + 1
+        for offset in range(self.MAX_OFFSET):
+            if self.DEBUG:
+                print(f"Start testing with shell and offset {offset}")
+            cmd = (
+                f"import os; import sys; t=b' '*{offset}+{output!r}*{repetitions}+b'\\n'; "
+                f"f=os.fdopen(sys.stdout.fileno(), 'wb', closefd=False); f.write(t); f.flush()"
+            )
+            new_output = sess.cmd_output(f'{sys.executable} -c "{cmd}"')
+            all_lengths.append(self.analyze_output(offset, new_output))
+        sess.close()
+        self.analyze_results(all_lengths)
+
+    def test_tail(self):
+        """
+        Tests correct decoding of multibyte characters in Tail.
+
+        Like test_shell, but using a Tail and repeating the output to get
+        multiple lines of output. Requires custom output gatherer and
+        termination function
+        """
+        output_buffer = []
+        terminated = False
+
+        def remember_output(new_output):
+            nonlocal output_buffer
+            output_buffer.append(new_output)
+
+        def termination_func(_status):
+            nonlocal terminated
+            terminated = True
+
+        output = self.TEXT.encode(self.ENCODING)
+        repetitions = 1024 // len(output) + 1
+        all_lengths = []
+        for offset in range(self.MAX_OFFSET):
+            terminated = False
+            output_buffer = []
+            cmd = (
+                f"import os; import sys; t=b' '*{offset}+{output!r}*{repetitions}+b'\\n';"
+                f"f=os.fdopen(sys.stdout.fileno(), 'wb', closefd=False); f.write(t); f.flush()"
+            )
+            for _ in range(self.REPETITIONS_FOR_TAIL - 1):
+                cmd += "; f.write(t); f.flush()"
+            if self.DEBUG:
+                print("Spawning Tail")
+            python = client.Tail(
+                f'{sys.executable} -c "{cmd}"',
+                output_func=remember_output,
+                termination_func=termination_func,
+            )
+            if self.DEBUG:
+                print(f"Listening for subproc {python.get_pid()}")
+            for _ in range(1000):
+                if terminated:
+                    break
+                if self.DEBUG:
+                    print(".", end="", flush=True)
+                time.sleep(0.01)
+            if self.DEBUG:
+                print("\nDone")
+            python.close()
+            for line in output_buffer:
+                if line.startswith("(Process terminated "):
+                    continue
+                all_lengths.append(self.analyze_output(offset, line))
+
+        self.analyze_results(all_lengths)
 
 
 if __name__ == "__main__":

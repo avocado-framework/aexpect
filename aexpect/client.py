@@ -27,6 +27,7 @@ import signal
 import subprocess
 import threading
 import time
+from codecs import getincrementaldecoder
 
 from aexpect.exceptions import (
     ExpectError,
@@ -55,6 +56,9 @@ from aexpect.utils import wait as utils_wait
 _THREAD_KILL_REQUESTED = threading.Event()
 
 LOG = logging.getLogger(__name__)
+
+# Buffer size in byte for pipe reads
+READ_BUFFER_SIZE = 1024
 
 
 def kill_tail_threads():
@@ -731,6 +735,8 @@ class Tail(Spawn):
             poller = select.poll()
             poller.register(tail_pipe, select.POLLIN)
             bfr = ""
+            decoder_class = getincrementaldecoder(self.encoding)
+            decoder = decoder_class(errors="ignore")
             while True:
                 if _THREAD_KILL_REQUESTED.is_set():
                     try:
@@ -745,10 +751,10 @@ class Tail(Spawn):
                     break
                 if poll_status:
                     # Some data is available; read it
-                    new_data = os.read(tail_pipe, 1024)
-                    if not new_data:
+                    new_bytes = os.read(tail_pipe, READ_BUFFER_SIZE)
+                    if not new_bytes:
                         break
-                    new_data = new_data.decode(self.encoding, "ignore")
+                    new_data = decoder.decode(input=new_bytes)
                     if not new_data:  # all chars were ignored, skip round
                         continue
                     bfr += new_data
@@ -901,7 +907,7 @@ class Expect(Tail):
         expect_pipe = self._get_fd("expect")
         poller = select.poll()
         poller.register(expect_pipe, select.POLLIN)
-        data = ""
+        data = b""
         read = 0
         while True:
             try:
@@ -909,15 +915,15 @@ class Expect(Tail):
             except select.error:
                 return read, data
             if poll_status:
-                raw_data = os.read(expect_pipe, 1024)
+                raw_data = os.read(expect_pipe, READ_BUFFER_SIZE)
                 if not raw_data:
-                    return read, data
+                    return read, data.decode(self.encoding, "ignore")
                 read += len(raw_data)
-                data += raw_data.decode(self.encoding, "ignore")
+                data += raw_data
             else:
-                return read, data
+                return read, data.decode(self.encoding, "ignore")
             if end_time and time.monotonic() > end_time:
-                return read, data
+                return read, data.decode(self.encoding, "ignore")
 
     def read_nonblocking(self, internal_timeout=None, timeout=None):
         """
