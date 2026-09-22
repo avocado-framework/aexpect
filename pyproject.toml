@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "aexpect"
 description = "Python library used to control interactive programs"
 readme = "README.rst"
-version = "1.8.0"
+dynamic = ["version"]
 license = {text = "GPL-2.0-or-later"}
 authors = [{name = "Aexpect developers", email = "avocado-devel@redhat.com"}]
 maintainers = [{name = "Aexpect developers", email = "avocado-devel@redhat.com"}]
@@ -44,6 +44,7 @@ include = ["aexpect*"]
 [tool.setuptools_scm]
 version_scheme = "post-release"
 local_scheme = "node-and-date"
+fallback_version = "1.8.0"
 
 [tool.black]
 line-length = 79

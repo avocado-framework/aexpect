@@ -1,6 +1,7 @@
 PYTHON=$(shell which python 2>/dev/null || which python3 2>/dev/null)
 PROJECT=aexpect
-VERSION=$(shell $(PYTHON) -m setuptools_scm)
+VERSION=$(shell $(PYTHON) -m setuptools_scm 2>/dev/null || grep '^Version:' python-$(PROJECT).spec | awk '{print $$2}')
+SPEC_VERSION=$(shell grep '^Version:' python-$(PROJECT).spec | awk '{print $$2}')
 COMMIT=$(shell git log --pretty=format:'%H' -n 1)
 SHORT_COMMIT=$(shell git log --pretty=format:'%h' -n 1)
 COMMIT_DATE=$(shell git log --pretty='format:%cd' --date='format:%Y%m%d' -n 1)
@@ -25,7 +26,7 @@ source: clean
 
 source-release: clean
 	mkdir -p SOURCES
-	git archive --prefix="$(PROJECT)-$(VERSION)/" -o "SOURCES/$(PROJECT)-$(VERSION).tar.gz" $(VERSION)
+	git archive --prefix="$(PROJECT)-$(SPEC_VERSION)/" -o "SOURCES/$(PROJECT)-$(SPEC_VERSION).tar.gz" $(SPEC_VERSION)
 
 install:
 	rm -r dist 2>/dev/null || true
@@ -74,7 +75,7 @@ srpm: source
 
 rpm: srpm
 	mkdir -p BUILD/RPM
-	mock -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 0" -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --rebuild BUILD/SRPM/python-$(PROJECT)-$(VERSION)-*.src.rpm
+	mock -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 0" -D "commit $(COMMIT)" -D "commit_date $(COMMIT_DATE)" --rebuild BUILD/SRPM/python-$(PROJECT)-$(SPEC_VERSION)-*.src.rpm
 
 srpm-release: source-release
 	mkdir -p BUILD/SRPM
@@ -82,7 +83,7 @@ srpm-release: source-release
 
 rpm-release: srpm-release
 	mkdir -p BUILD/RPM
-	mock -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 1" --rebuild BUILD/SRPM/python-$(PROJECT)-$(VERSION)-*.src.rpm
+	mock -r $(MOCK_CONFIG) --resultdir BUILD/RPM -D "rel_build 1" --rebuild BUILD/SRPM/python-$(PROJECT)-$(SPEC_VERSION)-*.src.rpm
 
 clean:
 	$(MAKE) -f $(CURDIR)/debian/rules clean || true
