@@ -19,6 +19,5 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -r requirements-travis.txt
-      - run: make install
+      - run: pip install '.[test,lint]'
       - run: make check
