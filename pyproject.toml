@@ -31,7 +31,11 @@ Repository = "https://github.com/avocado-framework/aexpect"
 Issues = "https://github.com/avocado-framework/aexpect/issues"
 
 [project.optional-dependencies]
-test = ["pytest>=9.0.3"]
+test = [
+    "pytest>=8.3,<9; python_version < '3.9'",
+    "pytest>=8.4,<9; python_version >= '3.9' and python_version < '3.10'",
+    "pytest>=9; python_version >= '3.10'",
+]
 lint = ["black", "pycodestyle", "isort", "inspektor"]
 dev = ["aexpect[test,lint]", "setuptools-scm>=8", "build", "twine"]
 
